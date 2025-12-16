@@ -1,0 +1,100 @@
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-heritage_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.docker
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      DEBUG: "False"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,frontend}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:8080}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+      AI_CONFIG_PATH: ${AI_CONFIG_PATH:-/app/backend/config/ai.yaml}
+
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-heritage_platform}
+      POSTGRES_DB: ${POSTGRES_DB:-heritage_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin1234}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      CREATE_SUPERUSER: ${CREATE_SUPERUSER:-true}
+      SEED_HERITAGE_DATA: ${SEED_HERITAGE_DATA:-true}
+      SEED_HERITAGE_RESET: ${SEED_HERITAGE_RESET:-false}
+      SEED_HERITAGE_SKIP_MEDIA_DOWNLOADS: ${SEED_HERITAGE_SKIP_MEDIA_DOWNLOADS:-false}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backend_static:/app/backend/staticfiles
+      - backend_media:/app/backend/media
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    volumes:
+      - backend_static:/static:ro
+      - backend_media:/media:ro
+    restart: unless-stopped
+
+  # Optional local AI provider (Ollama). Enabled via: `docker compose --profile ai up -d`
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    volumes:
+      - ollama:/root/.ollama
+    expose:
+      - "11434"
+    # For local debugging from the host machine, uncomment:
+    # ports:
+    #   - "127.0.0.1:11434:11434"
+    restart: unless-stopped
+
+  # One-shot init container to preload the model into Ollama (first run can take a while).
+  ollama-pull:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command:
+      [
+        "sh",
+        "-lc",
+        "until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull ${OLLAMA_MODEL:-llama3.2:1b}",
+      ]
+    restart: "no"
+
+volumes:
+  postgres_data:
+  backend_static:
+  backend_media:
+  ollama:

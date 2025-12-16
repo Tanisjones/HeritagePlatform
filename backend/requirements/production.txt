@@ -1,0 +1,15 @@
+-r base.txt
+
+# Production server
+gunicorn==23.0.0
+
+# Storage
+django-storages==1.14.4
+boto3==1.35.80
+
+# Caching
+redis==5.2.1
+django-redis==5.4.0
+
+# Monitoring
+sentry-sdk==2.19.2

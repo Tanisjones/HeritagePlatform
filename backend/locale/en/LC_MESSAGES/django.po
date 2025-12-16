@@ -1,0 +1,1824 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-14 09:13-0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/ai_services/models.py:15 apps/contributions/models.py:28
+#: apps/heritage/models.py:288 apps/heritage/models.py:365
+#: apps/moderation/models.py:18 apps/moderation/models.py:72
+#: apps/moderation/models.py:141 apps/moderation/models.py:231
+#: apps/moderation/models.py:270
+msgid "heritage item"
+msgstr ""
+
+#: apps/ai_services/models.py:17
+msgid "suggester"
+msgstr ""
+
+#: apps/ai_services/models.py:18
+msgid "suggestion type"
+msgstr ""
+
+#: apps/ai_services/models.py:19 apps/contributions/models.py:42
+#: apps/education/models.py:559 apps/heritage/models.py:373
+#: apps/moderation/models.py:280
+msgid "content"
+msgstr ""
+
+#: apps/ai_services/models.py:20
+msgid "confidence"
+msgstr ""
+
+#: apps/ai_services/models.py:22 apps/contributions/models.py:40
+#: apps/education/models.py:129 apps/heritage/models.py:174
+#: apps/moderation/models.py:144 apps/routes/models.py:61
+msgid "status"
+msgstr ""
+
+#: apps/ai_services/models.py:27 apps/contributions/models.py:44
+#: apps/contributions/models.py:91 apps/gamification/models.py:32
+#: apps/heritage/models.py:136 apps/heritage/models.py:280
+#: apps/heritage/models.py:344 apps/heritage/models.py:374
+#: apps/moderation/models.py:37 apps/moderation/models.py:164
+#: apps/moderation/models.py:249 apps/moderation/models.py:282
+#: apps/notifications/models.py:69 apps/routes/models.py:111
+#: apps/routes/models.py:225 apps/users/models.py:156
+msgid "created at"
+msgstr ""
+
+#: apps/ai_services/models.py:34
+msgid "reviewed by"
+msgstr ""
+
+#: apps/ai_services/models.py:36 apps/contributions/models.py:45
+msgid "reviewed at"
+msgstr ""
+
+#: apps/ai_services/models.py:39
+msgid "AI suggestion"
+msgstr ""
+
+#: apps/ai_services/models.py:40
+msgid "AI suggestions"
+msgstr ""
+
+#: apps/ai_services/views.py:52
+msgid "Suggestion approved and applied."
+msgstr ""
+
+#: apps/ai_services/views.py:63
+msgid "Suggestion rejected."
+msgstr ""
+
+#: apps/contributions/models.py:11
+msgid "New Heritage Item"
+msgstr ""
+
+#: apps/contributions/models.py:12
+msgid "Enrichment (Media/Info)"
+msgstr ""
+
+#: apps/contributions/models.py:13
+msgid "Correction"
+msgstr ""
+
+#: apps/contributions/models.py:17 apps/heritage/models.py:154
+#: apps/routes/models.py:20
+msgid "Pending Review"
+msgstr ""
+
+#: apps/contributions/models.py:18
+msgid "Approved"
+msgstr ""
+
+#: apps/contributions/models.py:19 apps/heritage/models.py:157
+#: apps/routes/models.py:23
+msgid "Rejected"
+msgstr ""
+
+#: apps/contributions/models.py:20 apps/heritage/models.py:155
+#: apps/notifications/models.py:31 apps/routes/models.py:21
+msgid "Changes Requested"
+msgstr ""
+
+#: apps/contributions/models.py:36 apps/heritage/models.py:255
+msgid "contributor"
+msgstr ""
+
+#: apps/contributions/models.py:39
+msgid "contribution type"
+msgstr ""
+
+#: apps/contributions/models.py:52 apps/contributions/models.py:85
+msgid "reviewer"
+msgstr ""
+
+#: apps/contributions/models.py:56 apps/contributions/models.py:78
+msgid "contribution"
+msgstr ""
+
+#: apps/contributions/models.py:57
+msgid "contributions"
+msgstr ""
+
+#: apps/contributions/models.py:68
+msgid "Approve"
+msgstr ""
+
+#: apps/contributions/models.py:69
+msgid "Reject"
+msgstr ""
+
+#: apps/contributions/models.py:70
+msgid "Request Changes"
+msgstr ""
+
+#: apps/contributions/models.py:88
+msgid "decision"
+msgstr ""
+
+#: apps/contributions/models.py:89
+msgid "feedback"
+msgstr ""
+
+#: apps/contributions/models.py:94
+msgid "contribution review"
+msgstr ""
+
+#: apps/contributions/models.py:95
+msgid "contribution reviews"
+msgstr ""
+
+#: apps/education/models.py:29 apps/education/models.py:533
+#: apps/heritage/models.py:171 apps/notifications/models.py:54
+#: apps/routes/models.py:36
+msgid "title"
+msgstr ""
+
+#: apps/education/models.py:31
+msgid "Name given to this learning object"
+msgstr ""
+
+#: apps/education/models.py:36 apps/education/models.py:358
+msgid "language"
+msgstr ""
+
+#: apps/education/models.py:40 apps/education/models.py:362
+#: apps/users/models.py:124 apps/users/serializers.py:80
+msgid "Spanish"
+msgstr ""
+
+#: apps/education/models.py:41 apps/education/models.py:363
+#: apps/users/models.py:125 apps/users/serializers.py:80
+msgid "English"
+msgstr ""
+
+#: apps/education/models.py:42 apps/education/models.py:364
+msgid "Quechua"
+msgstr ""
+
+#: apps/education/models.py:44
+msgid "Primary language of the learning object"
+msgstr ""
+
+#: apps/education/models.py:49 apps/education/models.py:351
+#: apps/education/models.py:408 apps/education/models.py:478
+#: apps/education/models.py:534 apps/gamification/models.py:49
+#: apps/heritage/models.py:30 apps/heritage/models.py:60
+#: apps/heritage/models.py:172 apps/heritage/models.py:343
+#: apps/moderation/models.py:182 apps/routes/models.py:37
+#: apps/users/models.py:49
+msgid "description"
+msgstr ""
+
+#: apps/education/models.py:50
+msgid "Description of the content of this learning object"
+msgstr ""
+
+#: apps/education/models.py:55 apps/education/models.py:485
+msgid "keywords"
+msgstr ""
+
+#: apps/education/models.py:57
+msgid "Keywords or phrases describing the topic (comma-separated)"
+msgstr ""
+
+#: apps/education/models.py:62
+msgid "coverage"
+msgstr ""
+
+#: apps/education/models.py:64
+msgid ""
+"Time, culture, geography or region to which this learning object applies"
+msgstr ""
+
+#: apps/education/models.py:69
+msgid "structure"
+msgstr ""
+
+#: apps/education/models.py:73
+msgid "Atomic - indivisible object"
+msgstr ""
+
+#: apps/education/models.py:74
+msgid "Collection - set of objects"
+msgstr ""
+
+#: apps/education/models.py:75
+msgid "Networked - connected objects"
+msgstr ""
+
+#: apps/education/models.py:76
+msgid "Hierarchical - tree structure"
+msgstr ""
+
+#: apps/education/models.py:77
+msgid "Linear - ordered sequence"
+msgstr ""
+
+#: apps/education/models.py:79
+msgid "Underlying organizational structure"
+msgstr ""
+
+#: apps/education/models.py:84
+msgid "aggregation level"
+msgstr ""
+
+#: apps/education/models.py:88
+msgid "Level 1 - Raw media/fragment"
+msgstr ""
+
+#: apps/education/models.py:89
+msgid "Level 2 - Lesson/unit"
+msgstr ""
+
+#: apps/education/models.py:90
+msgid "Level 3 - Course/module"
+msgstr ""
+
+#: apps/education/models.py:91
+msgid "Level 4 - Program/curriculum"
+msgstr ""
+
+#: apps/education/models.py:93
+msgid "Functional granularity of this learning object"
+msgstr ""
+
+#: apps/education/models.py:100 apps/education/models.py:101
+msgid "LOM General Metadata"
+msgstr ""
+
+#: apps/education/models.py:121
+msgid "version"
+msgstr ""
+
+#: apps/education/models.py:124
+msgid "Edition of this learning object"
+msgstr ""
+
+#: apps/education/models.py:133 apps/heritage/models.py:153
+#: apps/routes/models.py:19
+msgid "Draft"
+msgstr ""
+
+#: apps/education/models.py:134
+msgid "Final"
+msgstr ""
+
+#: apps/education/models.py:135
+msgid "Revised"
+msgstr ""
+
+#: apps/education/models.py:136
+msgid "Unavailable"
+msgstr ""
+
+#: apps/education/models.py:138
+msgid "Completion status or condition"
+msgstr ""
+
+#: apps/education/models.py:145
+msgid "LOM Life Cycle"
+msgstr ""
+
+#: apps/education/models.py:146
+msgid "LOM Life Cycles"
+msgstr ""
+
+#: apps/education/models.py:158 apps/education/models.py:297
+msgid "Author"
+msgstr ""
+
+#: apps/education/models.py:159
+msgid "Publisher"
+msgstr ""
+
+#: apps/education/models.py:160 apps/heritage/models.py:166
+msgid "Unknown"
+msgstr ""
+
+#: apps/education/models.py:161
+msgid "Initiator"
+msgstr ""
+
+#: apps/education/models.py:162
+msgid "Terminator"
+msgstr ""
+
+#: apps/education/models.py:163
+msgid "Validator"
+msgstr ""
+
+#: apps/education/models.py:164
+msgid "Editor"
+msgstr ""
+
+#: apps/education/models.py:165
+msgid "Graphical Designer"
+msgstr ""
+
+#: apps/education/models.py:166
+msgid "Technical Implementer"
+msgstr ""
+
+#: apps/education/models.py:167
+msgid "Content Provider"
+msgstr ""
+
+#: apps/education/models.py:168
+msgid "Technical Validator"
+msgstr ""
+
+#: apps/education/models.py:169
+msgid "Educational Validator"
+msgstr ""
+
+#: apps/education/models.py:170
+msgid "Script Writer"
+msgstr ""
+
+#: apps/education/models.py:171
+msgid "Instructional Designer"
+msgstr ""
+
+#: apps/education/models.py:172
+msgid "Subject Matter Expert"
+msgstr ""
+
+#: apps/education/models.py:183 apps/users/models.py:135
+msgid "role"
+msgstr ""
+
+#: apps/education/models.py:186
+msgid "Kind of contribution"
+msgstr ""
+
+#: apps/education/models.py:190
+msgid "entity"
+msgstr ""
+
+#: apps/education/models.py:192
+msgid "Name of contributing person or organization"
+msgstr ""
+
+#: apps/education/models.py:196
+msgid "date"
+msgstr ""
+
+#: apps/education/models.py:199
+msgid "Date of contribution"
+msgstr ""
+
+#: apps/education/models.py:203
+msgid "LOM Contributor"
+msgstr ""
+
+#: apps/education/models.py:204
+msgid "LOM Contributors"
+msgstr ""
+
+#: apps/education/models.py:224
+msgid "interactivity type"
+msgstr ""
+
+#: apps/education/models.py:228
+msgid "Active - learning by doing"
+msgstr ""
+
+#: apps/education/models.py:229
+msgid "Expositive - learning by reading/watching"
+msgstr ""
+
+#: apps/education/models.py:230
+msgid "Mixed - combination"
+msgstr ""
+
+#: apps/education/models.py:232
+msgid "Type of interactivity supported"
+msgstr ""
+
+#: apps/education/models.py:237
+msgid "learning resource type"
+msgstr ""
+
+#: apps/education/models.py:241
+msgid "Exercise"
+msgstr ""
+
+#: apps/education/models.py:242
+msgid "Simulation"
+msgstr ""
+
+#: apps/education/models.py:243
+msgid "Questionnaire"
+msgstr ""
+
+#: apps/education/models.py:244
+msgid "Diagram"
+msgstr ""
+
+#: apps/education/models.py:245
+msgid "Figure"
+msgstr ""
+
+#: apps/education/models.py:246
+msgid "Graph"
+msgstr ""
+
+#: apps/education/models.py:247
+msgid "Index"
+msgstr ""
+
+#: apps/education/models.py:248
+msgid "Slide"
+msgstr ""
+
+#: apps/education/models.py:249
+msgid "Table"
+msgstr ""
+
+#: apps/education/models.py:250
+msgid "Narrative Text"
+msgstr ""
+
+#: apps/education/models.py:251
+msgid "Exam"
+msgstr ""
+
+#: apps/education/models.py:252
+msgid "Experiment"
+msgstr ""
+
+#: apps/education/models.py:253
+msgid "Problem Statement"
+msgstr ""
+
+#: apps/education/models.py:254
+msgid "Self Assessment"
+msgstr ""
+
+#: apps/education/models.py:255
+msgid "Lecture"
+msgstr ""
+
+#: apps/education/models.py:257
+msgid "Specific kind of learning object"
+msgstr ""
+
+#: apps/education/models.py:262
+msgid "interactivity level"
+msgstr ""
+
+#: apps/education/models.py:266 apps/education/models.py:281
+msgid "Very Low"
+msgstr ""
+
+#: apps/education/models.py:267 apps/education/models.py:282
+msgid "Low"
+msgstr ""
+
+#: apps/education/models.py:268 apps/education/models.py:283
+#: apps/education/models.py:334 apps/routes/models.py:14
+msgid "Medium"
+msgstr ""
+
+#: apps/education/models.py:269 apps/education/models.py:284
+msgid "High"
+msgstr ""
+
+#: apps/education/models.py:270 apps/education/models.py:285
+msgid "Very High"
+msgstr ""
+
+#: apps/education/models.py:272
+msgid "Degree of interactivity"
+msgstr ""
+
+#: apps/education/models.py:277
+msgid "semantic density"
+msgstr ""
+
+#: apps/education/models.py:287
+msgid "Subjective measure of learning object usefulness"
+msgstr ""
+
+#: apps/education/models.py:292
+msgid "intended end user role"
+msgstr ""
+
+#: apps/education/models.py:296
+msgid "Teacher"
+msgstr ""
+
+#: apps/education/models.py:298
+msgid "Learner"
+msgstr ""
+
+#: apps/education/models.py:299
+msgid "Manager"
+msgstr ""
+
+#: apps/education/models.py:301
+msgid "Principal user(s) for which this learning object was designed"
+msgstr ""
+
+#: apps/education/models.py:306
+msgid "context"
+msgstr ""
+
+#: apps/education/models.py:310
+msgid "School - Primary/Secondary Education"
+msgstr ""
+
+#: apps/education/models.py:311
+msgid "Higher Education - University"
+msgstr ""
+
+#: apps/education/models.py:312
+msgid "Training - Professional Development"
+msgstr ""
+
+#: apps/education/models.py:313
+msgid "Other"
+msgstr ""
+
+#: apps/education/models.py:315
+msgid "Principal environment within which learning is intended to occur"
+msgstr ""
+
+#: apps/education/models.py:320
+msgid "typical age range"
+msgstr ""
+
+#: apps/education/models.py:323
+msgid "Age of the typical intended user (e.g., \"7-9\", \"18+\")"
+msgstr ""
+
+#: apps/education/models.py:328 apps/routes/models.py:39
+msgid "difficulty"
+msgstr ""
+
+#: apps/education/models.py:332
+msgid "Very Easy"
+msgstr ""
+
+#: apps/education/models.py:333 apps/routes/models.py:13
+msgid "Easy"
+msgstr ""
+
+#: apps/education/models.py:335
+msgid "Difficult"
+msgstr ""
+
+#: apps/education/models.py:336
+msgid "Very Difficult"
+msgstr ""
+
+#: apps/education/models.py:338
+msgid "How hard it is to work through this learning object"
+msgstr ""
+
+#: apps/education/models.py:343
+msgid "typical learning time"
+msgstr ""
+
+#: apps/education/models.py:346
+msgid ""
+"Approximate time it takes to work with this learning object (e.g., \"PT30M\" "
+"for 30 minutes)"
+msgstr ""
+
+#: apps/education/models.py:353
+msgid "Comments on how this learning object is to be used"
+msgstr ""
+
+#: apps/education/models.py:366
+msgid "Human language of the intended user"
+msgstr ""
+
+#: apps/education/models.py:373 apps/education/models.py:374
+msgid "LOM Educational Metadata"
+msgstr ""
+
+#: apps/education/models.py:394
+msgid "cost"
+msgstr ""
+
+#: apps/education/models.py:396
+msgid "Whether use of this learning object requires payment"
+msgstr ""
+
+#: apps/education/models.py:401
+msgid "copyright and other restrictions"
+msgstr ""
+
+#: apps/education/models.py:403
+msgid "Whether copyright or other restrictions apply"
+msgstr ""
+
+#: apps/education/models.py:410
+msgid "Comments on the conditions of use of this learning object"
+msgstr ""
+
+#: apps/education/models.py:417 apps/education/models.py:418
+msgid "LOM Rights"
+msgstr ""
+
+#: apps/education/models.py:430
+msgid "Discipline - Disciplinary taxonomy"
+msgstr ""
+
+#: apps/education/models.py:431
+msgid "Idea - Idea taxonomy"
+msgstr ""
+
+#: apps/education/models.py:432
+msgid "Prerequisite - Prerequisites"
+msgstr ""
+
+#: apps/education/models.py:433
+msgid "Educational Objective - Learning objectives"
+msgstr ""
+
+#: apps/education/models.py:434
+msgid "Accessibility Restrictions - Access limitations"
+msgstr ""
+
+#: apps/education/models.py:435
+msgid "Educational Level - Grade level"
+msgstr ""
+
+#: apps/education/models.py:436
+msgid "Skill Level - Skill requirements"
+msgstr ""
+
+#: apps/education/models.py:437
+msgid "Security Level - Security classification"
+msgstr ""
+
+#: apps/education/models.py:438
+msgid "Competency - Competencies addressed"
+msgstr ""
+
+#: apps/education/models.py:450
+msgid "purpose"
+msgstr ""
+
+#: apps/education/models.py:453
+msgid "Characteristic described by this classification"
+msgstr ""
+
+#: apps/education/models.py:458
+msgid "taxon source"
+msgstr ""
+
+#: apps/education/models.py:460
+msgid "Name of the classification system"
+msgstr ""
+
+#: apps/education/models.py:464
+msgid "taxon id"
+msgstr ""
+
+#: apps/education/models.py:467
+msgid "Identifier of the taxon"
+msgstr ""
+
+#: apps/education/models.py:471
+msgid "taxon entry"
+msgstr ""
+
+#: apps/education/models.py:473
+msgid "Label of the taxon"
+msgstr ""
+
+#: apps/education/models.py:480
+msgid "Description of the learning object relative to its classification"
+msgstr ""
+
+#: apps/education/models.py:487
+msgid "Keywords describing the classification (comma-separated)"
+msgstr ""
+
+#: apps/education/models.py:494
+msgid "LOM Classification"
+msgstr ""
+
+#: apps/education/models.py:495
+msgid "LOM Classifications"
+msgstr ""
+
+#: apps/education/models.py:505 apps/education/models.py:519
+#: apps/gamification/models.py:48 apps/gamification/models.py:69
+#: apps/heritage/models.py:14 apps/heritage/models.py:58
+#: apps/heritage/models.py:75 apps/moderation/models.py:181
+#: apps/notifications/models.py:10 apps/users/models.py:42
+msgid "name"
+msgstr ""
+
+#: apps/education/models.py:506 apps/education/models.py:520
+#: apps/heritage/models.py:15 apps/heritage/models.py:59
+#: apps/users/models.py:43
+msgid "slug"
+msgstr ""
+
+#: apps/education/models.py:509 apps/education/models.py:541
+msgid "resource type"
+msgstr ""
+
+#: apps/education/models.py:510
+msgid "resource types"
+msgstr ""
+
+#: apps/education/models.py:523
+msgid "resource category"
+msgstr ""
+
+#: apps/education/models.py:524
+msgid "resource categories"
+msgstr ""
+
+#: apps/education/models.py:549 apps/gamification/models.py:51
+msgid "category"
+msgstr ""
+
+#: apps/education/models.py:557
+msgid "author"
+msgstr ""
+
+#: apps/education/models.py:564
+msgid "related heritage items"
+msgstr ""
+
+#: apps/education/models.py:570
+msgid "educational resource"
+msgstr ""
+
+#: apps/education/models.py:571
+msgid "educational resources"
+msgstr ""
+
+#: apps/gamification/models.py:16 apps/gamification/models.py:92
+#: apps/heritage/models.py:371 apps/routes/models.py:165
+#: apps/routes/models.py:217 apps/users/models.py:83 apps/users/models.py:99
+msgid "user"
+msgstr ""
+
+#: apps/gamification/models.py:18 apps/users/models.py:139
+msgid "points"
+msgstr ""
+
+#: apps/gamification/models.py:19 apps/moderation/models.py:153
+msgid "reason"
+msgstr ""
+
+#: apps/gamification/models.py:21
+msgid "reference type"
+msgstr ""
+
+#: apps/gamification/models.py:24
+msgid "Content type of related object"
+msgstr ""
+
+#: apps/gamification/models.py:27
+msgid "reference ID"
+msgstr ""
+
+#: apps/gamification/models.py:30
+msgid "ID of related object"
+msgstr ""
+
+#: apps/gamification/models.py:35
+msgid "point transaction"
+msgstr ""
+
+#: apps/gamification/models.py:36
+msgid "point transactions"
+msgstr ""
+
+#: apps/gamification/models.py:50 apps/heritage/models.py:25
+msgid "icon"
+msgstr ""
+
+#: apps/gamification/models.py:52
+msgid "points value"
+msgstr ""
+
+#: apps/gamification/models.py:53
+msgid "requirements"
+msgstr ""
+
+#: apps/gamification/models.py:56 apps/gamification/models.py:98
+msgid "badge"
+msgstr ""
+
+#: apps/gamification/models.py:57
+msgid "badges"
+msgstr ""
+
+#: apps/gamification/models.py:68
+msgid "number"
+msgstr ""
+
+#: apps/gamification/models.py:70
+msgid "minimum points"
+msgstr ""
+
+#: apps/gamification/models.py:71
+msgid "maximum points"
+msgstr ""
+
+#: apps/gamification/models.py:72
+msgid "benefits"
+msgstr ""
+
+#: apps/gamification/models.py:75 apps/users/models.py:140
+msgid "level"
+msgstr ""
+
+#: apps/gamification/models.py:76
+msgid "levels"
+msgstr ""
+
+#: apps/gamification/models.py:100
+msgid "earned at"
+msgstr ""
+
+#: apps/gamification/models.py:103
+msgid "user badge"
+msgstr ""
+
+#: apps/gamification/models.py:104
+msgid "user badges"
+msgstr ""
+
+#: apps/heritage/admin.py:59
+msgid "Basic Information"
+msgstr ""
+
+#: apps/heritage/admin.py:62
+msgid "Location"
+msgstr ""
+
+#: apps/heritage/admin.py:65
+msgid "Classification"
+msgstr ""
+
+#: apps/heritage/admin.py:68
+msgid "Media"
+msgstr ""
+
+#: apps/heritage/admin.py:71
+msgid "Metadata"
+msgstr ""
+
+#: apps/heritage/admin.py:74
+msgid "Statistics"
+msgstr ""
+
+#: apps/heritage/admin.py:107
+msgid "Content Preview"
+msgstr ""
+
+#: apps/heritage/models.py:22
+msgid "parent category"
+msgstr ""
+
+#: apps/heritage/models.py:28
+msgid "Icon name for frontend display"
+msgstr ""
+
+#: apps/heritage/models.py:31 apps/moderation/models.py:214
+#: apps/routes/models.py:143
+msgid "order"
+msgstr ""
+
+#: apps/heritage/models.py:34 apps/heritage/models.py:203
+msgid "heritage category"
+msgstr ""
+
+#: apps/heritage/models.py:35
+msgid "heritage categories"
+msgstr ""
+
+#: apps/heritage/models.py:63 apps/heritage/models.py:197
+msgid "heritage type"
+msgstr ""
+
+#: apps/heritage/models.py:64
+msgid "heritage types"
+msgstr ""
+
+#: apps/heritage/models.py:76
+msgid "canton"
+msgstr ""
+
+#: apps/heritage/models.py:77
+msgid "province"
+msgstr ""
+
+#: apps/heritage/models.py:78
+msgid "boundary"
+msgstr ""
+
+#: apps/heritage/models.py:81
+msgid "population"
+msgstr ""
+
+#: apps/heritage/models.py:82
+msgid "area (km²)"
+msgstr ""
+
+#: apps/heritage/models.py:85 apps/heritage/models.py:189
+msgid "parish"
+msgstr ""
+
+#: apps/heritage/models.py:86
+msgid "parishes"
+msgstr ""
+
+#: apps/heritage/models.py:99
+msgid "Image"
+msgstr ""
+
+#: apps/heritage/models.py:100
+msgid "Audio"
+msgstr ""
+
+#: apps/heritage/models.py:101
+msgid "Video"
+msgstr ""
+
+#: apps/heritage/models.py:102
+msgid "Document"
+msgstr ""
+
+#: apps/heritage/models.py:107
+msgid "file"
+msgstr ""
+
+#: apps/heritage/models.py:113
+msgid "file type"
+msgstr ""
+
+#: apps/heritage/models.py:114
+msgid "MIME type"
+msgstr ""
+
+#: apps/heritage/models.py:115
+msgid "file size (bytes)"
+msgstr ""
+
+#: apps/heritage/models.py:118
+msgid "width"
+msgstr ""
+
+#: apps/heritage/models.py:119
+msgid "height"
+msgstr ""
+
+#: apps/heritage/models.py:122
+msgid "duration"
+msgstr ""
+
+#: apps/heritage/models.py:125
+msgid "alternative text"
+msgstr ""
+
+#: apps/heritage/models.py:126
+msgid "caption"
+msgstr ""
+
+#: apps/heritage/models.py:134
+msgid "uploaded by"
+msgstr ""
+
+#: apps/heritage/models.py:139
+msgid "media file"
+msgstr ""
+
+#: apps/heritage/models.py:140
+msgid "media files"
+msgstr ""
+
+#: apps/heritage/models.py:156 apps/routes/models.py:22
+msgid "Published"
+msgstr ""
+
+#: apps/heritage/models.py:158 apps/routes/models.py:24
+msgid "Archived"
+msgstr ""
+
+#: apps/heritage/models.py:162
+msgid "Pre-Columbian"
+msgstr ""
+
+#: apps/heritage/models.py:163
+msgid "Colonial"
+msgstr ""
+
+#: apps/heritage/models.py:164
+msgid "Republican"
+msgstr ""
+
+#: apps/heritage/models.py:165
+msgid "Contemporary"
+msgstr ""
+
+#: apps/heritage/models.py:181 apps/users/models.py:115
+msgid "location"
+msgstr ""
+
+#: apps/heritage/models.py:181
+msgid "Geographic coordinates"
+msgstr ""
+
+#: apps/heritage/models.py:182
+msgid "address"
+msgstr ""
+
+#: apps/heritage/models.py:206
+msgid "historical period"
+msgstr ""
+
+#: apps/heritage/models.py:218
+msgid "images"
+msgstr ""
+
+#: apps/heritage/models.py:225
+msgid "audio files"
+msgstr ""
+
+#: apps/heritage/models.py:232
+msgid "video files"
+msgstr ""
+
+#: apps/heritage/models.py:239
+msgid "documents"
+msgstr ""
+
+#: apps/heritage/models.py:244
+msgid "external registry URL"
+msgstr ""
+
+#: apps/heritage/models.py:246
+msgid "Link to official heritage registry"
+msgstr ""
+
+#: apps/heritage/models.py:263 apps/moderation/models.py:245
+#: apps/moderation/models.py:278 apps/routes/models.py:70
+msgid "curator"
+msgstr ""
+
+#: apps/heritage/models.py:265 apps/routes/models.py:72
+msgid "curator feedback"
+msgstr ""
+
+#: apps/heritage/models.py:266 apps/routes/models.py:75
+msgid "priority"
+msgstr ""
+
+#: apps/heritage/models.py:267 apps/routes/models.py:74
+msgid "submission date"
+msgstr ""
+
+#: apps/heritage/models.py:268 apps/routes/models.py:73
+msgid "last review date"
+msgstr ""
+
+#: apps/heritage/models.py:275
+msgid "moderator"
+msgstr ""
+
+#: apps/heritage/models.py:277
+msgid "moderator feedback"
+msgstr ""
+
+#: apps/heritage/models.py:281 apps/heritage/models.py:375
+#: apps/moderation/models.py:165 apps/moderation/models.py:283
+#: apps/routes/models.py:112 apps/routes/models.py:226 apps/users/models.py:157
+msgid "updated at"
+msgstr ""
+
+#: apps/heritage/models.py:284 apps/routes/models.py:107
+msgid "view count"
+msgstr ""
+
+#: apps/heritage/models.py:285
+msgid "favorite count"
+msgstr ""
+
+#: apps/heritage/models.py:289 apps/routes/models.py:49
+msgid "heritage items"
+msgstr ""
+
+#: apps/heritage/models.py:319
+msgid "Part of"
+msgstr ""
+
+#: apps/heritage/models.py:320
+msgid "Related to"
+msgstr ""
+
+#: apps/heritage/models.py:321
+msgid "Inspired by"
+msgstr ""
+
+#: apps/heritage/models.py:322
+msgid "Located near"
+msgstr ""
+
+#: apps/heritage/models.py:323
+msgid "Same historical period"
+msgstr ""
+
+#: apps/heritage/models.py:330
+msgid "from item"
+msgstr ""
+
+#: apps/heritage/models.py:336
+msgid "to item"
+msgstr ""
+
+#: apps/heritage/models.py:339
+msgid "relation type"
+msgstr ""
+
+#: apps/heritage/models.py:347
+msgid "heritage relation"
+msgstr ""
+
+#: apps/heritage/models.py:348
+msgid "heritage relations"
+msgstr ""
+
+#: apps/heritage/models.py:378
+msgid "annotation"
+msgstr ""
+
+#: apps/heritage/models.py:379
+msgid "annotations"
+msgstr ""
+
+#: apps/heritage/views.py:264
+msgid "Invalid latitude, longitude, or radius parameters."
+msgstr ""
+
+#: apps/moderation/models.py:9
+msgid "Contributor"
+msgstr ""
+
+#: apps/moderation/models.py:10
+msgid "Curator"
+msgstr ""
+
+#: apps/moderation/models.py:11
+msgid "System"
+msgstr ""
+
+#: apps/moderation/models.py:20
+msgid "version number"
+msgstr ""
+
+#: apps/moderation/models.py:27
+msgid "created by"
+msgstr ""
+
+#: apps/moderation/models.py:30
+msgid "created by type"
+msgstr ""
+
+#: apps/moderation/models.py:35
+msgid "data snapshot"
+msgstr ""
+
+#: apps/moderation/models.py:36
+msgid "changes summary"
+msgstr ""
+
+#: apps/moderation/models.py:40
+msgid "contribution version"
+msgstr ""
+
+#: apps/moderation/models.py:41
+msgid "contribution versions"
+msgstr ""
+
+#: apps/moderation/models.py:75
+msgid "completeness score"
+msgstr ""
+
+#: apps/moderation/models.py:80
+msgid "accuracy score"
+msgstr ""
+
+#: apps/moderation/models.py:85
+msgid "media quality score"
+msgstr ""
+
+#: apps/moderation/models.py:90
+msgid "total score"
+msgstr ""
+
+#: apps/moderation/models.py:100
+msgid "scored by"
+msgstr ""
+
+#: apps/moderation/models.py:102
+msgid "scored at"
+msgstr ""
+
+#: apps/moderation/models.py:103 apps/moderation/models.py:248
+msgid "notes"
+msgstr ""
+
+#: apps/moderation/models.py:106
+msgid "quality score"
+msgstr ""
+
+#: apps/moderation/models.py:107
+msgid "quality scores"
+msgstr ""
+
+#: apps/moderation/models.py:122
+msgid "Spam"
+msgstr ""
+
+#: apps/moderation/models.py:123
+msgid "Inappropriate"
+msgstr ""
+
+#: apps/moderation/models.py:124
+msgid "Duplicate"
+msgstr ""
+
+#: apps/moderation/models.py:125
+msgid "Expert Review Needed"
+msgstr ""
+
+#: apps/moderation/models.py:126
+msgid "Copyright Issue"
+msgstr ""
+
+#: apps/moderation/models.py:127
+msgid "Inaccurate"
+msgstr ""
+
+#: apps/moderation/models.py:131
+msgid "Open"
+msgstr ""
+
+#: apps/moderation/models.py:132
+msgid "Under Review"
+msgstr ""
+
+#: apps/moderation/models.py:133
+msgid "Resolved"
+msgstr ""
+
+#: apps/moderation/models.py:134
+msgid "Dismissed"
+msgstr ""
+
+#: apps/moderation/models.py:143
+msgid "flag type"
+msgstr ""
+
+#: apps/moderation/models.py:151
+msgid "flagged by"
+msgstr ""
+
+#: apps/moderation/models.py:160
+msgid "resolved by"
+msgstr ""
+
+#: apps/moderation/models.py:162
+msgid "resolution notes"
+msgstr ""
+
+#: apps/moderation/models.py:163
+msgid "resolved at"
+msgstr ""
+
+#: apps/moderation/models.py:168
+msgid "contribution flag"
+msgstr ""
+
+#: apps/moderation/models.py:169
+msgid "contribution flags"
+msgstr ""
+
+#: apps/moderation/models.py:183
+msgid "is active"
+msgstr ""
+
+#: apps/moderation/models.py:188
+msgid "applicable to types"
+msgstr ""
+
+#: apps/moderation/models.py:194
+msgid "applicable to categories"
+msgstr ""
+
+#: apps/moderation/models.py:198
+msgid "review checklist"
+msgstr ""
+
+#: apps/moderation/models.py:199
+msgid "review checklists"
+msgstr ""
+
+#: apps/moderation/models.py:210
+msgid "checklist"
+msgstr ""
+
+#: apps/moderation/models.py:212
+msgid "text"
+msgstr ""
+
+#: apps/moderation/models.py:213
+msgid "help text"
+msgstr ""
+
+#: apps/moderation/models.py:215
+msgid "is required"
+msgstr ""
+
+#: apps/moderation/models.py:218
+msgid "review checklist item"
+msgstr ""
+
+#: apps/moderation/models.py:219
+msgid "review checklist items"
+msgstr ""
+
+#: apps/moderation/models.py:237
+msgid "checklist item"
+msgstr ""
+
+#: apps/moderation/models.py:247
+msgid "is checked"
+msgstr ""
+
+#: apps/moderation/models.py:252
+msgid "review checklist response"
+msgstr ""
+
+#: apps/moderation/models.py:253
+msgid "review checklist responses"
+msgstr ""
+
+#: apps/moderation/models.py:281
+msgid "is pinned"
+msgstr ""
+
+#: apps/moderation/models.py:286
+msgid "curator note"
+msgstr ""
+
+#: apps/moderation/models.py:287
+msgid "curator notes"
+msgstr ""
+
+#: apps/notifications/admin.py:20 apps/notifications/admin.py:44
+msgid "Content"
+msgstr ""
+
+#: apps/notifications/admin.py:47
+msgid "Status"
+msgstr ""
+
+#: apps/notifications/admin.py:50
+msgid "Related Object"
+msgstr ""
+
+#: apps/notifications/admin.py:54
+msgid "Timestamps"
+msgstr ""
+
+#: apps/notifications/admin.py:62
+msgid "Title"
+msgstr ""
+
+#: apps/notifications/apps.py:8
+msgid "Notifications"
+msgstr ""
+
+#: apps/notifications/models.py:11
+msgid "subject"
+msgstr ""
+
+#: apps/notifications/models.py:12
+msgid "body"
+msgstr ""
+
+#: apps/notifications/models.py:13
+msgid "is HTML"
+msgstr ""
+
+#: apps/notifications/models.py:16
+msgid "notification template"
+msgstr ""
+
+#: apps/notifications/models.py:17
+msgid "notification templates"
+msgstr ""
+
+#: apps/notifications/models.py:29
+msgid "Contribution Approved"
+msgstr ""
+
+#: apps/notifications/models.py:30
+msgid "Contribution Rejected"
+msgstr ""
+
+#: apps/notifications/models.py:32
+msgid "Curator Edit"
+msgstr ""
+
+#: apps/notifications/models.py:33
+msgid "Contribution Flagged"
+msgstr ""
+
+#: apps/notifications/models.py:34
+msgid "Contribution Resubmitted"
+msgstr ""
+
+#: apps/notifications/models.py:35
+msgid "Annotation Reply"
+msgstr ""
+
+#: apps/notifications/models.py:36
+msgid "Badge Earned"
+msgstr ""
+
+#: apps/notifications/models.py:37
+msgid "Level Up"
+msgstr ""
+
+#: apps/notifications/models.py:38
+msgid "Moderation Needed"
+msgstr ""
+
+#: apps/notifications/models.py:39
+msgid "System Notification"
+msgstr ""
+
+#: apps/notifications/models.py:47
+msgid "recipient"
+msgstr ""
+
+#: apps/notifications/models.py:50
+msgid "notification type"
+msgstr ""
+
+#: apps/notifications/models.py:55
+msgid "message"
+msgstr ""
+
+#: apps/notifications/models.py:56
+msgid "is read"
+msgstr ""
+
+#: apps/notifications/models.py:57
+msgid "read at"
+msgstr ""
+
+#: apps/notifications/models.py:72
+msgid "user notification"
+msgstr ""
+
+#: apps/notifications/models.py:73
+msgid "user notifications"
+msgstr ""
+
+#: apps/notifications/views.py:83
+msgid "All notifications marked as read."
+msgstr ""
+
+#: apps/routes/models.py:15
+msgid "Hard"
+msgstr ""
+
+#: apps/routes/models.py:28
+msgid "Spring"
+msgstr ""
+
+#: apps/routes/models.py:29
+msgid "Summer"
+msgstr ""
+
+#: apps/routes/models.py:30
+msgid "Autumn"
+msgstr ""
+
+#: apps/routes/models.py:31
+msgid "Winter"
+msgstr ""
+
+#: apps/routes/models.py:32
+msgid "Year Round"
+msgstr ""
+
+#: apps/routes/models.py:38
+msgid "theme"
+msgstr ""
+
+#: apps/routes/models.py:40
+msgid "estimated duration"
+msgstr ""
+
+#: apps/routes/models.py:41
+msgid "distance (km)"
+msgstr ""
+
+#: apps/routes/models.py:43
+msgid "path"
+msgstr ""
+
+#: apps/routes/models.py:57
+msgid "creator"
+msgstr ""
+
+#: apps/routes/models.py:60
+msgid "is official"
+msgstr ""
+
+#: apps/routes/models.py:78
+msgid "wheelchair accessible"
+msgstr ""
+
+#: apps/routes/models.py:79
+msgid "public transit accessible"
+msgstr ""
+
+#: apps/routes/models.py:80
+msgid "accessibility notes"
+msgstr ""
+
+#: apps/routes/models.py:84
+msgid "best season"
+msgstr ""
+
+#: apps/routes/models.py:90
+msgid "estimated cost"
+msgstr ""
+
+#: apps/routes/models.py:96
+msgid "cost notes"
+msgstr ""
+
+#: apps/routes/models.py:100
+msgid "available languages"
+msgstr ""
+
+#: apps/routes/models.py:103
+msgid "Array of language codes, e.g., [\"es\", \"en\"]"
+msgstr ""
+
+#: apps/routes/models.py:108
+msgid "completion count"
+msgstr ""
+
+#: apps/routes/models.py:109
+msgid "average rating"
+msgstr ""
+
+#: apps/routes/models.py:115
+msgid "heritage route"
+msgstr ""
+
+#: apps/routes/models.py:116
+msgid "heritage routes"
+msgstr ""
+
+#: apps/routes/models.py:144
+msgid "arrival instructions"
+msgstr ""
+
+#: apps/routes/models.py:145
+msgid "suggested time"
+msgstr ""
+
+#: apps/routes/models.py:148
+msgid "route stop"
+msgstr ""
+
+#: apps/routes/models.py:149
+msgid "route stops"
+msgstr ""
+
+#: apps/routes/models.py:171 apps/routes/models.py:211
+msgid "route"
+msgstr ""
+
+#: apps/routes/models.py:174
+msgid "started at"
+msgstr ""
+
+#: apps/routes/models.py:175
+msgid "completed at"
+msgstr ""
+
+#: apps/routes/models.py:183
+msgid "current stop"
+msgstr ""
+
+#: apps/routes/models.py:190
+msgid "visited stops"
+msgstr ""
+
+#: apps/routes/models.py:194 apps/routes/models.py:195
+msgid "user route progress"
+msgstr ""
+
+#: apps/routes/models.py:220
+msgid "rating"
+msgstr ""
+
+#: apps/routes/models.py:222
+msgid "Rating from 1 to 5 stars"
+msgstr ""
+
+#: apps/routes/models.py:224
+msgid "comment"
+msgstr ""
+
+#: apps/routes/models.py:229
+msgid "route rating"
+msgstr ""
+
+#: apps/routes/models.py:230
+msgid "route ratings"
+msgstr ""
+
+#: apps/users/admin.py:34
+msgid "Personal info"
+msgstr ""
+
+#: apps/users/admin.py:35
+msgid "Permissions"
+msgstr ""
+
+#: apps/users/admin.py:38
+msgid "Important dates"
+msgstr ""
+
+#: apps/users/models.py:12
+msgid "The Email field must be set"
+msgstr ""
+
+#: apps/users/models.py:30
+msgid "Superuser must have is_staff=True."
+msgstr ""
+
+#: apps/users/models.py:32
+msgid "Superuser must have is_superuser=True."
+msgstr ""
+
+#: apps/users/models.py:45
+msgid "permissions"
+msgstr ""
+
+#: apps/users/models.py:47
+msgid "JSON object defining role permissions"
+msgstr ""
+
+#: apps/users/models.py:52
+msgid "user role"
+msgstr ""
+
+#: apps/users/models.py:53
+msgid "user roles"
+msgstr ""
+
+#: apps/users/models.py:65
+msgid "email address"
+msgstr ""
+
+#: apps/users/models.py:69
+msgid "username"
+msgstr ""
+
+#: apps/users/models.py:74
+msgid "Optional. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+msgstr ""
+
+#: apps/users/models.py:84
+msgid "users"
+msgstr ""
+
+#: apps/users/models.py:102
+msgid "display name"
+msgstr ""
+
+#: apps/users/models.py:105
+msgid "Public display name"
+msgstr ""
+
+#: apps/users/models.py:108
+msgid "avatar"
+msgstr ""
+
+#: apps/users/models.py:113
+msgid "bio"
+msgstr ""
+
+#: apps/users/models.py:118
+msgid "User location coordinates"
+msgstr ""
+
+#: apps/users/models.py:121
+msgid "preferred language"
+msgstr ""
+
+#: apps/users/models.py:144
+msgid "notification preferences"
+msgstr ""
+
+#: apps/users/models.py:146
+msgid "User notification settings"
+msgstr ""
+
+#: apps/users/models.py:149
+msgid "interests"
+msgstr ""
+
+#: apps/users/models.py:152
+msgid "User interests topics"
+msgstr ""
+
+#: apps/users/models.py:160
+msgid "user profile"
+msgstr ""
+
+#: apps/users/models.py:161
+msgid "user profiles"
+msgstr ""
+
+#: apps/users/serializers.py:106 apps/users/serializers.py:212
+msgid "Passwords do not match."
+msgstr ""
+
+#: apps/users/serializers.py:170
+msgid "Unable to log in with provided credentials."
+msgstr ""
+
+#: apps/users/serializers.py:176
+msgid "User account is disabled."
+msgstr ""
+
+#: apps/users/serializers.py:181
+msgid "Must include \"email\" and \"password\"."
+msgstr ""
+
+#: apps/users/serializers.py:221
+msgid "Old password is incorrect."
+msgstr ""
+
+#: apps/users/views.py:115
+msgid "Refresh token is required."
+msgstr ""
+
+#: apps/users/views.py:123
+msgid "Successfully logged out."
+msgstr ""
+
+#: apps/users/views.py:168
+msgid "Password changed successfully."
+msgstr ""

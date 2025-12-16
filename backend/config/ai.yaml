@@ -1,0 +1,40 @@
+ai:
+  # Global on/off switch for all AI endpoints.
+  enabled: true
+
+  # Provider selection (Phase 3 will implement the actual provider clients).
+  provider: ollama
+
+  # For docker-compose, this should resolve to the service name on the internal network.
+  base_url: http://ollama:11434
+
+  # Small default model (CPU-friendly). Change via `OLLAMA_MODEL` + `ollama-pull`, or override here.
+  model: llama3.2:1b
+
+  request_timeout_seconds: 30
+  temperature: 0.2
+  max_output_tokens: 700
+
+  # Explicit allow-list of operations the UI can invoke.
+  allowed_operations:
+    - contribution_draft
+    - contribution_metadata
+    - curator_review_assist
+
+  # Prompt templates are stored here so they can evolve without code changes.
+  prompts:
+    contribution_draft: |
+      You are helping a user draft a cultural heritage contribution.
+      Return JSON with fields: title, description.
+      Language: {{language}}.
+
+    contribution_metadata: |
+      Suggest structured metadata. Return JSON with fields:
+      historical_period, keywords (array of strings), external_registry_url (optional).
+      Language: {{language}}.
+
+    curator_review_assist: |
+      You are helping a curator review a pending heritage contribution.
+      Return JSON with fields:
+      missing_fields (array), risk_flags (array), curator_feedback_draft (string), suggested_edits (object).
+      Language: {{language}}.

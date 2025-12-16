@@ -1,0 +1,828 @@
+{
+    "common": {
+        "brand": "Plataforma de Patrimonio",
+        "search": "Buscar",
+        "allStatus": "Todos los estados",
+        "title": "Título",
+        "type": "Tipo",
+        "status": "Estado",
+        "contributor": "Colaborador",
+        "date": "Fecha",
+        "actions": "Acciones",
+        "saved": "Guardado exitosamente",
+        "description": "Descripción",
+        "heritageType": "Tipo de Patrimonio",
+        "category": "Categoría",
+        "historicalPeriod": "Período Histórico",
+        "externalUrl": "URL de Registro Externo",
+        "location": "Ubicación",
+        "parish": "Parroquia",
+        "address": "Dirección",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "select": "Seleccionar...",
+        "errorLoading": "Error al cargar datos",
+        "errorSaving": "Error al guardar datos",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "pageInfo": "Página {page} de {total}",
+        "noResults": "No se encontraron resultados",
+        "loading": "Cargando...",
+        "clickToUpdateMap": "Haga clic en el mapa para actualizar el marcador de ubicación.",
+        "mainImage": "Imagen Principal",
+        "errorUploading": "Error al subir la imagen",
+        "waitUpload": "Por favor espere a que termine la carga"
+    },
+    "nav": {
+        "home": "Inicio",
+        "explore": "Explorar",
+        "routes": "Rutas",
+        "myRoutes": "Mis rutas",
+        "activeRoutes": "Rutas activas",
+        "learn": "Aprender",
+        "contribute": "Contribuir",
+        "myContributions": "Mis contribuciones",
+        "moderation": "Moderación",
+        "dashboard": "Panel",
+        "profile": "Perfil",
+        "progress": "Mi Progreso",
+        "login": "Iniciar Sesión",
+        "signup": "Registrarse",
+        "logout": "Cerrar Sesión",
+        "notifications": "Notificaciones"
+    },
+    "footer": {
+        "description": "Preservando y compartiendo el patrimonio cultural a través de innovación digital colaborativa.",
+        "quickLinks": "Enlaces Rápidos",
+        "about": "Sobre Nosotros",
+        "contact": "Contacto",
+        "privacy": "Política de Privacidad",
+        "address": "Riobamba, Chimborazo, Ecuador",
+        "copyright": "© {year} {brand}.",
+        "rights": "Todos los derechos reservados."
+    },
+    "home": {
+        "hero": {
+            "title": "Descubre el Patrimonio Cultural de Riobamba",
+            "subtitle": "Explora, aprende y contribuye a preservar nuestros tesoros culturales a través de innovación digital colaborativa."
+        },
+        "search": {
+            "placeholder": "Buscar elementos patrimoniales...",
+            "button": "Buscar"
+        },
+        "cta": {
+            "explore": "Explorar Patrimonio",
+            "contribute": "Empezar a Contribuir"
+        },
+        "stats": {
+            "items": "Elementos Patrimoniales",
+            "tangible": "Tangible",
+            "intangible": "Intangible",
+            "routes": "Rutas"
+        },
+        "map": {
+            "title": "Mapa Patrimonial Interactivo",
+            "subtitle": "Haga clic en los marcadores para explorar sitios patrimoniales en Riobamba",
+            "loading": "Cargando elementos patrimoniales...",
+            "error": "Error al cargar elementos patrimoniales",
+            "tryAgain": "Intentar de nuevo"
+        },
+        "features": {
+            "title": "¿Por qué usar Heritage Platform?",
+            "learn": {
+                "title": "Aprender",
+                "desc": "Descubre contenido educativo sobre el rico patrimonio cultural de Riobamba"
+            },
+            "explore": {
+                "title": "Explorar",
+                "desc": "Navega mapas interactivos y descubre sitios patrimoniales cerca de ti"
+            },
+            "contribute": {
+                "downloadScorm": "Descargar paquete SCORM",
+                "downloadingScorm": "Descargando SCORM...",
+                "downloadScormError": "No se pudo descargar el paquete SCORM.",
+                "title": "Contribuir",
+                "desc": "Comparte conocimiento y ayuda a preservar nuestro patrimonio cultural para futuras generaciones"
+            }
+        }
+    },
+    "explore": {
+        "title": "Elementos Patrimoniales",
+        "searchPlaceholder": "Buscar...",
+        "filters": {
+            "all": "Todos",
+            "tangible": "Tangible",
+            "intangible": "Intangible",
+            "category": "Categoría",
+            "parish": "Parroquia",
+            "media": "Medios",
+            "mediaImages": "Imagen",
+            "mediaAudio": "Audio",
+            "mediaVideo": "Video",
+            "mediaDocuments": "Documento",
+            "mediaTextOnly": "Texto narrativo",
+            "sortNewest": "Más recientes",
+            "sortMostViewed": "Más vistos",
+            "sortMostFavorited": "Más guardados",
+            "clear": "Limpiar"
+        },
+        "offline": {
+            "download": "Descargar para usar sin conexión",
+            "downloading": "Descargando...",
+            "ready": "Paquete sin conexión listo",
+            "mustBeOnline": "Debe estar en línea para descargar un área para uso sin conexión.",
+            "downloadError": "Falló la descarga sin conexión. Inténtelo de nuevo."
+        }
+    },
+    "routes": {
+        "title": "Rutas Patrimoniales",
+        "noRoutes": "No se encontraron rutas."
+    },
+    "learn": {
+        "header": {
+            "subtitle": "Aprender",
+            "title": "Recursos de aprendizaje por nivel",
+            "description": "Filtre materiales educativos usando metadatos LOM (tipo de recurso, contexto, dificultad, idioma) para encontrar la mejor opción para el nivel del estudiante."
+        },
+        "filters": {
+            "search": "Buscar",
+            "searchPlaceholder": "Palabras clave, título, descripción",
+            "level": "Nivel del estudiante",
+            "resourceType": "Tipo de recurso",
+            "context": "Contexto",
+            "difficulty": "Dificultad",
+            "language": "Idioma",
+            "refresh": "Actualizar",
+            "clear": "Limpiar filtros",
+            "showing": "Mostrando {count} de {total} recursos",
+            "noResults": "No hay recursos que coincidan con los filtros seleccionados."
+        },
+        "options": {
+            "all": "Todos",
+            "allTypes": "Todos los tipos",
+            "anyContext": "Cualquier contexto",
+            "any": "Cualquiera",
+            "beginner": "Principiante (muy fácil / fácil)",
+            "intermediate": "Intermedio (medio)",
+            "advanced": "Avanzado (difícil / muy difícil)"
+        },
+        "labels": {
+            "ages": "Edades",
+            "interactivity": "Interactividad",
+            "typicalTime": "Tiempo típico",
+            "keywords": "Palabras clave",
+            "download": "Descargar Paquete SCORM",
+            "downloading": "Descargando...",
+            "downloadError": "Error en la descarga.",
+            "loadError": "No se pueden cargar los recursos de aprendizaje en este momento."
+        },
+        "resourceTypes": {
+            "exercise": "Ejercicio",
+            "simulation": "Simulación",
+            "questionnaire": "Cuestionario",
+            "diagram": "Diagrama",
+            "figure": "Figura",
+            "graph": "Gráfico",
+            "slide": "Diapositiva",
+            "table": "Tabla",
+            "narrative_text": "Texto narrativo",
+            "exam": "Examen",
+            "experiment": "Experimento",
+            "problem_statement": "Planteamiento del problema",
+            "self_assessment": "Autoevaluación",
+            "lecture": "Lección"
+        },
+        "difficulties": {
+            "very_easy": "Muy fácil",
+            "easy": "Fácil",
+            "medium": "Media",
+            "difficult": "Difícil",
+            "very_difficult": "Muy difícil"
+        },
+        "languages": {
+            "es": "Español",
+            "en": "Inglés",
+            "qu": "Kichwa"
+        },
+        "tabs": {
+            "all": "Todos los niveles",
+            "school": "Primaria / Secundaria",
+            "higher_education": "Educación Superior",
+            "training": "Formación Profesional",
+            "other": "Otro"
+        }
+    },
+    "ai": {
+        "draftButton": "Borrador con IA",
+        "generating": "Generando…",
+        "unavailable": "IA no disponible.",
+        "rateLimited": "Demasiadas solicitudes de IA. Inténtelo de nuevo en breve.",
+        "genericError": "Falló la solicitud de IA."
+    },
+    "heritage": {
+        "detail": {
+            "unknownLocation": "Ubicación Desconocida",
+            "document": "Documento",
+            "viewOriginal": "Ver original",
+            "about": "Sobre el Patrimonio",
+            "educationalContext": "Contexto Educativo",
+            "resourceType": "Tipo de Recurso",
+            "difficulty": "Dificultad",
+            "targetAudience": "Audiencia Objetivo",
+            "learningTime": "Tiempo de Aprendizaje",
+            "selfPaced": "A tu propio ritmo",
+            "unspecified": "No especificado",
+            "na": "N/A",
+            "general": "General",
+            "rightsUsage": "Derechos y Uso",
+            "copyright": "Derechos de Autor",
+            "restricted": "Restringido",
+            "openAccess": "Acceso Abierto",
+            "cost": "Costo",
+            "paid": "Pago",
+            "free": "Gratis",
+            "metadata": "Metadatos",
+            "language": "Idioma",
+            "coverage": "Cobertura",
+            "global": "Global",
+            "communityInsights": "Perspectivas de la Comunidad",
+            "exploreLocation": "Explorar Ubicación",
+            "getDirections": "Obtener Direcciones",
+            "quickFacts": "Datos Rápidos",
+            "idReference": "Referencia ID",
+            "created": "Creado",
+            "bookmark": "Guardar Elemento",
+            "relationsTitle": "Relaciones",
+            "relationsNone": "Aún no hay relaciones.",
+            "relationsAdd": "Agregar relación",
+            "relationsTargetMedia": "Medio",
+            "relationsTargetItem": "Elemento patrimonial",
+            "relationsTargetUrl": "URL",
+            "relationsKind": "Tipo de relación",
+            "relationsTarget": "Destino",
+            "relationsChoose": "Elegir…",
+            "relationsNeedMoreMedia": "Adjunte al menos dos archivos multimedia para relacionarlos.",
+            "relationsItemIdPlaceholder": "Pegue el UUID del elemento patrimonial",
+            "relationsDescription": "Descripción (opcional)",
+            "relationsSave": "Guardar relación",
+            "relationsSaving": "Guardando…",
+            "relationsSelectTarget": "Seleccione un destino.",
+            "relationsMissingLom": "Este elemento aún no tiene metadatos LOM.",
+            "relationKinds": {
+                "is_part_of": "Es parte de",
+                "has_part": "Tiene parte",
+                "is_version_of": "Es versión de",
+                "has_version": "Tiene versión",
+                "is_format_of": "Es formato de",
+                "has_format": "Tiene formato",
+                "references": "Referencia",
+                "is_referenced_by": "Referenciado por",
+                "is_similar_to": "Es similar a",
+                "requires": "Requiere",
+                "is_required_by": "Requerido por"
+            },
+            "notFound": "Elemento no encontrado",
+            "notFoundDesc": "El elemento patrimonial que buscas no existe.",
+            "downloadScorm": "Descargar Paquete SCORM",
+            "downloadingScorm": "Descargando SCORM...",
+            "downloadScormError": "No se pudo descargar el paquete SCORM.",
+            "backToExplore": "Volver a Explorar"
+        },
+        "annotations": {
+            "title": "Anotaciones de la Comunidad",
+            "add": "Agregar Anotación",
+            "empty": "Aún no hay anotaciones",
+            "emptyDesc": "Sé el primero en compartir tus observaciones sobre este elemento patrimonial.",
+            "loginReq": "para agregar tus propias anotaciones y contribuir al conocimiento de la comunidad.",
+            "loginLink": "Inicia sesión",
+            "form": {
+                "title": "Agrega tu Anotación",
+                "placeholder": "Comparte tus observaciones, conocimientos o recuerdos sobre este elemento patrimonial...",
+                "cancel": "Cancelar",
+                "submit": "Enviar Anotación",
+                "submitting": "Enviando...",
+                "reward": "¡Ganarás 10 puntos por agregar una anotación!",
+                "errorEmpty": "Por favor ingresa contenido para tu anotación.",
+                "errorSubmit": "Error al crear la anotación. Por favor intenta de nuevo."
+            }
+        }
+    },
+    "contribute": {
+        "title": "Contribuir"
+    },
+    "routesUi": {
+        "createRouteTitle": "Crear una ruta cultural",
+        "createRouteDesc": "Combine varios elementos patrimoniales en una ruta para que los visitantes la sigan.",
+        "createRoute": "Crear ruta",
+        "loading": "Cargando…",
+        "pages": {
+            "createRouteTitle": "Crear ruta",
+            "myRoutesTitle": "Mis rutas",
+            "activeRoutesTitle": "Rutas activas"
+        },
+        "nav": {
+            "back": "Volver",
+            "myRoutes": "Mis rutas",
+            "active": "Activas"
+        },
+        "actions": {
+            "startRoute": "Iniciar ruta",
+            "inProgress": "En curso",
+            "complete": "Completar",
+            "startAgain": "Iniciar de nuevo",
+            "viewStops": "Ver paradas",
+            "submitForReview": "Enviar a revisión",
+            "checkIn": "Registrar",
+            "skip": "Omitir",
+            "search": "Buscar",
+            "add": "Añadir",
+            "remove": "Eliminar",
+            "saveRoute": "Guardar ruta"
+        },
+        "states": {
+            "noStopsYet": "Aún no hay paradas.",
+            "routeNotFound": "No se encontró la ruta.",
+            "noActiveRoutes": "No hay rutas activas.",
+            "noRoutesYet": "Aún no tienes rutas.",
+            "addAtLeastOneStop": "Añade al menos una parada buscando elementos patrimoniales arriba."
+        },
+        "detail": {
+            "completedAt": "Completada el {datetime}"
+        },
+        "progress": {
+            "title": "Progreso",
+            "visitedSummary": "{visited} / {total} paradas visitadas ({percent}%)",
+            "started": "Iniciada: {startedAt}",
+            "next": "Siguiente: {title}",
+            "allVisited": "Todas las paradas visitadas. Puedes completar la ruta."
+        },
+        "stop": {
+            "suggestedTime": "Tiempo sugerido: {time}",
+            "stopLabel": "Parada {order}",
+            "suggestedTimeLabel": "Tiempo sugerido (HH:MM:SS)",
+            "arrivalInstructionsLabel": "Instrucciones de llegada",
+            "arrivalInstructionsPlaceholder": "p. ej., Reúnete en la entrada principal"
+        },
+        "rating": {
+            "title": "Califica esta ruta",
+            "outOfFive": "{rating}/5",
+            "optionalCommentPlaceholder": "Comentario opcional…",
+            "submit": "Enviar calificación"
+        },
+        "form": {
+            "routeDetailsTitle": "Detalles de la ruta",
+            "titleLabel": "Título",
+            "titlePlaceholder": "p. ej., Paseo por el centro histórico",
+            "themeLabel": "Tema",
+            "themePlaceholder": "p. ej., Arquitectura colonial",
+            "descriptionLabel": "Descripción",
+            "descriptionPlaceholder": "Describe la ruta…",
+            "estimatedDurationLabel": "Duración estimada (HH:MM:SS)",
+            "distanceLabel": "Distancia (km)",
+            "stopsTitle": "Paradas",
+            "searchHeritageItemsPlaceholder": "Buscar elementos patrimoniales…"
+        },
+        "filters": {
+            "searchPlaceholder": "Buscar rutas…",
+            "wheelchairAccessible": "Accesible en silla de ruedas"
+        },
+        "difficulty": {
+            "label": "Dificultad",
+            "easy": "Fácil",
+            "medium": "Media",
+            "hard": "Difícil"
+        },
+        "bestSeason": {
+            "label": "Mejor temporada",
+            "spring": "Primavera",
+            "summer": "Verano",
+            "autumn": "Otoño",
+            "winter": "Invierno",
+            "yearRound": "Todo el año"
+        },
+        "metadata": {
+            "stop": "{count} parada",
+            "stops": "{count} paradas",
+            "wheelchair": "Silla de ruedas"
+        },
+        "status": {
+            "draft": "Borrador",
+            "pending": "Pendiente de revisión",
+            "changes_requested": "Cambios solicitados",
+            "rejected": "Rechazada",
+            "archived": "Archivada"
+        },
+        "mapTitle": "Mapa",
+        "mapSubtitle": "Paradas y ruta sugerida.",
+        "stopsTitle": "Paradas",
+        "routeCompletedTitle": "Ruta completada",
+        "congratsTitle": "¡Felicidades!",
+        "congratsBody": "Has completado esta ruta.",
+        "close": "Cerrar"
+    },
+    "contribution": {
+        "title": "Contribuir",
+        "progress": "Paso {current} de {total}",
+        "steps": {
+            "1": "Agregar un Recurso",
+            "2": "Información General",
+            "3": "Ubicación y Mapa",
+            "4": "Detalles Históricos",
+            "5": "Revisar y Enviar"
+        },
+        "step1": {
+            "uploading": "Subiendo…",
+            "wait": "Por favor espere, esto puede tardar un momento.",
+            "cancel": "Cancelar subida",
+            "instruction": "Opcional: agregue un recurso (imagen, audio, video o PDF). Si no tiene un archivo, elija “Texto / sin subida” y continúe.",
+            "resourceType": "Tipo de Recurso",
+            "types": {
+                "image": "Imagen",
+                "imageDesc": "JPG, PNG, WEBP…",
+                "audio": "Audio",
+                "audioDesc": "MP3, WAV…",
+                "video": "Video",
+                "videoDesc": "MP4, WEBM…",
+                "document": "Documento",
+                "documentDesc": "PDF",
+                "text": "Texto narrativo",
+                "textDesc": "Escriba el texto narrativo aquí",
+                "textPlaceholder": "Escriba su texto narrativo aquí..."
+            },
+            "uploadLabel": "Subir {type}",
+            "clickToUpload": "Haga clic para subir",
+            "selected": "Seleccionado: {name}",
+            "noUploadNeeded": "No se necesita subida.",
+            "errors": {
+                "selectFile": "Suba un archivo, o elija “Texto / sin subida” para continuar.",
+                "uploadFailed": "Error al subir. Por favor intente de nuevo."
+            }
+        },
+        "step2": {
+            "fields": {
+                "title": "Título",
+                "description": "Descripción",
+                "heritageType": "Tipo de Patrimonio",
+                "selectType": "Seleccionar Tipo",
+                "category": "Categoría",
+                "selectCategory": "Seleccionar Categoría",
+                "placeholders": {
+                    "title": "ej., La Catedral Vieja",
+                    "description": "Describa el elemento patrimonial..."
+                }
+            }
+        },
+        "step3": {
+            "fields": {
+                "parish": "Parroquia",
+                "selectParish": "Seleccionar Parroquia",
+                "address": "Dirección / Referencia",
+                "addressPlaceholder": "ej., Esquina de 5ta Avenida y Calle Principal",
+                "pinLocation": "Fijar Ubicación en el Mapa",
+                "coordinates": "Coordenadas: {lat}, {lng}"
+            }
+        },
+        "step4": {
+            "fields": {
+                "historicalPeriod": "Período Histórico",
+                "selectPeriod": "Seleccionar Período",
+                "externalUrl": "URL de Registro Externo (Opcional)",
+                "urlPlaceholder": "https://..."
+            }
+        },
+        "step5": {
+            "summary": "Resumen",
+            "media": "Medios",
+            "none": "Ninguno"
+        },
+        "actions": {
+            "back": "Atrás",
+            "next": "Siguiente Paso",
+            "submit": "Enviar Contribución",
+            "submitting": "Enviando...",
+            "success": "¡Contribución enviada con éxito! Pendiente de revisión.",
+            "error": "Error al enviar contribución. Por favor intente de nuevo."
+        },
+        "successPage": {
+            "title": "¡Contribución Enviada!",
+            "message": "Gracias por su contribución. Ha sido recibida y será revisada por los curadores de nuestra plataforma en breve. Se le notificará una vez que sea validada y publicada.",
+            "offlineQueued": "Parece que no tiene conexión. Su contribución se guardó y se sincronizará automáticamente cuando vuelva a estar en línea.",
+            "submitAnother": "Enviar Otra Contribución",
+            "goHome": "Volver al Inicio"
+        }
+    },
+    "contributePage": {
+        "title": "Contribuir a la Plataforma de Patrimonio",
+        "loginRequired": {
+            "title": "Inicio de Sesión Requerido",
+            "description": "Necesitas iniciar sesión para contribuir con elementos patrimoniales a la plataforma. Únete a nuestra comunidad para ayudar a preservar nuestra historia.",
+            "login": "Iniciar Sesión",
+            "register": "Registrarse"
+        }
+    },
+    "lom": {
+        "resource_type": {
+            "narrative_text": "Texto narrativo",
+            "diagram": "Imagen",
+            "figure": "Imagen",
+            "slide": "Imagen",
+            "table": "Documento",
+            "video": "Video",
+            "audio": "Audio",
+            "image": "Imagen",
+            "animation": "Animación",
+            "simulation": "Simulación",
+            "experiment": "Experimento",
+            "problem_statement": "Planteamiento del problema",
+            "self_assessment": "Autoevaluación",
+            "lecture": "Conferencia",
+            "exercise": "Ejercicio"
+        },
+        "difficulty": {
+            "very_easy": "Muy fácil",
+            "easy": "Fácil",
+            "medium": "Medio",
+            "difficult": "Difícil",
+            "very_difficult": "Muy difícil"
+        },
+        "audience": {
+            "teacher": "Profesor",
+            "author": "Autor",
+            "learner": "Estudiante",
+            "manager": "Gerente",
+            "counselour": "Consejero",
+            "other": "Otro"
+        },
+        "context": {
+            "school": "Escuela",
+            "higher_education": "Educación superior",
+            "training": "Formación",
+            "other": "Otro"
+        }
+    },
+    "auth": {
+        "login": {
+            "welcome": "Bienvenido de nuevo",
+            "or": "O",
+            "createAccount": "crear una cuenta nueva",
+            "emailLabel": "Dirección de correo",
+            "passwordLabel": "Contraseña",
+            "submit": "Iniciar sesión",
+            "loading": "Iniciando sesión...",
+            "success": "¡Registro exitoso! Por favor inicia sesión."
+        },
+        "register": {
+            "title": "Crear una cuenta",
+            "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+            "signIn": "Iniciar sesión",
+            "nameLabel": "Nombre Completo",
+            "emailLabel": "Dirección de correo",
+            "passwordLabel": "Contraseña",
+            "confirmPasswordLabel": "Confirmar Contraseña",
+            "submit": "Crear Cuenta",
+            "loading": "Creando cuenta..."
+        },
+        "errors": {
+            "fillAllFields": "Por favor complete todos los campos",
+            "passwordsDoNotMatch": "Las contraseñas no coinciden"
+        }
+    },
+    "dashboard": {
+        "title": "Mi panel",
+        "levelPointsTitle": "Nivel y puntos",
+        "levelFallback": "Nivel {level}",
+        "points": "{count} puntos",
+        "pointsToNextLevel": "{min} / {max} puntos para el siguiente nivel",
+        "badgesTitle": "Insignias",
+        "totalBadgesEarned": "Insignias obtenidas",
+        "recentBadgesTitle": "Insignias recientes",
+        "activityStatsTitle": "Estadísticas de actividad",
+        "totalContributions": "Contribuciones totales",
+        "approved": "{count} aprobadas",
+        "annotations": "Anotaciones",
+        "unreadNotifications": "Notificaciones sin leer",
+        "recentNotifications": "Notificaciones recientes",
+        "viewAll": "Ver todas",
+        "quickActions": "Acciones rápidas",
+        "actions": {
+            "addContribution": "Agregar contribución",
+            "exploreMap": "Explorar mapa",
+            "educationalResources": "Recursos educativos",
+            "heritageRoutes": "Rutas patrimoniales"
+        }
+    },
+    "curator": {
+        "title": "Panel del curador",
+        "manageResources": "Gestionar Recursos",
+        "openQueue": "Abrir cola",
+        "stats": {
+            "pending": "Pendientes",
+            "changesRequested": "Cambios solicitados",
+            "flaggedOpen": "Marcadas (abiertas)",
+            "reviewedTotal": "Revisadas (total)"
+        }
+    },
+    "moderation": {
+        "title": "Panel de moderación",
+        "table": {
+            "title": "Título",
+            "contributor": "Colaborador",
+            "status": "Estado",
+            "actions": "Acciones"
+        },
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "resources": {
+            "title": "Gestionar Recursos",
+            "editTitle": "Editar Recurso",
+            "confirmDelete": "¿Está seguro de que desea eliminar este recurso? Esto no se puede deshacer.",
+            "deleteError": "Error al eliminar el recurso.",
+            "add": "Agregar Recurso"
+        },
+        "prompt": {
+            "rejectFeedback": "Por favor proporciona comentarios para rechazar este elemento:"
+        }
+    },
+    "profile": {
+        "title": "Editar Perfil",
+        "subtitle": "Administra tu perfil público y preferencias",
+        "fields": {
+            "displayName": "Nombre visible",
+            "firstName": "Nombre",
+            "lastName": "Apellido",
+            "language": "Idioma preferido",
+            "bio": "Biografía"
+        },
+        "placeholders": {
+            "displayName": "Cómo apareces ante los demás",
+            "bio": "Cuéntanos un poco sobre ti..."
+        },
+        "help": {
+            "bio": "Breve descripción para tu perfil público.",
+            "interests": "Selecciona temas que te interesan para personalizar tu experiencia."
+        },
+        "sections": {
+            "interests": "Intereses",
+            "notifications": "Preferencias de notificación"
+        },
+        "prefs": {
+            "emailUpdates": "Resumen por correo",
+            "emailUpdatesDesc": "Recibe un resumen semanal de elementos patrimoniales populares.",
+            "newContent": "Alertas de nuevo contenido",
+            "newContentDesc": "Recibe notificaciones cuando se añadan nuevos elementos que coincidan con tus intereses."
+        },
+        "actions": {
+            "save": "Guardar cambios",
+            "saving": "Guardando...",
+            "saved": "¡Perfil actualizado con éxito!"
+        },
+        "errors": {
+            "loadFailed": "Error al cargar datos del perfil.",
+            "saveFailed": "Error al guardar cambios. Por favor intenta de nuevo."
+        }
+    },
+    "gamification": {
+        "title": "Mi Progreso",
+        "subtitle": "Sigue tu viaje y logros",
+        "totalPoints": "{points} Puntos",
+        "badges": {
+            "title": "Insignias",
+            "unlocked": "Desbloqueadas"
+        },
+        "history": {
+            "title": "Historial de Actividad",
+            "empty": "Aún no hay actividad. ¡Comienza a contribuir para ganar puntos!"
+        }
+    },
+    "curatorReview": {
+        "title": "Revisar contribución",
+        "backToQueue": "← Volver a la cola",
+        "aiAssist": "Asistencia IA",
+        "aiLoading": "IA…",
+        "refresh": "Actualizar",
+        "loading": "Cargando…",
+        "failedToLoad": "Error al cargar",
+        "status": "Estado: {status}",
+        "statusMap": {
+            "draft": "Borrador",
+            "pending": "Pendiente",
+            "changes_requested": "Cambios solicitados",
+            "published": "Publicado",
+            "rejected": "Rechazado",
+            "archived": "Archivado"
+        },
+        "flag": "Marcar",
+        "metadataLocation": {
+            "title": "Metadatos y Ubicación",
+            "type": "Tipo",
+            "category": "Categoría",
+            "parish": "Parroquia",
+            "historicalPeriod": "Período Histórico",
+            "address": "Dirección",
+            "noAddress": "Sin dirección",
+            "coordinates": "Coordenadas",
+            "invalidCoordinates": "Formato de coordenadas inválido"
+        },
+        "media": {
+            "images": "Imágenes",
+            "audio": "Audio",
+            "video": "Video",
+            "documents": "Documentos",
+            "view": "Ver"
+        },
+        "aiReview": {
+            "title": "Revisión de IA",
+            "regenerate": "Regenerar",
+            "generating": "Generando…",
+            "missingFields": "Campos faltantes",
+            "riskFlags": "Banderas de riesgo",
+            "feedbackDraft": "Borrador de retroalimentación",
+            "copy": "Copiar",
+            "unavailable": "IA no disponible.",
+            "tooManyRequests": "Demasiadas solicitudes de IA. Inténtelo de nuevo en breve.",
+            "requestFailed": "Falló la solicitud de IA."
+        },
+        "qualityScore": {
+            "title": "Puntuación de Calidad",
+            "total": "Total: {total}/100",
+            "completeness": "Completitud",
+            "accuracy": "Precisión",
+            "mediaQuality": "Calidad de medios",
+            "notes": "Notas",
+            "placeholder": "Justificación de la puntuación…",
+            "save": "Guardar puntuación"
+        },
+        "checklist": {
+            "title": "Lista de Verificación de Revisión",
+            "save": "Guardar lista",
+            "unavailable": "No hay lista de verificación disponible.",
+            "required": "(requerido)",
+            "notesPlaceholder": "Notas…"
+        },
+        "actions": {
+            "title": "Acciones de revisión",
+            "feedbackLabel": "Retroalimentación al colaborador",
+            "feedbackPlaceholder": "¿Qué debería cambiar / mejorar el colaborador?",
+            "approve": "Aprobar",
+            "requestChanges": "Solicitar cambios",
+            "reject": "Rechazar"
+        },
+        "notes": {
+            "title": "Notas del curador",
+            "pinned": "Fijado",
+            "note": "Nota",
+            "empty": "Aún no hay notas.",
+            "placeholder": "Agregar una nota interna…",
+            "pinAction": "Fijar esta nota",
+            "add": "Agregar nota"
+        },
+        "history": {
+            "title": "Historial de versiones",
+            "empty": "Aún no hay versiones."
+        },
+        "flagModal": {
+            "title": "Marcar contribución",
+            "type": "Tipo",
+            "reason": "Razón",
+            "placeholder": "Explique por qué…",
+            "cancel": "Cancelar",
+            "submit": "Marcar",
+            "types": {
+                "spam": "Spam",
+                "inappropriate": "Inapropiado",
+                "duplicate": "Duplicado",
+                "expert_review_needed": "Se necesita revisión de un experto",
+                "copyright_issue": "Problema de derechos de autor",
+                "inaccurate": "Inexacto"
+            }
+        }
+    },
+    "curatorQueue": {
+        "title": "Cola del curador",
+        "refresh": "Actualizar",
+        "filters": {
+            "search": "Buscar",
+            "searchPlaceholder": "Título, descripción…",
+            "status": "Estado",
+            "apply": "Aplicar"
+        },
+        "table": {
+            "title": "Título",
+            "status": "Estado",
+            "flags": "Banderas",
+            "score": "Puntuación",
+            "submitted": "Enviado",
+            "loading": "Cargando…",
+            "empty": "No se encontraron elementos."
+        }
+    },
+    "periods": {
+        "pre_columbian": "Precolombino",
+        "colonial": "Colonial",
+        "republican": "Republicano",
+        "contemporary": "Contemporáneo",
+        "unknown": "Desconocido"
+    }
+}

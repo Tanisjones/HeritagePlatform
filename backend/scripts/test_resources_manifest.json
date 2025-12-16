@@ -1,0 +1,44 @@
+{
+  "resources": [
+    {
+      "name": "Sample image (PNG)",
+      "file_type": "image",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Wikipedia-logo-v2-en.png",
+      "max_bytes": 5000000,
+      "expected_mime_prefix": "image/",
+      "attribution": "Wikimedia Commons: Wikipedia-logo-v2-en.png (verify license/attribution policy for your deployment; intended for dev/test seeding)."
+    },
+    {
+      "name": "Sample text (plain)",
+      "file_type": "document",
+      "url": "https://www.gutenberg.org/cache/epub/11/pg11.txt",
+      "max_bytes": 500000,
+      "expected_mime_prefix": "text/",
+      "attribution": "Project Gutenberg: Alice's Adventures in Wonderland (public domain in many jurisdictions; confirm for yours)."
+    },
+    {
+      "name": "Sample PDF document",
+      "file_type": "document",
+      "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      "max_bytes": 10000000,
+      "expected_mime": "application/pdf",
+      "attribution": "W3C: dummy.pdf (used for testing PDF rendering; verify licensing/usage terms if needed)."
+    },
+    {
+      "name": "Sample audio (MP3)",
+      "file_type": "audio",
+      "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3",
+      "max_bytes": 10000000,
+      "expected_mime_prefix": "audio/",
+      "attribution": "MDN interactive examples: CC0 audio sample (t-rex-roar.mp3)."
+    },
+    {
+      "name": "Sample video (MP4)",
+      "file_type": "video",
+      "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+      "max_bytes": 50000000,
+      "expected_mime_prefix": "video/",
+      "attribution": "MDN interactive examples: CC0 video sample (flower.mp4)."
+    }
+  ]
+}

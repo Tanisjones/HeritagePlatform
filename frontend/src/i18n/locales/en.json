@@ -1,0 +1,826 @@
+{
+    "common": {
+        "brand": "Heritage Platform",
+        "search": "Search",
+        "allStatus": "All Status",
+        "title": "Title",
+        "type": "Type",
+        "status": "Status",
+        "contributor": "Contributor",
+        "date": "Date",
+        "actions": "Actions",
+        "saved": "Saved successfully",
+        "description": "Description",
+        "heritageType": "Heritage Type",
+        "category": "Category",
+        "historicalPeriod": "Historical Period",
+        "externalUrl": "External Registry URL",
+        "location": "Location",
+        "parish": "Parish",
+        "address": "Address",
+        "cancel": "Cancel",
+        "save": "Save",
+        "select": "Select...",
+        "errorLoading": "Error loading data",
+        "errorSaving": "Error saving data",
+        "edit": "Edit",
+        "delete": "Delete",
+        "previous": "Previous",
+        "next": "Next",
+        "pageInfo": "Page {page} of {total}",
+        "noResults": "No results found",
+        "loading": "Loading...",
+        "clickToUpdateMap": "Click on the map to update the location marker.",
+        "mainImage": "Main Image",
+        "errorUploading": "Error uploading image",
+        "waitUpload": "Please wait for upload to finish"
+    },
+    "nav": {
+        "home": "Home",
+        "explore": "Explore",
+        "routes": "Routes",
+        "myRoutes": "My Routes",
+        "activeRoutes": "Active Routes",
+        "learn": "Learn",
+        "contribute": "Contribute",
+        "myContributions": "My Contributions",
+        "moderation": "Moderation",
+        "dashboard": "Dashboard",
+        "profile": "Profile",
+        "progress": "My Progress",
+        "login": "Login",
+        "signup": "Sign Up",
+        "logout": "Logout",
+        "notifications": "Notifications"
+    },
+    "footer": {
+        "description": "Preserving and sharing cultural heritage through collaborative digital innovation.",
+        "quickLinks": "Quick Links",
+        "about": "About Us",
+        "contact": "Contact",
+        "privacy": "Privacy Policy",
+        "address": "Riobamba, Chimborazo, Ecuador",
+        "copyright": "© {year} {brand}.",
+        "rights": "All rights reserved."
+    },
+    "home": {
+        "hero": {
+            "title": "Discover Riobamba's Cultural Heritage",
+            "subtitle": "Explore, learn, and contribute to preserving our cultural treasures through collaborative digital innovation."
+        },
+        "search": {
+            "placeholder": "Search for heritage items...",
+            "button": "Search"
+        },
+        "cta": {
+            "explore": "Explore Heritage",
+            "contribute": "Start Contributing"
+        },
+        "stats": {
+            "items": "Heritage Items",
+            "tangible": "Tangible",
+            "intangible": "Intangible",
+            "routes": "Routes"
+        },
+        "map": {
+            "title": "Interactive Heritage Map",
+            "subtitle": "Click on markers to explore heritage sites in Riobamba",
+            "loading": "Loading heritage items...",
+            "error": "Failed to load heritage items",
+            "tryAgain": "Try Again"
+        },
+        "features": {
+            "title": "Why Use Heritage Platform?",
+            "learn": {
+                "title": "Learn",
+                "desc": "Discover educational content about Riobamba's rich cultural heritage"
+            },
+            "explore": {
+                "title": "Explore",
+                "desc": "Navigate interactive maps and discover heritage sites near you"
+            },
+            "contribute": {
+                "downloadScorm": "Download SCORM Package",
+                "downloadingScorm": "Downloading SCORM...",
+                "downloadScormError": "Could not download SCORM package.",
+                "title": "Contribute",
+                "desc": "Share knowledge and help preserve our cultural heritage for future generations"
+            }
+        }
+    },
+    "explore": {
+        "title": "Heritage Items",
+        "searchPlaceholder": "Search...",
+        "filters": {
+            "all": "All",
+            "tangible": "Tangible",
+            "intangible": "Intangible",
+            "category": "Category",
+            "parish": "Parish",
+            "media": "Media",
+            "mediaImages": "Images",
+            "mediaAudio": "Audio",
+            "mediaVideo": "Video",
+            "mediaDocuments": "Documents (PDF)",
+            "mediaTextOnly": "Text only",
+            "sortNewest": "Newest",
+            "sortMostViewed": "Most viewed",
+            "sortMostFavorited": "Most favorited",
+            "clear": "Clear"
+        },
+        "offline": {
+            "download": "Download for offline",
+            "downloading": "Downloading...",
+            "ready": "Offline bundle ready",
+            "mustBeOnline": "You need to be online to download an area for offline use.",
+            "downloadError": "Offline download failed. Please try again."
+        }
+    },
+    "routes": {
+        "title": "Heritage Routes",
+        "noRoutes": "No routes found."
+    },
+    "learn": {
+        "header": {
+            "subtitle": "Learn",
+            "title": "Learning resources by level",
+            "description": "Filter educational materials using LOM metadata (resource type, context, difficulty, language) to find the best match for a learner’s level."
+        },
+        "filters": {
+            "search": "Search",
+            "searchPlaceholder": "Keywords, title, description",
+            "level": "Learner level",
+            "resourceType": "Resource type",
+            "context": "Context",
+            "difficulty": "Difficulty",
+            "language": "Language",
+            "refresh": "Refresh",
+            "clear": "Clear filters",
+            "showing": "Showing {count} of {total} resources",
+            "noResults": "No resources match the selected filters."
+        },
+        "options": {
+            "all": "All",
+            "allTypes": "All types",
+            "anyContext": "Any context",
+            "any": "Any",
+            "beginner": "Beginner (very easy / easy)",
+            "intermediate": "Intermediate (medium)",
+            "advanced": "Advanced (difficult / very difficult)"
+        },
+        "labels": {
+            "ages": "Ages",
+            "interactivity": "Interactivity",
+            "typicalTime": "Typical time",
+            "keywords": "Keywords",
+            "download": "Download SCORM Package",
+            "downloading": "Downloading...",
+            "downloadError": "Download failed.",
+            "loadError": "Unable to load learning resources right now."
+        },
+        "resourceTypes": {
+            "exercise": "Exercise",
+            "simulation": "Simulation",
+            "questionnaire": "Questionnaire",
+            "diagram": "Diagram",
+            "figure": "Figure",
+            "graph": "Graph",
+            "slide": "Slide",
+            "table": "Table",
+            "narrative_text": "Narrative text",
+            "exam": "Exam",
+            "experiment": "Experiment",
+            "problem_statement": "Problem statement",
+            "self_assessment": "Self assessment",
+            "lecture": "Lecture"
+        },
+        "difficulties": {
+            "very_easy": "Very easy",
+            "easy": "Easy",
+            "medium": "Medium",
+            "difficult": "Difficult",
+            "very_difficult": "Very difficult"
+        },
+        "languages": {
+            "es": "Spanish",
+            "en": "English",
+            "qu": "Kichwa"
+        },
+        "tabs": {
+            "all": "All Levels",
+            "school": "Primary / Secondary",
+            "higher_education": "Higher Education",
+            "training": "Professional Training",
+            "other": "Other"
+        }
+    },
+    "ai": {
+        "draftButton": "AI draft",
+        "generating": "Generating…",
+        "unavailable": "AI unavailable.",
+        "rateLimited": "Too many AI requests. Please try again shortly.",
+        "genericError": "AI request failed."
+    },
+    "heritage": {
+        "detail": {
+            "unknownLocation": "Unknown Location",
+            "about": "About the Heritage",
+            "educationalContext": "Educational Context",
+            "resourceType": "Resource Type",
+            "difficulty": "Difficulty",
+            "targetAudience": "Target Audience",
+            "learningTime": "Learning Time",
+            "selfPaced": "Self-paced",
+            "unspecified": "Unspecified",
+            "na": "N/A",
+            "general": "General",
+            "rightsUsage": "Rights & Usage",
+            "copyright": "Copyright",
+            "restricted": "Restricted",
+            "openAccess": "Open Access",
+            "cost": "Cost",
+            "paid": "Paid",
+            "free": "Free",
+            "metadata": "Metadata",
+            "language": "Language",
+            "coverage": "Coverage",
+            "global": "Global",
+            "communityInsights": "Community Insights",
+            "exploreLocation": "Explore Location",
+            "getDirections": "Get Directions",
+            "quickFacts": "Quick Facts",
+            "idReference": "ID Reference",
+            "created": "Created",
+            "bookmark": "Bookmark Item",
+            "relationsTitle": "Relations",
+            "relationsNone": "No relations yet.",
+            "relationsAdd": "Add relation",
+            "relationsTargetMedia": "Media",
+            "relationsTargetItem": "Heritage item",
+            "relationsTargetUrl": "URL",
+            "relationsKind": "Relation kind",
+            "relationsTarget": "Target",
+            "relationsChoose": "Choose…",
+            "relationsNeedMoreMedia": "Attach at least two media files to relate them.",
+            "relationsItemIdPlaceholder": "Paste heritage item UUID",
+            "relationsDescription": "Description (optional)",
+            "relationsSave": "Save relation",
+            "relationsSaving": "Saving…",
+            "relationsSelectTarget": "Please select a target.",
+            "relationsMissingLom": "This item has no LOM metadata yet.",
+            "relationKinds": {
+                "is_part_of": "Is part of",
+                "has_part": "Has part",
+                "is_version_of": "Is version of",
+                "has_version": "Has version",
+                "is_format_of": "Is format of",
+                "has_format": "Has format",
+                "references": "References",
+                "is_referenced_by": "Is referenced by",
+                "is_similar_to": "Is similar to",
+                "requires": "Requires",
+                "is_required_by": "Is required by"
+            },
+            "notFound": "Item not found",
+            "notFoundDesc": "The heritage item you are looking for does not exist.",
+            "downloadScorm": "Download SCORM Package",
+            "downloadingScorm": "Downloading SCORM...",
+            "downloadScormError": "Could not download SCORM package.",
+            "backToExplore": "Back to Explore"
+        },
+        "annotations": {
+            "title": "Community Annotations",
+            "add": "Add Annotation",
+            "empty": "No annotations yet",
+            "emptyDesc": "Be the first to share your observations about this heritage item.",
+            "loginReq": "to add your own annotations and contribute to the community knowledge.",
+            "loginLink": "Log in",
+            "form": {
+                "title": "Add Your Annotation",
+                "placeholder": "Share your observations, knowledge, or memories about this heritage item...",
+                "cancel": "Cancel",
+                "submit": "Submit Annotation",
+                "submitting": "Submitting...",
+                "reward": "You'll earn 10 points for adding an annotation!",
+                "errorEmpty": "Please enter some content for your annotation.",
+                "errorSubmit": "Failed to create annotation. Please try again."
+            }
+        }
+    },
+    "contribute": {
+        "title": "Contribute"
+    },
+    "routesUi": {
+        "createRouteTitle": "Create a cultural route",
+        "createRouteDesc": "Combine multiple heritage items into a route visitors can follow.",
+        "createRoute": "Create route",
+        "loading": "Loading…",
+        "pages": {
+            "createRouteTitle": "Create route",
+            "myRoutesTitle": "My routes",
+            "activeRoutesTitle": "Active routes"
+        },
+        "nav": {
+            "back": "Back",
+            "myRoutes": "My routes",
+            "active": "Active"
+        },
+        "actions": {
+            "startRoute": "Start route",
+            "inProgress": "In progress",
+            "complete": "Complete",
+            "startAgain": "Start again",
+            "viewStops": "View stops",
+            "submitForReview": "Submit for review",
+            "checkIn": "Check in",
+            "skip": "Skip",
+            "search": "Search",
+            "add": "Add",
+            "remove": "Remove",
+            "saveRoute": "Save route"
+        },
+        "states": {
+            "noStopsYet": "No stops yet.",
+            "routeNotFound": "Route not found.",
+            "noActiveRoutes": "No active routes.",
+            "noRoutesYet": "No routes yet.",
+            "addAtLeastOneStop": "Add at least one stop by searching for heritage items above."
+        },
+        "detail": {
+            "completedAt": "Completed at {datetime}"
+        },
+        "progress": {
+            "title": "Progress",
+            "visitedSummary": "{visited} / {total} stops visited ({percent}%)",
+            "started": "Started: {startedAt}",
+            "next": "Next: {title}",
+            "allVisited": "All stops visited. You can complete the route."
+        },
+        "stop": {
+            "suggestedTime": "Suggested time: {time}",
+            "stopLabel": "Stop {order}",
+            "suggestedTimeLabel": "Suggested time (HH:MM:SS)",
+            "arrivalInstructionsLabel": "Arrival instructions",
+            "arrivalInstructionsPlaceholder": "e.g., Meet at the main entrance"
+        },
+        "rating": {
+            "title": "Rate this route",
+            "outOfFive": "{rating}/5",
+            "optionalCommentPlaceholder": "Optional comment…",
+            "submit": "Submit rating"
+        },
+        "form": {
+            "routeDetailsTitle": "Route details",
+            "titleLabel": "Title",
+            "titlePlaceholder": "e.g., Historic downtown walk",
+            "themeLabel": "Theme",
+            "themePlaceholder": "e.g., Colonial architecture",
+            "descriptionLabel": "Description",
+            "descriptionPlaceholder": "Describe the route…",
+            "estimatedDurationLabel": "Estimated duration (HH:MM:SS)",
+            "distanceLabel": "Distance (km)",
+            "stopsTitle": "Stops",
+            "searchHeritageItemsPlaceholder": "Search heritage items…"
+        },
+        "filters": {
+            "searchPlaceholder": "Search routes…",
+            "wheelchairAccessible": "Wheelchair accessible"
+        },
+        "difficulty": {
+            "label": "Difficulty",
+            "easy": "Easy",
+            "medium": "Medium",
+            "hard": "Hard"
+        },
+        "bestSeason": {
+            "label": "Best season",
+            "spring": "Spring",
+            "summer": "Summer",
+            "autumn": "Autumn",
+            "winter": "Winter",
+            "yearRound": "Year round"
+        },
+        "metadata": {
+            "stop": "{count} stop",
+            "stops": "{count} stops",
+            "wheelchair": "Wheelchair"
+        },
+        "status": {
+            "draft": "Draft",
+            "pending": "Pending review",
+            "changes_requested": "Changes requested",
+            "rejected": "Rejected",
+            "archived": "Archived"
+        },
+        "mapTitle": "Map",
+        "mapSubtitle": "Stops and suggested path.",
+        "stopsTitle": "Stops",
+        "routeCompletedTitle": "Route completed",
+        "congratsTitle": "Congratulations!",
+        "congratsBody": "You completed this route.",
+        "close": "Close"
+    },
+    "contribution": {
+        "title": "Contribute",
+        "progress": "Step {current} of {total}",
+        "steps": {
+            "1": "Add a Resource",
+            "2": "General Information",
+            "3": "Location & Map",
+            "4": "Historical Details",
+            "5": "Review & Submit"
+        },
+        "step1": {
+            "uploading": "Uploading…",
+            "wait": "Please wait, this can take a moment.",
+            "cancel": "Cancel upload",
+            "instruction": "Optional: add one resource (image, audio, video, or PDF). If you don’t have a file, choose “Text / no upload” and continue.",
+            "resourceType": "Resource Type",
+            "types": {
+                "image": "Image",
+                "imageDesc": "JPG, PNG, WEBP…",
+                "audio": "Audio",
+                "audioDesc": "MP3, WAV…",
+                "video": "Video",
+                "videoDesc": "MP4, WEBM…",
+                "document": "Document",
+                "documentDesc": "PDF",
+                "text": "Narrative Text",
+                "textDesc": "Write your text here",
+                "textPlaceholder": "Write the narrative text here..."
+            },
+            "uploadLabel": "Upload {type}",
+            "clickToUpload": "Click to upload",
+            "selected": "Selected: {name}",
+            "noUploadNeeded": "No upload needed. You can add the text description on the next step.",
+            "errors": {
+                "selectFile": "Upload a file, or choose “Text / no upload” to continue.",
+                "uploadFailed": "Failed to upload. Please try again."
+            }
+        },
+        "step2": {
+            "fields": {
+                "title": "Title",
+                "description": "Description",
+                "heritageType": "Heritage Type",
+                "selectType": "Select Type",
+                "category": "Category",
+                "selectCategory": "Select Category",
+                "placeholders": {
+                    "title": "e.g., The Old Cathedral",
+                    "description": "Describe the heritage item..."
+                }
+            }
+        },
+        "step3": {
+            "fields": {
+                "parish": "Parish",
+                "selectParish": "Select Parish",
+                "address": "Address / Reference",
+                "addressPlaceholder": "e.g., Corner of 5th Ave and Main St",
+                "pinLocation": "Pin Location on Map",
+                "coordinates": "Coordinates: {lat}, {lng}"
+            }
+        },
+        "step4": {
+            "fields": {
+                "historicalPeriod": "Historical Period",
+                "selectPeriod": "Select Period",
+                "externalUrl": "External Registry URL (Optional)",
+                "urlPlaceholder": "https://..."
+            }
+        },
+        "step5": {
+            "summary": "Summary",
+            "media": "Media",
+            "none": "None"
+        },
+        "actions": {
+            "back": "Back",
+            "next": "Next Step",
+            "submit": "Submit Contribution",
+            "submitting": "Submitting...",
+            "success": "Contribution submitted successfully! Pending review.",
+            "error": "Failed to submit contribution. Please try again."
+        },
+        "successPage": {
+            "title": "Contribution Submitted!",
+            "message": "Thank you for your contribution. It has been received and will be reviewed by our platform curators shortly. You will be notified once it is validated and published.",
+            "offlineQueued": "You appear to be offline. Your contribution has been saved and will automatically sync when you're back online.",
+            "submitAnother": "Submit Another Contribution",
+            "goHome": "Return to Home"
+        }
+    },
+    "contributePage": {
+        "title": "Contribute to the Heritage Platform",
+        "loginRequired": {
+            "title": "Login Required",
+            "description": "You need to be logged in to contribute heritage items to the platform. Join our community to help preserve our history.",
+            "login": "Login",
+            "register": "Sign Up"
+        }
+    },
+    "lom": {
+        "resource_type": {
+            "narrative_text": "Narrative Text",
+            "diagram": "Diagram",
+            "figure": "Figure",
+            "slide": "Slide",
+            "table": "Table",
+            "video": "Video",
+            "audio": "Audio",
+            "image": "Image",
+            "animation": "Animation",
+            "simulation": "Simulation",
+            "experiment": "Experiment",
+            "problem_statement": "Problem Statement",
+            "self_assessment": "Self Assessment",
+            "lecture": "Lecture",
+            "exercise": "Exercise"
+        },
+        "difficulty": {
+            "very_easy": "Very Easy",
+            "easy": "Easy",
+            "medium": "Medium",
+            "difficult": "Difficult",
+            "very_difficult": "Very Difficult"
+        },
+        "audience": {
+            "teacher": "Teacher",
+            "author": "Author",
+            "learner": "Learner",
+            "manager": "Manager",
+            "counselour": "Counselor",
+            "other": "Other"
+        },
+        "context": {
+            "school": "School",
+            "higher_education": "Higher Education",
+            "training": "Training",
+            "other": "Other"
+        }
+    },
+    "auth": {
+        "login": {
+            "welcome": "Welcome back",
+            "or": "Or",
+            "createAccount": "create a new account",
+            "emailLabel": "Email address",
+            "passwordLabel": "Password",
+            "submit": "Sign in",
+            "loading": "Signing in...",
+            "success": "Registration successful! Please sign in."
+        },
+        "register": {
+            "title": "Create an account",
+            "alreadyHaveAccount": "Already have an account?",
+            "signIn": "Sign in",
+            "nameLabel": "Full Name",
+            "emailLabel": "Email address",
+            "passwordLabel": "Password",
+            "confirmPasswordLabel": "Confirm Password",
+            "submit": "Create Account",
+            "loading": "Creating account..."
+        },
+        "errors": {
+            "fillAllFields": "Please fill in all fields",
+            "passwordsDoNotMatch": "Passwords do not match"
+        }
+    },
+    "dashboard": {
+        "title": "My Dashboard",
+        "levelPointsTitle": "Level & Points",
+        "levelFallback": "Level {level}",
+        "points": "{count} points",
+        "pointsToNextLevel": "{min} / {max} points to next level",
+        "badgesTitle": "Badges",
+        "totalBadgesEarned": "Total badges earned",
+        "recentBadgesTitle": "Recent badges",
+        "activityStatsTitle": "Activity statistics",
+        "totalContributions": "Total contributions",
+        "approved": "{count} approved",
+        "annotations": "Annotations",
+        "unreadNotifications": "Unread notifications",
+        "recentNotifications": "Recent notifications",
+        "viewAll": "View all",
+        "quickActions": "Quick actions",
+        "actions": {
+            "addContribution": "Add contribution",
+            "exploreMap": "Explore map",
+            "educationalResources": "Educational resources",
+            "heritageRoutes": "Heritage routes"
+        }
+    },
+    "curator": {
+        "title": "Curator Dashboard",
+        "manageResources": "Manage Resources",
+        "openQueue": "Open queue",
+        "stats": {
+            "pending": "Pending",
+            "changesRequested": "Changes requested",
+            "flaggedOpen": "Flagged (open)",
+            "reviewedTotal": "Reviewed total"
+        }
+    },
+    "moderation": {
+        "title": "Moderation Dashboard",
+        "table": {
+            "title": "Title",
+            "contributor": "Contributor",
+            "status": "Status",
+            "actions": "Actions"
+        },
+        "approve": "Approve",
+        "reject": "Reject",
+        "resources": {
+            "title": "Manage Resources",
+            "editTitle": "Edit Resource",
+            "confirmDelete": "Are you sure you want to delete this resource? This cannot be undone.",
+            "deleteError": "Failed to delete resource.",
+            "add": "Add Resource"
+        },
+        "prompt": {
+            "rejectFeedback": "Please provide feedback for rejecting this item:"
+        }
+    },
+    "profile": {
+        "title": "Edit Profile",
+        "subtitle": "Manage your public profile and preferences",
+        "fields": {
+            "displayName": "Display Name",
+            "firstName": "First Name",
+            "lastName": "Last Name",
+            "language": "Preferred Language",
+            "bio": "Bio"
+        },
+        "placeholders": {
+            "displayName": "How you appear to others",
+            "bio": "Tell us a little about yourself..."
+        },
+        "help": {
+            "bio": "Brief description for your public profile.",
+            "interests": "Select topics you are interested in to personalize your experience."
+        },
+        "sections": {
+            "interests": "Interests",
+            "notifications": "Notification Preferences"
+        },
+        "prefs": {
+            "emailUpdates": "Email Digest",
+            "emailUpdatesDesc": "Receive a weekly summary of popular heritage items.",
+            "newContent": "New Content Alerts",
+            "newContentDesc": "Get notified when new items matching your interests are added."
+        },
+        "actions": {
+            "save": "Save Changes",
+            "saving": "Saving...",
+            "saved": "Profile updated successfully!"
+        },
+        "errors": {
+            "loadFailed": "Failed to load profile data.",
+            "saveFailed": "Failed to save profile changes. Please try again."
+        }
+    },
+    "gamification": {
+        "title": "My Progress",
+        "subtitle": "Track your journey and achievements",
+        "totalPoints": "{points} Points",
+        "badges": {
+            "title": "Badges",
+            "unlocked": "Unlocked"
+        },
+        "history": {
+            "title": "Activity History",
+            "empty": "No activity yet. Start contributing to earn points!"
+        }
+    },
+    "curatorReview": {
+        "title": "Review contribution",
+        "backToQueue": "← Back to queue",
+        "aiAssist": "AI Assist",
+        "aiLoading": "AI…",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "failedToLoad": "Failed to load",
+        "status": "Status: {status}",
+        "statusMap": {
+            "draft": "Draft",
+            "pending": "Pending",
+            "changes_requested": "Changes Requested",
+            "published": "Published",
+            "rejected": "Rejected",
+            "archived": "Archived"
+        },
+        "flag": "Flag",
+        "metadataLocation": {
+            "title": "Metadata & Location",
+            "type": "Type",
+            "category": "Category",
+            "parish": "Parish",
+            "historicalPeriod": "Historical Period",
+            "address": "Address",
+            "noAddress": "No address provided",
+            "coordinates": "Coordinates",
+            "invalidCoordinates": "Invalid coordinates format"
+        },
+        "media": {
+            "images": "Images",
+            "audio": "Audio",
+            "video": "Video",
+            "documents": "Documents",
+            "view": "View"
+        },
+        "aiReview": {
+            "title": "AI Review",
+            "regenerate": "Regenerate",
+            "generating": "Generating…",
+            "missingFields": "Missing fields",
+            "riskFlags": "Risk flags",
+            "feedbackDraft": "Feedback draft",
+            "copy": "Copy",
+            "unavailable": "AI unavailable.",
+            "tooManyRequests": "Too many AI requests. Please try again shortly.",
+            "requestFailed": "AI request failed."
+        },
+        "qualityScore": {
+            "title": "Quality Score",
+            "total": "Total: {total}/100",
+            "completeness": "Completeness",
+            "accuracy": "Accuracy",
+            "mediaQuality": "Media quality",
+            "notes": "Notes",
+            "placeholder": "Scoring rationale…",
+            "save": "Save score"
+        },
+        "checklist": {
+            "title": "Review Checklist",
+            "save": "Save checklist",
+            "unavailable": "No checklist available.",
+            "required": "(required)",
+            "notesPlaceholder": "Notes…"
+        },
+        "actions": {
+            "title": "Review actions",
+            "feedbackLabel": "Feedback to contributor",
+            "feedbackPlaceholder": "What should the contributor change / improve?",
+            "approve": "Approve",
+            "requestChanges": "Request changes",
+            "reject": "Reject"
+        },
+        "notes": {
+            "title": "Curator notes",
+            "pinned": "Pinned",
+            "note": "Note",
+            "empty": "No notes yet.",
+            "placeholder": "Add an internal note…",
+            "pinAction": "Pin this note",
+            "add": "Add note"
+        },
+        "history": {
+            "title": "Version history",
+            "empty": "No versions yet."
+        },
+        "flagModal": {
+            "title": "Flag contribution",
+            "type": "Type",
+            "reason": "Reason",
+            "placeholder": "Explain why…",
+            "cancel": "Cancel",
+            "submit": "Flag",
+            "types": {
+                "spam": "Spam",
+                "inappropriate": "Inappropriate",
+                "duplicate": "Duplicate",
+                "expert_review_needed": "Expert review needed",
+                "copyright_issue": "Copyright issue",
+                "inaccurate": "Inaccurate"
+            }
+        }
+    },
+    "curatorQueue": {
+        "title": "Curator Queue",
+        "refresh": "Refresh",
+        "filters": {
+            "search": "Search",
+            "searchPlaceholder": "Title, description…",
+            "status": "Status",
+            "apply": "Apply"
+        },
+        "table": {
+            "title": "Title",
+            "status": "Status",
+            "flags": "Flags",
+            "score": "Score",
+            "submitted": "Submitted",
+            "loading": "Loading…",
+            "empty": "No items found."
+        }
+    },
+    "periods": {
+        "pre_columbian": "Pre-Columbian",
+        "colonial": "Colonial",
+        "republican": "Republican",
+        "contemporary": "Contemporary",
+        "unknown": "Unknown"
+    }
+}
