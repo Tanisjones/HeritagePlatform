@@ -37,3 +37,11 @@ if settings.DEBUG:
 
     # Serve media files in development
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+from django.views.generic import TemplateView
+from django.urls import re_path
+
+# Catch-all for SPA (must be last)
+urlpatterns += [
+    re_path(r'^.*$', TemplateView.as_view(template_name='index.html'), name='spa'),
+]
