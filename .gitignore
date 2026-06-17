@@ -43,6 +43,10 @@ db.sqlite3-journal
 .env
 .env.local
 .env.*.local
+.env.prod
+# Keep the committed templates.
+!.env.docker.example
+!.env.prod.example
 
 # IDEs
 .vscode/

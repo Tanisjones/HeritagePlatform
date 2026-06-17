@@ -1,0 +1,115 @@
+# Production stack for the Heritage Platform, deployed behind the host-level edge nginx.
+#
+# Topology:
+#   db        - PostgreSQL + PostGIS (private, named volume)        internal only
+#   backend   - Django via gunicorn + WhiteNoise                    internal :8000
+#   frontend  - nginx: serves the Vue build, proxies /api /admin    127.0.0.1:8091
+#               and Django /static /media (from shared volumes)
+#
+# The host edge nginx terminates TLS for heritageplatform.ddns.net and proxies to
+# 127.0.0.1:8091. No service publishes a public port. Reuses the same Dockerfiles
+# as the dev stack (docker/backend, docker/frontend); production differs only in
+# this compose file (locked-down env, localhost-only publish, healthchecks).
+#
+# Bring up:   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# Migrate:    runs automatically in the backend entrypoint on every start.
+# Superuser:  docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py createsuperuser
+
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    image: heritage-platform-backend:latest
+    restart: unless-stopped
+    environment:
+      # --- Django ---
+      DJANGO_SETTINGS_MODULE: config.settings.docker
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: "False"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      AI_CONFIG_PATH: ${AI_CONFIG_PATH:-/app/backend/config/ai.yaml}
+      # --- Postgres / PostGIS ---
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # --- First-boot bootstrap (entrypoint runs migrate + collectstatic always) ---
+      # Superuser auto-creation is OFF by default in prod; create one by hand after
+      # the first deploy (see DEPLOY.md). Seeding the heritage dataset is opt-in.
+      CREATE_SUPERUSER: ${CREATE_SUPERUSER:-false}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-}
+      SEED_HERITAGE_DATA: ${SEED_HERITAGE_DATA:-false}
+      SEED_HERITAGE_RESET: ${SEED_HERITAGE_RESET:-false}
+      SEED_HERITAGE_SKIP_MEDIA_DOWNLOADS: ${SEED_HERITAGE_SKIP_MEDIA_DOWNLOADS:-false}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+    volumes:
+      - backend_static:/app/backend/staticfiles
+      - backend_media:/app/backend/media
+    expose:
+      - "8000"
+    # gunicorn is alive once it answers on :8000. The API root may 401/403/404
+    # depending on routing, but any HTTP response proves gunicorn is serving, so
+    # only a connection failure or 5xx counts as unhealthy. Stdlib only.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u,sys\ntry:\n c=u.urlopen('http://127.0.0.1:8000/api/v1/',timeout=4).status\nexcept u.HTTPError as e:\n c=e.code\nexcept Exception:\n sys.exit(1)\nsys.exit(0 if c<500 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        # Baked into the Vue bundle at build time. Same-origin relative path so the
+        # SPA talks to the API through the edge nginx under the production hostname.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    image: heritage-platform-frontend:latest
+    restart: unless-stopped
+    # Published to localhost only; the host edge nginx proxies here.
+    ports:
+      - "127.0.0.1:8091:80"
+    volumes:
+      - backend_static:/static:ro
+      - backend_media:/media:ro
+    # nginx serves the SPA at / — a 200 there means it's up. wget ships in alpine.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  backend_static:
+  backend_media:
