@@ -16,8 +16,12 @@ from .assist_serializers import (
     ContributionMetadataAssistResponseSerializer,
     CuratorReviewAssistRequestSerializer,
     CuratorReviewAssistResponseSerializer,
+    EducationalMetadataAssistRequestSerializer,
+    EducationalMetadataAssistResponseSerializer,
+    TranslateAssistRequestSerializer,
+    TranslateAssistResponseSerializer,
 )
-from .ollama_client import OllamaClient
+from .providers import get_provider, is_supported_provider
 from .rate_limit import enforce_user_rate_limit
 
 
@@ -53,7 +57,7 @@ def _require_operation_allowed(config: AIConfig, operation: str) -> None:
 
 
 def _require_supported_provider(config: AIConfig) -> None:
-    if config.provider != "ollama":
+    if not is_supported_provider(config.provider):
         from .availability import AIServiceUnavailable
 
         raise AIServiceUnavailable(f"Unsupported AI provider: {config.provider}")
@@ -84,7 +88,7 @@ class ContributionDraftAssistView(APIView):
         _enforce_input_size(data)
 
         prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
-        client = OllamaClient(config)
+        client = get_provider(config)
         result = client.chat_json(system_prompt=prompt, user_payload=data)
 
         out = ContributionDraftAssistResponseSerializer(data=result.parsed_json)
@@ -108,7 +112,7 @@ class ContributionMetadataAssistView(APIView):
         _enforce_input_size(data)
 
         prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
-        client = OllamaClient(config)
+        client = get_provider(config)
         result = client.chat_json(system_prompt=prompt, user_payload=data)
 
         out = ContributionMetadataAssistResponseSerializer(data=result.parsed_json)
@@ -132,9 +136,63 @@ class CuratorReviewAssistView(APIView):
         _enforce_input_size(data)
 
         prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
-        client = OllamaClient(config)
+        client = get_provider(config)
         result = client.chat_json(system_prompt=prompt, user_payload=data)
 
         out = CuratorReviewAssistResponseSerializer(data=result.parsed_json)
+        out.is_valid(raise_exception=True)
+        return Response(out.validated_data, status=status.HTTP_200_OK)
+
+
+class EducationalMetadataAssistView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):  # noqa: ANN001
+        config = require_ai_available()
+        operation = "educational_metadata"
+        _require_operation_allowed(config, operation)
+        _require_supported_provider(config)
+        enforce_user_rate_limit(user_id=request.user.id, operation=operation)
+
+        serializer = EducationalMetadataAssistRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        _enforce_input_size(data)
+
+        prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
+        client = get_provider(config)
+        result = client.chat_json(system_prompt=prompt, user_payload=data)
+
+        out = EducationalMetadataAssistResponseSerializer(data=result.parsed_json)
+        out.is_valid(raise_exception=True)
+        return Response(out.validated_data, status=status.HTTP_200_OK)
+
+
+class TranslateAssistView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):  # noqa: ANN001
+        config = require_ai_available()
+        operation = "translate"
+        _require_operation_allowed(config, operation)
+        _require_supported_provider(config)
+        enforce_user_rate_limit(user_id=request.user.id, operation=operation)
+
+        serializer = TranslateAssistRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        _enforce_input_size(data)
+
+        prompt = _render_prompt(
+            config.prompts[operation],
+            variables={
+                "source_lang": data.get("source_lang", ""),
+                "target_lang": data.get("target_lang", ""),
+            },
+        )
+        client = get_provider(config)
+        result = client.chat_json(system_prompt=prompt, user_payload=data)
+
+        out = TranslateAssistResponseSerializer(data=result.parsed_json)
         out.is_valid(raise_exception=True)
         return Response(out.validated_data, status=status.HTTP_200_OK)

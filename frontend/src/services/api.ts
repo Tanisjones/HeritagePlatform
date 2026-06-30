@@ -123,6 +123,12 @@ export const teacherService = {
     api.get(`/education/scorm-packages/${heritageItemId}/download/`, { responseType: 'blob' }),
 };
 
+export const aiSuggestionService = {
+  list: (params?: Record<string, any>) => api.get('/ai-suggestions/', { params }),
+  approve: (id: string) => api.post(`/ai-suggestions/${id}/approve/`),
+  reject: (id: string) => api.post(`/ai-suggestions/${id}/reject/`),
+};
+
 export const routeService = {
   list: (params?: Record<string, any>) => api.get('/routes/', { params }),
   get: (id: string) => api.get(`/routes/${id}/`),
@@ -203,7 +209,40 @@ export type AIAssistCuratorReviewResponse = {
 export type AIStatusResponse = {
   available: boolean
   reason?: string
+  provider?: string
+  model?: string
 }
+
+export type AIAssistEducationalMetadataRequest = {
+  language?: string
+  title?: string
+  description?: string
+  resource_type?: string
+}
+
+export type AIAssistEducationalMetadataResponse = {
+  learning_resource_type?: string | null
+  difficulty?: string | null
+  typical_age_range?: string | null
+  typical_learning_time?: string | null
+  context?: string | null
+  learning_objectives: string[]
+  keywords: string[]
+}
+
+export type AITranslateFields = {
+  title?: string
+  description?: string
+  keywords?: string[]
+}
+
+export type AIAssistTranslateRequest = {
+  source_lang: string
+  target_lang: string
+  fields: AITranslateFields
+}
+
+export type AIAssistTranslateResponse = AITranslateFields
 
 export const aiService = {
   status: async () => {
@@ -220,6 +259,14 @@ export const aiService = {
   },
   curatorReview: async (payload: AIAssistCuratorReviewRequest) => {
     const response = await api.post<AIAssistCuratorReviewResponse>('/ai/assist/curator-review/', payload)
+    return response.data
+  },
+  educationalMetadata: async (payload: AIAssistEducationalMetadataRequest) => {
+    const response = await api.post<AIAssistEducationalMetadataResponse>('/ai/assist/educational-metadata/', payload)
+    return response.data
+  },
+  translate: async (payload: AIAssistTranslateRequest) => {
+    const response = await api.post<AIAssistTranslateResponse>('/ai/assist/translate/', payload)
     return response.data
   },
 }

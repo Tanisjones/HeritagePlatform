@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import httpx
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .ai_config import AIConfigError, load_ai_config
+from .providers import get_provider, is_supported_provider
 
 
 class AIStatusView(APIView):
     """
     Lightweight availability check for the UI to enable/disable AI buttons.
-    Returns 200 with `{ available: bool, reason?: str }`.
+    Returns 200 with `{ available: bool, reason?: str, provider?, model? }`.
     """
 
     permission_classes = [permissions.AllowAny]
@@ -25,25 +25,21 @@ class AIStatusView(APIView):
         if not config.enabled:
             return Response({"available": False, "reason": "AI disabled."}, status=status.HTTP_200_OK)
 
-        if config.provider != "ollama":
+        if not is_supported_provider(config.provider):
             return Response(
                 {"available": False, "reason": f"Unsupported provider: {config.provider}."},
                 status=status.HTTP_200_OK,
             )
 
-        base = config.base_url.rstrip("/")
-        try:
-            resp = httpx.get(f"{base}/api/tags", timeout=httpx.Timeout(2.5))
-            if resp.status_code >= 400:
-                return Response(
-                    {"available": False, "reason": f"Ollama error: HTTP {resp.status_code}."},
-                    status=status.HTTP_200_OK,
-                )
-        except httpx.RequestError:
-            return Response(
-                {"available": False, "reason": "Ollama not reachable."},
-                status=status.HTTP_200_OK,
-            )
+        # Delegate the reachability/configuration probe to the provider itself.
+        health = get_provider(config).health()
+        body = {
+            "available": health.available,
+            "provider": config.provider,
+            "model": config.model,
+        }
+        if not health.available and health.reason:
+            body["reason"] = health.reason
 
-        return Response({"available": True}, status=status.HTTP_200_OK)
+        return Response(body, status=status.HTTP_200_OK)
 

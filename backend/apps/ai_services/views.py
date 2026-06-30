@@ -33,31 +33,70 @@ class AISuggestionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         """
-        Approve an AI suggestion.
+        Approve an AI suggestion and apply it to the heritage item.
         """
+        from django.utils import timezone
+
         suggestion = self.get_object()
         suggestion.status = 'approved'
         suggestion.reviewed_by = request.user
+        suggestion.reviewed_at = timezone.now()
         suggestion.save()
-        
-        # Apply the suggestion to the heritage item
-        # This is a simplified example. A real implementation would be more robust.
+
+        item = suggestion.heritage_item
+
         if suggestion.suggestion_type == 'keyword':
-            suggestion.heritage_item.keywords.add(*suggestion.content)
+            # Keywords live on the LOM educational layer (LOMGeneral.keywords is a
+            # comma-separated TextField), NOT on HeritageItem. Merge in the new
+            # keywords, de-duplicated and order-preserving.
+            self._apply_keywords(item, suggestion.content)
         elif suggestion.suggestion_type == 'historical_period':
-            suggestion.heritage_item.historical_period = suggestion.content
-            
-        suggestion.heritage_item.save()
+            item.historical_period = suggestion.content
+            item.save(update_fields=['historical_period'])
 
         return Response({'status': _('Suggestion approved and applied.')})
+
+    @staticmethod
+    def _apply_keywords(item, content):
+        """Merge a list (or comma string) of keywords into the item's LOMGeneral."""
+        from apps.education.models import LOMGeneral
+
+        lom = LOMGeneral.objects.filter(heritage_item=item).first()
+        if lom is None:
+            # No LOM layer yet — create a minimal one so keywords have a home.
+            lom = LOMGeneral.objects.create(
+                heritage_item=item,
+                title=item.title,
+                description=item.description or "",
+                language='es',
+            )
+
+        if isinstance(content, str):
+            incoming = [k.strip() for k in content.split(',')]
+        elif isinstance(content, (list, tuple)):
+            incoming = [str(k).strip() for k in content]
+        else:
+            incoming = []
+
+        existing = [k.strip() for k in (lom.keywords or '').split(',') if k.strip()]
+        merged = list(existing)
+        for kw in incoming:
+            if kw and kw not in merged:
+                merged.append(kw)
+
+        lom.keywords = ', '.join(merged)
+        lom.save(update_fields=['keywords'])
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         """
         Reject an AI suggestion.
         """
+        from django.utils import timezone
+
         suggestion = self.get_object()
         suggestion.status = 'rejected'
         suggestion.reviewed_by = request.user
+        suggestion.reviewed_at = timezone.now()
         suggestion.save()
         return Response({'status': _('Suggestion rejected.')})

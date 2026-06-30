@@ -43,6 +43,59 @@ class _MockHTTPXResponse:
         return self._json_data
 
 
+class AISuggestionApproveTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.staff = User.objects.create_user(
+            username="mod", email="mod@example.com", password="pw", is_staff=True
+        )
+        self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
+        self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
+        self.parish = Parish.objects.create(name='Parish')
+        self.item = HeritageItem.objects.create(
+            title='Item', description='Desc',
+            heritage_type=self.type, heritage_category=self.category,
+            parish=self.parish, location='POINT(0 0)',
+        )
+
+    def test_approve_keyword_suggestion_writes_to_lom(self):
+        """Regression: approving a keyword suggestion used to crash with
+        AttributeError because HeritageItem has no `keywords`. It must now write
+        to LOMGeneral.keywords instead."""
+        from apps.education.models import LOMGeneral
+
+        suggestion = AISuggestion.objects.create(
+            heritage_item=self.item,
+            suggester='gemini',
+            suggestion_type='keyword',
+            content=['colonial', 'iglesia'],
+            confidence=None,
+        )
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.post(f"/api/v1/ai-suggestions/{suggestion.id}/approve/")
+        self.assertEqual(resp.status_code, 200)
+
+        lom = LOMGeneral.objects.get(heritage_item=self.item)
+        self.assertIn('colonial', lom.keywords)
+        self.assertIn('iglesia', lom.keywords)
+        suggestion.refresh_from_db()
+        self.assertEqual(suggestion.status, 'approved')
+
+    def test_approve_historical_period_suggestion(self):
+        suggestion = AISuggestion.objects.create(
+            heritage_item=self.item,
+            suggester='gemini',
+            suggestion_type='historical_period',
+            content='colonial',
+            confidence=None,
+        )
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.post(f"/api/v1/ai-suggestions/{suggestion.id}/approve/")
+        self.assertEqual(resp.status_code, 200)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.historical_period, 'colonial')
+
+
 class AIAssistEndpointsTest(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -173,3 +226,159 @@ ai:
             format="json",
         )
         self.assertEqual(resp.status_code, 400)
+
+    @patch("httpx.Client.post")
+    def test_educational_metadata_success(self, post_mock):
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200,
+            json_data={
+                "message": {
+                    "content": (
+                        '{"learning_resource_type":"narrative_text","difficulty":"medium",'
+                        '"typical_age_range":"12-14","typical_learning_time":"PT30M",'
+                        '"context":"school","learning_objectives":["Entender la historia"],'
+                        '"keywords":["colonial","iglesia"]}'
+                    )
+                }
+            },
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/educational-metadata/",
+            {"language": "es", "title": "Iglesia", "resource_type": "text"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["difficulty"], "medium")
+        self.assertEqual(resp.data["learning_objectives"], ["Entender la historia"])
+
+    @patch("httpx.Client.post")
+    def test_translate_success(self, post_mock):
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200,
+            json_data={
+                "message": {
+                    "content": '{"title":"Church","description":"A colonial church","keywords":["colonial"]}'
+                }
+            },
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/translate/",
+            {
+                "source_lang": "es",
+                "target_lang": "en",
+                "fields": {"title": "Iglesia", "description": "Una iglesia colonial"},
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["title"], "Church")
+
+    @patch("httpx.Client.post")
+    def test_translate_requires_auth(self, post_mock):
+        resp = self.client.post(
+            "/api/v1/ai/assist/translate/",
+            {"source_lang": "es", "target_lang": "en", "fields": {"title": "x"}},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 401)
+        post_mock.assert_not_called()
+
+
+def _gemini_text_response(text: str) -> "_MockHTTPXResponse":
+    """Build a mock Gemini generateContent response wrapping `text`."""
+    return _MockHTTPXResponse(
+        status_code=200,
+        json_data={"candidates": [{"content": {"parts": [{"text": text}]}}]},
+    )
+
+
+_GEMINI_YAML = """
+ai:
+  enabled: true
+  provider: gemini
+  base_url: http://unused
+  model: gemini-2.0-flash
+  api_key_env: TEST_GEMINI_KEY
+  request_timeout_seconds: 30
+  temperature: 0.2
+  max_output_tokens: 50
+  allowed_operations: [contribution_draft]
+  prompts: {contribution_draft: "draft {{language}}"}
+"""
+
+
+class GeminiProviderTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="g1", email="g1@example.com", password="pw")
+        # Write a temp ai.yaml configured for the Gemini provider.
+        self._tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
+        self._tmp.write(_GEMINI_YAML)
+        self._tmp.close()
+        os.environ["AI_CONFIG_PATH"] = self._tmp.name
+
+    def tearDown(self):
+        os.environ.pop("AI_CONFIG_PATH", None)
+        os.environ.pop("TEST_GEMINI_KEY", None)
+        try:
+            os.unlink(self._tmp.name)
+        except OSError:
+            pass
+        # Drop the cached config so other tests reload the default ai.yaml.
+        from apps.ai_services.ai_config import reload_ai_config
+
+        try:
+            reload_ai_config()
+        except Exception:  # noqa: BLE001
+            pass
+
+    @patch("httpx.post")
+    def test_gemini_draft_success(self, post_mock):
+        os.environ["TEST_GEMINI_KEY"] = "secret-key"
+        from apps.ai_services.ai_config import reload_ai_config
+
+        reload_ai_config()  # pick up provider=gemini + the key from env
+        post_mock.return_value = _gemini_text_response('{"title":"T","description":"D"}')
+
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/contribution-draft/",
+            {"language": "es"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["title"], "T")
+        # Verify we actually called the Gemini endpoint, not Ollama.
+        self.assertTrue(post_mock.called)
+        called_url = post_mock.call_args.args[0]
+        self.assertIn("generativelanguage.googleapis.com", called_url)
+
+    @patch("httpx.post")
+    def test_gemini_without_key_is_unavailable(self, post_mock):
+        # No TEST_GEMINI_KEY set → key unresolved.
+        from apps.ai_services.ai_config import reload_ai_config
+
+        reload_ai_config()
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/contribution-draft/",
+            {"language": "es"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 503)
+        post_mock.assert_not_called()
+
+    @patch("httpx.get")
+    def test_status_reports_missing_key(self, get_mock):
+        from apps.ai_services.ai_config import reload_ai_config
+
+        reload_ai_config()
+        resp = self.client.get("/api/v1/ai/status/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data["available"])
+        self.assertEqual(resp.data["provider"], "gemini")
+        self.assertIn("key", resp.data["reason"].lower())
+        # Health short-circuits on missing key without a network call.
+        get_mock.assert_not_called()

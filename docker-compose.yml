@@ -25,6 +25,8 @@ services:
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:8080}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
       AI_CONFIG_PATH: ${AI_CONFIG_PATH:-/app/backend/config/ai.yaml}
+      # API key for the hosted AI provider (Gemini). Empty unless set in .env.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-heritage_platform}
       POSTGRES_DB: ${POSTGRES_DB:-heritage_platform}

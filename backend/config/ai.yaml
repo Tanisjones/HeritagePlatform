@@ -2,14 +2,26 @@ ai:
   # Global on/off switch for all AI endpoints.
   enabled: true
 
-  # Provider selection (Phase 3 will implement the actual provider clients).
+  # Provider selection. Supported: "ollama" (local, dev-only) or "gemini"
+  # (Google's hosted API — recommended for production).
+  #
+  # To use Gemini instead of Ollama:
+  #   1. set `provider: gemini`
+  #   2. set `model:` to a Gemini model (e.g. gemini-2.0-flash)
+  #   3. put the key in the env var named by `api_key_env` (GEMINI_API_KEY)
+  #      in .env / .env.prod — NEVER in this committed file.
   provider: ollama
 
-  # For docker-compose, this should resolve to the service name on the internal network.
+  # Ollama only: base URL of the daemon. For docker-compose this resolves to the
+  # service name on the internal network. Ignored by the Gemini provider.
   base_url: http://ollama:11434
 
-  # Small default model (CPU-friendly). Change via `OLLAMA_MODEL` + `ollama-pull`, or override here.
+  # Model id. Ollama: a small CPU-friendly model. Gemini: e.g. gemini-2.0-flash.
   model: llama3.2:1b
+
+  # Name of the environment variable holding the provider API key (hosted
+  # providers only). The key VALUE lives in .env/.env.prod, never here.
+  api_key_env: GEMINI_API_KEY
 
   request_timeout_seconds: 30
   temperature: 0.2
@@ -20,6 +32,8 @@ ai:
     - contribution_draft
     - contribution_metadata
     - curator_review_assist
+    - educational_metadata
+    - translate
 
   # Prompt templates are stored here so they can evolve without code changes.
   prompts:
@@ -38,3 +52,26 @@ ai:
       Return JSON with fields:
       missing_fields (array), risk_flags (array), curator_feedback_draft (string), suggested_edits (object).
       Language: {{language}}.
+
+    educational_metadata: |
+      You are an instructional designer adding an educational (IEEE-LOM) layer
+      to a cultural heritage resource. From the resource title, description and
+      type, infer pedagogical metadata. Return JSON with fields:
+      learning_resource_type (one of: image, audio, video, document, exercise,
+      simulation, questionnaire, diagram, figure, graph, slide, table,
+      narrative_text, exam, experiment, problem_statement, self_assessment,
+      lecture),
+      difficulty (one of: very_easy, easy, medium, difficult, very_difficult),
+      typical_age_range (string, e.g. "12-14" or "18+"),
+      typical_learning_time (ISO-8601 duration, e.g. "PT30M"),
+      context (one of: school, higher_education, training, other),
+      learning_objectives (array of short strings),
+      keywords (array of strings).
+      Use null when a value cannot be inferred. Language: {{language}}.
+
+    translate: |
+      You are a professional translator for a cultural heritage platform.
+      Translate the provided fields from {{source_lang}} to {{target_lang}},
+      preserving proper nouns and place names. Return JSON with the SAME field
+      names you received under "fields": title, description, keywords (array).
+      Translate only; do not add commentary.

@@ -188,5 +188,10 @@ SPECTACULAR_SETTINGS = {
 # CORS settings (will be configured per environment)
 CORS_ALLOW_ALL_ORIGINS = False
 
-# AI configuration (Phase 2)
+# AI configuration. The active provider, model and prompts live in ai.yaml
+# (path below). Provider API keys are read from the environment by the AI config
+# loader via the `api_key_env` declared in ai.yaml (e.g. GEMINI_API_KEY) and are
+# NEVER stored in the YAML. We read GEMINI_API_KEY here so django-environ loads
+# it from .env into the process environment where the loader can see it.
 AI_CONFIG_PATH = env("AI_CONFIG_PATH", default=str(BASE_DIR / "config" / "ai.yaml"))
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")

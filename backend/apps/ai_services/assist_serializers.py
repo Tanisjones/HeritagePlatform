@@ -55,3 +55,56 @@ class CuratorReviewAssistResponseSerializer(StrictSerializer):
     risk_flags = serializers.ListField(child=serializers.CharField(), allow_empty=True)
     curator_feedback_draft = serializers.CharField()
     suggested_edits = SuggestedEditsSerializer(required=False)
+
+
+class EducationalMetadataAssistRequestSerializer(serializers.Serializer):
+    language = serializers.CharField(required=False, default="es", max_length=10)
+    title = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=5000)
+    resource_type = serializers.CharField(required=False, allow_blank=True, max_length=60)
+
+
+class EducationalMetadataAssistResponseSerializer(StrictSerializer):
+    learning_resource_type = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=40)
+    difficulty = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
+    typical_age_range = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
+    typical_learning_time = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=40)
+    context = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=40)
+    learning_objectives = serializers.ListField(
+        child=serializers.CharField(allow_blank=False, max_length=300),
+        allow_empty=True,
+        max_length=20,
+    )
+    keywords = serializers.ListField(
+        child=serializers.CharField(allow_blank=False, max_length=60),
+        allow_empty=True,
+        max_length=30,
+    )
+
+
+class TranslateFieldsSerializer(serializers.Serializer):
+    title = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=5000)
+    keywords = serializers.ListField(
+        child=serializers.CharField(allow_blank=True, max_length=60),
+        required=False,
+        allow_empty=True,
+        max_length=30,
+    )
+
+
+class TranslateAssistRequestSerializer(serializers.Serializer):
+    source_lang = serializers.CharField(max_length=10)
+    target_lang = serializers.CharField(max_length=10)
+    fields = TranslateFieldsSerializer()
+
+
+class TranslateAssistResponseSerializer(StrictSerializer):
+    title = serializers.CharField(required=False, allow_blank=True, max_length=400)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=8000)
+    keywords = serializers.ListField(
+        child=serializers.CharField(allow_blank=True, max_length=80),
+        required=False,
+        allow_empty=True,
+        max_length=30,
+    )

@@ -129,6 +129,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresCurator: true },
     },
     {
+      path: '/moderation/ai-suggestions',
+      name: 'moderation-ai-suggestions',
+      component: () => import('../views/moderation/AISuggestionsView.vue'),
+      meta: { requiresAuth: true, requiresCurator: true },
+    },
+    {
       path: '/moderation/queue/:id',
       name: 'moderation-review',
       component: () => import('../views/curator/ContributionReviewView.vue'),

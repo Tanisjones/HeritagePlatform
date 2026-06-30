@@ -24,6 +24,8 @@ from apps.ai_services.assist_views import (
     ContributionDraftAssistView,
     ContributionMetadataAssistView,
     CuratorReviewAssistView,
+    EducationalMetadataAssistView,
+    TranslateAssistView,
 )
 from apps.ai_services.status_views import AIStatusView
 from apps.notifications.views import NotificationTemplateViewSet, UserNotificationViewSet
@@ -102,4 +104,10 @@ urlpatterns = [
         name='ai-contribution-metadata',
     ),
     path('ai/assist/curator-review/', CuratorReviewAssistView.as_view(), name='ai-curator-review'),
+    path(
+        'ai/assist/educational-metadata/',
+        EducationalMetadataAssistView.as_view(),
+        name='ai-educational-metadata',
+    ),
+    path('ai/assist/translate/', TranslateAssistView.as_view(), name='ai-translate'),
 ]

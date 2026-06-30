@@ -26,6 +26,11 @@ class AIConfig:
     max_output_tokens: int
     allowed_operations: tuple[str, ...]
     prompts: dict[str, str]
+    # Name of the env var holding the provider API key (e.g. "GEMINI_API_KEY"),
+    # and the resolved key value. The key is read from the environment, never
+    # from the committed ai.yaml. `api_key` is None when the env var is unset.
+    api_key_env: str | None = None
+    api_key: str | None = None
 
 
 def get_ai_config_path() -> Path:
@@ -86,6 +91,13 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
             f"AI config missing prompt templates for: {', '.join(missing_prompts)} ({path})"
         )
 
+    # Optional: name of the env var holding the provider API key. The key value
+    # itself is resolved from the environment here and never stored in the YAML.
+    api_key_env = ai.get("api_key_env")
+    if api_key_env is not None and (not isinstance(api_key_env, str) or not api_key_env.strip()):
+        raise AIConfigError("AI config 'api_key_env' must be a non-empty string when set")
+    api_key = os.getenv(api_key_env) if api_key_env else None
+
     return AIConfig(
         enabled=enabled,
         provider=provider,
@@ -96,6 +108,8 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
         max_output_tokens=max_output_tokens,
         allowed_operations=allowed_operations,
         prompts=prompts,
+        api_key_env=api_key_env,
+        api_key=api_key,
     )
 
 

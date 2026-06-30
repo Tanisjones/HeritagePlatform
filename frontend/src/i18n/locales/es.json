@@ -644,12 +644,34 @@
     "curator": {
         "title": "Panel del curador",
         "manageResources": "Gestionar Recursos",
+        "aiSuggestions": "Sugerencias IA",
         "openQueue": "Abrir cola",
         "stats": {
             "pending": "Pendientes",
             "changesRequested": "Cambios solicitados",
             "flaggedOpen": "Marcadas (abiertas)",
             "reviewedTotal": "Revisadas (total)"
+        }
+    },
+    "aiSuggestions": {
+        "title": "Sugerencias de IA",
+        "intro": "Propuestas generadas por IA al crear contribuciones. Apruébalas para aplicarlas o recházalas.",
+        "loading": "Cargando…",
+        "loadError": "No se pudieron cargar las sugerencias.",
+        "actionError": "No se pudo aplicar la acción.",
+        "empty": "No hay sugerencias.",
+        "forItem": "Para el recurso",
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "filters": {
+            "pending": "Pendientes",
+            "approved": "Aprobadas",
+            "rejected": "Rechazadas",
+            "all": "Todas"
+        },
+        "types": {
+            "keyword": "Palabras clave",
+            "historical_period": "Período histórico"
         }
     },
     "moderation": {

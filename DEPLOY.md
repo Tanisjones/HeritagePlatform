@@ -176,4 +176,8 @@ This mirrors the chatbot's edge vhost; the bare-IP `default_server` (adminweb) a
   `docker compose -p heritageplatform -f docker-compose.prod.yml --env-file .env.prod exec db pg_dump -U $POSTGRES_USER $POSTGRES_DB > backup.sql`.
 - **AI provider:** the backend reads its AI config from `AI_CONFIG_PATH`
   (`/app/backend/config/ai.yaml`). The optional local Ollama container is a **dev-only**
-  profile and is not part of this production stack.
+  profile and is not part of this production stack. To enable AI in production, use
+  **Gemini**: in `ai.yaml` set `provider: gemini` and a Gemini `model:` (e.g.
+  `gemini-2.0-flash`), then put the key in `GEMINI_API_KEY` in `.env.prod` (never in
+  `ai.yaml`). Verify with `GET /api/v1/ai/status/` — it reports `{available, provider,
+  model, reason?}` and will say the key is missing if unset.

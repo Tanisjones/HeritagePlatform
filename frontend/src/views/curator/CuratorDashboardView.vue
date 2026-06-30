@@ -25,6 +25,12 @@ onMounted(async () => {
           {{ t('curator.manageResources', 'Manage Resources') }}
         </button>
         <button
+          class="px-4 py-2 rounded-lg border border-primary-600 text-primary-600 hover:bg-primary-50 bg-white"
+          @click="router.push('/moderation/ai-suggestions')"
+        >
+          {{ t('curator.aiSuggestions', 'AI Suggestions') }}
+        </button>
+        <button
           class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700"
           @click="router.push('/moderation/queue')"
         >
