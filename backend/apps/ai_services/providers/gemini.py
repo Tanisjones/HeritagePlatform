@@ -80,11 +80,23 @@ class GeminiProvider(ChatProvider):
         except ValueError as exc:
             raise AIServiceUnavailable("AI provider returned non-JSON response.") from exc
 
+        # A safety/recitation block returns HTTP 200 with no candidates and a
+        # promptFeedback.blockReason — surface that distinctly, not as a generic
+        # "missing content" outage.
+        block_reason = _block_reason(data)
+        if block_reason:
+            raise AIServiceUnavailable(f"AI request was blocked by the provider ({block_reason}).")
+
         text = _extract_text(data)
         if text is None:
             raise AIServiceUnavailable("AI provider response missing content.")
 
-        parsed = _parse_json_lenient(text)
+        # JSON mode (responseMimeType=application/json) yields parseable JSON, so
+        # parse it directly; fall back to lenient extraction only if that fails.
+        try:
+            parsed = json.loads(text)
+        except ValueError:
+            parsed = _parse_json_lenient(text)
         if parsed is None:
             raise AIServiceUnavailable("AI returned invalid JSON.")
 
@@ -113,6 +125,15 @@ class GeminiProvider(ChatProvider):
             return ProviderHealth(available=False, reason=f"Gemini error: HTTP {resp.status_code}.")
 
         return ProviderHealth(available=True)
+
+
+def _block_reason(data: Any) -> str | None:
+    """Return the promptFeedback.blockReason if the request was safety-blocked."""
+    if not isinstance(data, dict):
+        return None
+    feedback = data.get("promptFeedback")
+    reason = feedback.get("blockReason") if isinstance(feedback, dict) else None
+    return reason if isinstance(reason, str) and reason else None
 
 
 def _extract_text(data: Any) -> str | None:

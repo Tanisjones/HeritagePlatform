@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { aiSuggestionService } from '@/services/api'
 
@@ -21,24 +21,52 @@ const suggestions = ref<AISuggestion[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const statusFilter = ref<string>('pending')
-const actingId = ref<string | null>(null)
+// Track in-flight rows in a Set so concurrent actions on different rows are
+// each guarded (a single id would only debounce one row).
+const actingIds = ref<Set<string>>(new Set())
+const page = ref(1)
+const count = ref(0)
+const pageSize = ref(20)
+
+const totalPages = computed(() => Math.max(1, Math.ceil(count.value / pageSize.value)))
 
 const fetchSuggestions = async () => {
   loading.value = true
   error.value = null
   try {
-    const params = statusFilter.value === 'all' ? {} : { status: statusFilter.value }
+    const params: Record<string, any> = { page: page.value }
+    if (statusFilter.value !== 'all') params.status = statusFilter.value
     const res = await aiSuggestionService.list(params)
-    suggestions.value = res.data?.results ?? res.data ?? []
-  } catch (e: any) {
-    error.value = e?.message || t('aiSuggestions.loadError')
+    const data = res.data
+    if (Array.isArray(data)) {
+      suggestions.value = data
+      count.value = data.length
+    } else {
+      suggestions.value = data?.results ?? []
+      count.value = typeof data?.count === 'number' ? data.count : suggestions.value.length
+      if (Array.isArray(data?.results) && data.results.length) pageSize.value = data.results.length
+    }
+  } catch {
+    error.value = t('aiSuggestions.loadError')
   } finally {
     loading.value = false
   }
 }
 
+const applyFilter = () => {
+  page.value = 1
+  fetchSuggestions()
+}
+
+const goToPage = (p: number) => {
+  if (p < 1 || p > totalPages.value || p === page.value) return
+  page.value = p
+  fetchSuggestions()
+}
+
 const act = async (id: string, action: 'approve' | 'reject') => {
-  actingId.value = id
+  if (actingIds.value.has(id)) return
+  actingIds.value.add(id)
   error.value = null
   try {
     if (action === 'approve') {
@@ -46,11 +74,14 @@ const act = async (id: string, action: 'approve' | 'reject') => {
     } else {
       await aiSuggestionService.reject(id)
     }
-    await fetchSuggestions()
-  } catch (e: any) {
-    error.value = e?.message || t('aiSuggestions.actionError')
+    // Drop the acted row locally instead of a full refetch — avoids racing
+    // overlapping refetches when several rows are actioned quickly.
+    suggestions.value = suggestions.value.filter((s) => s.id !== id)
+    count.value = Math.max(0, count.value - 1)
+  } catch {
+    error.value = t('aiSuggestions.actionError')
   } finally {
-    actingId.value = null
+    actingIds.value.delete(id)
   }
 }
 
@@ -71,7 +102,7 @@ onMounted(fetchSuggestions)
         <select
           v-model="statusFilter"
           class="w-full rounded-lg border-gray-300"
-          @change="fetchSuggestions"
+          @change="applyFilter"
         >
           <option value="pending">{{ t('aiSuggestions.filters.pending') }}</option>
           <option value="approved">{{ t('aiSuggestions.filters.approved') }}</option>
@@ -111,14 +142,14 @@ onMounted(fetchSuggestions)
         <div v-if="s.status === 'pending'" class="flex flex-col gap-2 shrink-0">
           <button
             class="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700 disabled:opacity-50"
-            :disabled="actingId === s.id"
+            :disabled="actingIds.has(s.id)"
             @click="act(s.id, 'approve')"
           >
             {{ t('aiSuggestions.approve') }}
           </button>
           <button
             class="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 disabled:opacity-50"
-            :disabled="actingId === s.id"
+            :disabled="actingIds.has(s.id)"
             @click="act(s.id, 'reject')"
           >
             {{ t('aiSuggestions.reject') }}
@@ -135,6 +166,24 @@ onMounted(fetchSuggestions)
 
       <div v-if="suggestions.length === 0" class="text-sm text-gray-600">
         {{ t('aiSuggestions.empty') }}
+      </div>
+
+      <div v-if="totalPages > 1" class="flex items-center justify-center gap-4 pt-2">
+        <button
+          class="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 disabled:opacity-50"
+          :disabled="page <= 1"
+          @click="goToPage(page - 1)"
+        >
+          {{ t('aiSuggestions.prev') }}
+        </button>
+        <span class="text-sm text-gray-600">{{ t('aiSuggestions.pageOf', { page, total: totalPages }) }}</span>
+        <button
+          class="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 disabled:opacity-50"
+          :disabled="page >= totalPages"
+          @click="goToPage(page + 1)"
+        >
+          {{ t('aiSuggestions.next') }}
+        </button>
       </div>
     </div>
   </div>

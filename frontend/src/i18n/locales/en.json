@@ -663,6 +663,9 @@
         "forItem": "For resource",
         "approve": "Approve",
         "reject": "Reject",
+        "prev": "Previous",
+        "next": "Next",
+        "pageOf": "Page {page} of {total}",
         "filters": {
             "pending": "Pending",
             "approved": "Approved",

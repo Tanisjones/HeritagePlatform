@@ -1,24 +1,29 @@
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
+
+from apps.moderation.permissions import IsCurator
+
 from .models import AISuggestion
 from .serializers import AISuggestionSerializer
 
-class IsModerator(permissions.BasePermission):
-    """
-    Custom permission to only allow moderators to access the view.
-    """
-    def has_permission(self, request, view):
-        return request.user and request.user.is_staff
 
-class AISuggestionViewSet(viewsets.ModelViewSet):
+class AISuggestionViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for managing AI suggestions.
+    Read-only listing of AI suggestions plus approve/reject actions.
+
+    Read-only on purpose: suggestions are created by the system (on contribution
+    creation) and only ever transition via the approve/reject actions, so the
+    create/update/destroy verbs are intentionally not exposed — that prevents a
+    client from flipping `status` to 'approved' without actually applying the
+    suggestion, or injecting arbitrary content.
     """
     serializer_class = AISuggestionSerializer
-    permission_classes = [IsModerator]
+    permission_classes = [IsCurator]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status', 'suggestion_type', 'suggester']
     ordering_fields = ['created_at', 'confidence']
@@ -34,42 +39,55 @@ class AISuggestionViewSet(viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         """
         Approve an AI suggestion and apply it to the heritage item.
+
+        Atomic: the suggestion is only marked approved if applying it succeeds,
+        so we never leave a suggestion in 'approved' state with the change not
+        actually persisted.
         """
-        from django.utils import timezone
-
         suggestion = self.get_object()
-        suggestion.status = 'approved'
-        suggestion.reviewed_by = request.user
-        suggestion.reviewed_at = timezone.now()
-        suggestion.save()
-
         item = suggestion.heritage_item
 
-        if suggestion.suggestion_type == 'keyword':
-            # Keywords live on the LOM educational layer (LOMGeneral.keywords is a
-            # comma-separated TextField), NOT on HeritageItem. Merge in the new
-            # keywords, de-duplicated and order-preserving.
-            self._apply_keywords(item, suggestion.content)
-        elif suggestion.suggestion_type == 'historical_period':
-            item.historical_period = suggestion.content
-            item.save(update_fields=['historical_period'])
+        try:
+            with transaction.atomic():
+                if suggestion.suggestion_type == 'keyword':
+                    self._apply_keywords(item, suggestion.content)
+                elif suggestion.suggestion_type == 'historical_period':
+                    self._apply_historical_period(item, suggestion.content)
+
+                suggestion.status = 'approved'
+                suggestion.reviewed_by = request.user
+                suggestion.reviewed_at = timezone.now()
+                suggestion.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'status': _('Suggestion approved and applied.')})
+
+    @staticmethod
+    def _apply_historical_period(item, content):
+        """Validate the AI value against the field's choices before applying."""
+        valid = {value for value, _label in item._meta.get_field('historical_period').choices}
+        if not isinstance(content, str) or content not in valid:
+            raise ValueError(_('Suggested historical period is not a valid option.'))
+        item.historical_period = content
+        # Full save (no update_fields) so auto_now `updated_at` is refreshed too.
+        item.save()
 
     @staticmethod
     def _apply_keywords(item, content):
         """Merge a list (or comma string) of keywords into the item's LOMGeneral."""
         from apps.education.models import LOMGeneral
 
-        lom = LOMGeneral.objects.filter(heritage_item=item).first()
-        if lom is None:
-            # No LOM layer yet — create a minimal one so keywords have a home.
-            lom = LOMGeneral.objects.create(
-                heritage_item=item,
-                title=item.title,
-                description=item.description or "",
-                language='es',
-            )
+        # get_or_create is atomic against the OneToOne(heritage_item) constraint,
+        # so concurrent keyword approvals for a LOM-less item can't both create.
+        lom, _created = LOMGeneral.objects.get_or_create(
+            heritage_item=item,
+            defaults={
+                'title': item.title,
+                'description': item.description or "",
+                'language': 'es',
+            },
+        )
 
         if isinstance(content, str):
             incoming = [k.strip() for k in content.split(',')]
@@ -85,18 +103,17 @@ class AISuggestionViewSet(viewsets.ModelViewSet):
                 merged.append(kw)
 
         lom.keywords = ', '.join(merged)
-        lom.save(update_fields=['keywords'])
+        # Full save so modeltranslation syncs the language column and updated_at bumps.
+        lom.save()
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         """
         Reject an AI suggestion.
         """
-        from django.utils import timezone
-
         suggestion = self.get_object()
         suggestion.status = 'rejected'
         suggestion.reviewed_by = request.user
         suggestion.reviewed_at = timezone.now()
-        suggestion.save()
+        suggestion.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
         return Response({'status': _('Suggestion rejected.')})

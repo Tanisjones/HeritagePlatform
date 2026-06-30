@@ -23,6 +23,12 @@ ai:
   # providers only). The key VALUE lives in .env/.env.prod, never here.
   api_key_env: GEMINI_API_KEY
 
+  # When true, creating a contribution fires a synchronous AI call to generate
+  # reviewable suggestions (shown in the curator "AI Suggestions" page). OFF by
+  # default so contribution submission stays instant and never blocks on a
+  # provider round-trip — enable only with a fast, reliable provider.
+  auto_suggest_on_create: false
+
   request_timeout_seconds: 30
   temperature: 0.2
   max_output_tokens: 700

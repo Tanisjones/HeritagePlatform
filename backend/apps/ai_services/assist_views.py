@@ -6,9 +6,10 @@ from typing import Any
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.serializers import Serializer
 
 from .ai_config import AIConfig
-from .availability import require_ai_available
+from .availability import AIServiceUnavailable, require_ai_available
 from .assist_serializers import (
     ContributionDraftAssistRequestSerializer,
     ContributionDraftAssistResponseSerializer,
@@ -51,148 +52,104 @@ def _render_prompt(template: str, *, variables: dict[str, Any]) -> str:
 
 def _require_operation_allowed(config: AIConfig, operation: str) -> None:
     if operation not in config.allowed_operations:
-        from .availability import AIServiceUnavailable
-
         raise AIServiceUnavailable("AI operation is not allowed by configuration.")
 
 
 def _require_supported_provider(config: AIConfig) -> None:
     if not is_supported_provider(config.provider):
-        from .availability import AIServiceUnavailable
-
         raise AIServiceUnavailable(f"Unsupported AI provider: {config.provider}")
 
 
 def _enforce_input_size(payload: dict[str, Any]) -> None:
-    # crude but effective: stringify and cap
-    raw = str(payload)
+    # Measure the actual content (JSON), not the dict repr — repr noise
+    # (OrderedDict([...]) wrappers, escaped quotes) would distort the bound,
+    # especially for operations with nested payloads like translate.
+    try:
+        raw = json.dumps(payload, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        raw = str(payload)
     if len(raw) > MAX_INPUT_CHARS:
-        from .availability import AIServiceUnavailable
-
         raise AIServiceUnavailable("AI input too large.")
 
 
-class ContributionDraftAssistView(APIView):
+class BaseAssistView(APIView):
+    """
+    Shared pipeline for every AI assist endpoint:
+      require AI available -> operation allow-listed -> supported provider ->
+      per-user rate limit -> validate request -> bound input size ->
+      render prompt -> call provider -> validate response (strict) -> 200.
+
+    Subclasses declare the operation, the request/response serializers, the
+    rate limit, the permission classes, and (optionally) the prompt variables.
+    """
+
+    operation: str = ""
+    request_serializer: type[Serializer] = Serializer
+    response_serializer: type[Serializer] = Serializer
+    rate_limit_per_minute: int | None = None
     permission_classes = [permissions.IsAuthenticated]
+
+    def prompt_variables(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Variables substituted into the prompt template. Override as needed."""
+        return {"language": data.get("language", "es")}
 
     def post(self, request):  # noqa: ANN001
         config = require_ai_available()
-        operation = "contribution_draft"
-        _require_operation_allowed(config, operation)
+        _require_operation_allowed(config, self.operation)
         _require_supported_provider(config)
-        enforce_user_rate_limit(user_id=request.user.id, operation=operation)
 
-        serializer = ContributionDraftAssistRequestSerializer(data=request.data)
+        rate_kwargs = {}
+        if self.rate_limit_per_minute is not None:
+            rate_kwargs["limit_per_minute"] = self.rate_limit_per_minute
+        enforce_user_rate_limit(user_id=request.user.id, operation=self.operation, **rate_kwargs)
+
+        serializer = self.request_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         _enforce_input_size(data)
 
-        prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
+        prompt = _render_prompt(config.prompts[self.operation], variables=self.prompt_variables(data))
         client = get_provider(config)
         result = client.chat_json(system_prompt=prompt, user_payload=data)
 
-        out = ContributionDraftAssistResponseSerializer(data=result.parsed_json)
+        out = self.response_serializer(data=result.parsed_json)
         out.is_valid(raise_exception=True)
         return Response(out.validated_data, status=status.HTTP_200_OK)
 
 
-class ContributionMetadataAssistView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):  # noqa: ANN001
-        config = require_ai_available()
-        operation = "contribution_metadata"
-        _require_operation_allowed(config, operation)
-        _require_supported_provider(config)
-        enforce_user_rate_limit(user_id=request.user.id, operation=operation)
-
-        serializer = ContributionMetadataAssistRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        _enforce_input_size(data)
-
-        prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
-        client = get_provider(config)
-        result = client.chat_json(system_prompt=prompt, user_payload=data)
-
-        out = ContributionMetadataAssistResponseSerializer(data=result.parsed_json)
-        out.is_valid(raise_exception=True)
-        return Response(out.validated_data, status=status.HTTP_200_OK)
+class ContributionDraftAssistView(BaseAssistView):
+    operation = "contribution_draft"
+    request_serializer = ContributionDraftAssistRequestSerializer
+    response_serializer = ContributionDraftAssistResponseSerializer
 
 
-class CuratorReviewAssistView(APIView):
+class ContributionMetadataAssistView(BaseAssistView):
+    operation = "contribution_metadata"
+    request_serializer = ContributionMetadataAssistRequestSerializer
+    response_serializer = ContributionMetadataAssistResponseSerializer
+
+
+class CuratorReviewAssistView(BaseAssistView):
+    operation = "curator_review_assist"
+    request_serializer = CuratorReviewAssistRequestSerializer
+    response_serializer = CuratorReviewAssistResponseSerializer
+    rate_limit_per_minute = 20
     permission_classes = [IsStaff]
 
-    def post(self, request):  # noqa: ANN001
-        config = require_ai_available()
-        operation = "curator_review_assist"
-        _require_operation_allowed(config, operation)
-        _require_supported_provider(config)
-        enforce_user_rate_limit(user_id=request.user.id, operation=operation, limit_per_minute=20)
 
-        serializer = CuratorReviewAssistRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        _enforce_input_size(data)
-
-        prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
-        client = get_provider(config)
-        result = client.chat_json(system_prompt=prompt, user_payload=data)
-
-        out = CuratorReviewAssistResponseSerializer(data=result.parsed_json)
-        out.is_valid(raise_exception=True)
-        return Response(out.validated_data, status=status.HTTP_200_OK)
+class EducationalMetadataAssistView(BaseAssistView):
+    operation = "educational_metadata"
+    request_serializer = EducationalMetadataAssistRequestSerializer
+    response_serializer = EducationalMetadataAssistResponseSerializer
 
 
-class EducationalMetadataAssistView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+class TranslateAssistView(BaseAssistView):
+    operation = "translate"
+    request_serializer = TranslateAssistRequestSerializer
+    response_serializer = TranslateAssistResponseSerializer
 
-    def post(self, request):  # noqa: ANN001
-        config = require_ai_available()
-        operation = "educational_metadata"
-        _require_operation_allowed(config, operation)
-        _require_supported_provider(config)
-        enforce_user_rate_limit(user_id=request.user.id, operation=operation)
-
-        serializer = EducationalMetadataAssistRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        _enforce_input_size(data)
-
-        prompt = _render_prompt(config.prompts[operation], variables={"language": data.get("language", "es")})
-        client = get_provider(config)
-        result = client.chat_json(system_prompt=prompt, user_payload=data)
-
-        out = EducationalMetadataAssistResponseSerializer(data=result.parsed_json)
-        out.is_valid(raise_exception=True)
-        return Response(out.validated_data, status=status.HTTP_200_OK)
-
-
-class TranslateAssistView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):  # noqa: ANN001
-        config = require_ai_available()
-        operation = "translate"
-        _require_operation_allowed(config, operation)
-        _require_supported_provider(config)
-        enforce_user_rate_limit(user_id=request.user.id, operation=operation)
-
-        serializer = TranslateAssistRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        _enforce_input_size(data)
-
-        prompt = _render_prompt(
-            config.prompts[operation],
-            variables={
-                "source_lang": data.get("source_lang", ""),
-                "target_lang": data.get("target_lang", ""),
-            },
-        )
-        client = get_provider(config)
-        result = client.chat_json(system_prompt=prompt, user_payload=data)
-
-        out = TranslateAssistResponseSerializer(data=result.parsed_json)
-        out.is_valid(raise_exception=True)
-        return Response(out.validated_data, status=status.HTTP_200_OK)
+    def prompt_variables(self, data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "source_lang": data.get("source_lang", ""),
+            "target_lang": data.get("target_lang", ""),
+        }

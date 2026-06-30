@@ -663,6 +663,9 @@
         "forItem": "Para el recurso",
         "approve": "Aprobar",
         "reject": "Rechazar",
+        "prev": "Anterior",
+        "next": "Siguiente",
+        "pageOf": "Página {page} de {total}",
         "filters": {
             "pending": "Pendientes",
             "approved": "Aprobadas",

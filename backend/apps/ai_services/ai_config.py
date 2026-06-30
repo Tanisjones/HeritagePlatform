@@ -31,6 +31,10 @@ class AIConfig:
     # from the committed ai.yaml. `api_key` is None when the env var is unset.
     api_key_env: str | None = None
     api_key: str | None = None
+    # When true, contribution creation fires a (synchronous) AI call to generate
+    # reviewable suggestions. Off by default so item creation stays instant and
+    # never blocks on a provider round-trip; enable only with a fast provider.
+    auto_suggest_on_create: bool = False
 
 
 def get_ai_config_path() -> Path:
@@ -76,7 +80,14 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
 
     enabled = _require_bool(ai, "enabled")
     provider = _require_str(ai, "provider")
-    base_url = _require_str(ai, "base_url")
+    # base_url is only meaningful for the Ollama provider; hosted providers
+    # (e.g. Gemini) ignore it, so it is optional unless provider == "ollama".
+    if provider == "ollama":
+        base_url = _require_str(ai, "base_url")
+    else:
+        base_url = ai.get("base_url") or ""
+        if not isinstance(base_url, str):
+            raise AIConfigError("AI config 'base_url' must be a string")
     model = _require_str(ai, "model")
     request_timeout_seconds = _require_int(ai, "request_timeout_seconds")
     temperature = _require_float(ai, "temperature")
@@ -98,6 +109,10 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
         raise AIConfigError("AI config 'api_key_env' must be a non-empty string when set")
     api_key = os.getenv(api_key_env) if api_key_env else None
 
+    auto_suggest = ai.get("auto_suggest_on_create", False)
+    if not isinstance(auto_suggest, bool):
+        raise AIConfigError("AI config 'auto_suggest_on_create' must be a boolean")
+
     return AIConfig(
         enabled=enabled,
         provider=provider,
@@ -110,6 +125,7 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
         prompts=prompts,
         api_key_env=api_key_env,
         api_key=api_key,
+        auto_suggest_on_create=auto_suggest,
     )
 
 

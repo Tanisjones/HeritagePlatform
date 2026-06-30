@@ -95,6 +95,52 @@ class AISuggestionApproveTest(TestCase):
         self.item.refresh_from_db()
         self.assertEqual(self.item.historical_period, 'colonial')
 
+    def test_approve_invalid_historical_period_is_rejected(self):
+        """An out-of-choices / over-length AI value must 400, not 500 or corrupt."""
+        suggestion = AISuggestion.objects.create(
+            heritage_item=self.item,
+            suggester='gemini',
+            suggestion_type='historical_period',
+            content='a very long made-up period that is not in the choices list',
+            confidence=None,
+        )
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.post(f"/api/v1/ai-suggestions/{suggestion.id}/approve/")
+        self.assertEqual(resp.status_code, 400)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.historical_period, '')  # unchanged
+        suggestion.refresh_from_db()
+        self.assertEqual(suggestion.status, 'pending')  # not approved (atomic)
+
+    def test_non_staff_curator_can_list_and_approve(self):
+        """A role='curator' user without is_staff must be able to use the feature
+        (the route guard allows curators; the API must match)."""
+        from apps.users.models import UserRole, UserProfile
+
+        role, _ = UserRole.objects.get_or_create(name='Curator', slug='curator')
+        curator = User.objects.create_user(
+            username='cur', email='cur@example.com', password='pw'
+        )
+        UserProfile.objects.create(user=curator, role=role)
+        suggestion = AISuggestion.objects.create(
+            heritage_item=self.item, suggester='gemini',
+            suggestion_type='historical_period', content='colonial', confidence=None,
+        )
+        self.client.force_authenticate(user=curator)
+        self.assertEqual(self.client.get("/api/v1/ai-suggestions/").status_code, 200)
+        resp = self.client.post(f"/api/v1/ai-suggestions/{suggestion.id}/approve/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_viewset_is_read_only_no_direct_create(self):
+        """The viewset must not allow direct POST creation (only approve/reject)."""
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.post("/api/v1/ai-suggestions/", {
+            "heritage_item": str(self.item.id),
+            "suggester": "x", "suggestion_type": "keyword",
+            "content": ["x"], "status": "approved",
+        }, format="json")
+        self.assertEqual(resp.status_code, 405)  # method not allowed
+
 
 class AIAssistEndpointsTest(TestCase):
     def setUp(self):
@@ -284,6 +330,74 @@ ai:
         )
         self.assertEqual(resp.status_code, 401)
         post_mock.assert_not_called()
+
+
+class AIConfigLoadTest(TestCase):
+    def _load(self, yaml_text: str):
+        import tempfile
+        from apps.ai_services.ai_config import _load_ai_config_cached, reload_ai_config
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_text)
+            path = f.name
+        self.addCleanup(lambda: os.path.exists(path) and os.unlink(path))
+        # Clear the lru_cache afterwards so a temp-path entry can't leak.
+        self.addCleanup(reload_ai_config)
+        # Bypass the path/env resolution; call the cached loader directly per path.
+        return _load_ai_config_cached(path)
+
+    def test_gemini_config_without_base_url_loads(self):
+        """base_url is Ollama-only; a Gemini config may omit it."""
+        cfg = self._load(
+            """
+ai:
+  enabled: true
+  provider: gemini
+  model: gemini-2.0-flash
+  api_key_env: SOME_KEY
+  request_timeout_seconds: 30
+  temperature: 0.2
+  max_output_tokens: 50
+  allowed_operations: [contribution_draft]
+  prompts: {contribution_draft: "x {{language}}"}
+"""
+        )
+        self.assertEqual(cfg.provider, "gemini")
+        self.assertEqual(cfg.base_url, "")
+
+    def test_ollama_config_without_base_url_raises(self):
+        from apps.ai_services.ai_config import AIConfigError
+
+        with self.assertRaises(AIConfigError):
+            self._load(
+                """
+ai:
+  enabled: true
+  provider: ollama
+  model: llama3.2:1b
+  request_timeout_seconds: 30
+  temperature: 0.2
+  max_output_tokens: 50
+  allowed_operations: [contribution_draft]
+  prompts: {contribution_draft: "x {{language}}"}
+"""
+            )
+
+    def test_auto_suggest_defaults_off(self):
+        cfg = self._load(
+            """
+ai:
+  enabled: true
+  provider: gemini
+  model: gemini-2.0-flash
+  request_timeout_seconds: 30
+  temperature: 0.2
+  max_output_tokens: 50
+  allowed_operations: [contribution_draft]
+  prompts: {contribution_draft: "x {{language}}"}
+"""
+        )
+        self.assertFalse(cfg.auto_suggest_on_create)
 
 
 def _gemini_text_response(text: str) -> "_MockHTTPXResponse":

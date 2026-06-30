@@ -25,11 +25,20 @@ def get_ai_suggestions(heritage_item):
 
     try:
         config = load_ai_config()
-        if not config.enabled or not is_supported_provider(config.provider):
-            return []
-        if "contribution_metadata" not in config.allowed_operations:
-            return []
+    except Exception:  # noqa: BLE001 — config errors must not break item creation
+        logger.exception("AI suggestions skipped: failed to load AI config")
+        return []
 
+    # Off by default: only attempt the (synchronous) provider call when an
+    # operator has explicitly opted in AND the provider/operation are usable.
+    if not config.auto_suggest_on_create:
+        return []
+    if not config.enabled or not is_supported_provider(config.provider):
+        return []
+    if "contribution_metadata" not in config.allowed_operations:
+        return []
+
+    try:
         provider = get_provider(config)
         prompt = config.prompts["contribution_metadata"]
         payload = {
@@ -39,10 +48,13 @@ def get_ai_suggestions(heritage_item):
         }
         result = provider.chat_json(system_prompt=prompt, user_payload=payload)
     except AIServiceUnavailable as exc:
+        # Expected when the provider is down/misconfigured — info, not an error.
         logger.info("AI suggestions skipped (unavailable): %s", exc)
         return []
-    except Exception as exc:  # noqa: BLE001 — never let AI break item creation
-        logger.warning("AI suggestion generation failed: %s", exc)
+    except Exception:  # noqa: BLE001 — never let AI break item creation
+        # Unexpected: log with traceback at ERROR so real bugs are visible,
+        # but still return [] so the contribution is created.
+        logger.exception("AI suggestion generation failed unexpectedly")
         return []
 
     data = result.parsed_json if isinstance(result.parsed_json, dict) else {}
