@@ -163,10 +163,8 @@ const save = async () => {
     console.error('Error saving:', error);
     if (error.response && error.response.data) {
         console.error('Validation errors:', error.response.data);
-        alert(`Error al guardar: ${JSON.stringify(error.response.data)}`);
-    } else {
-        alert(t('common.errorSaving'));
     }
+    alert(t('common.errorSaving'));
   } finally {
     saving.value = false;
   }

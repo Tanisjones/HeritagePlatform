@@ -24,7 +24,8 @@ describe('RouteCard', () => {
 
     expect(wrapper.text()).toContain('My Route')
     expect(wrapper.text()).toContain('A nice walk')
-    expect(wrapper.text()).toContain('draft')
+    // The status is rendered through i18n (Spanish by default): "draft" -> "Borrador".
+    expect(wrapper.text()).toContain('Borrador')
   })
 })
 

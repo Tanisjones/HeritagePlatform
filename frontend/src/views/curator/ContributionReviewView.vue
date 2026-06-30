@@ -266,6 +266,7 @@ onMounted(() => {
                    v-if="parsedLocation"
                    :center="parsedLocation"
                    :zoom="15"
+                   :details-label="t('home.map.viewDetails')"
                    :markers="[{
                      id: (detail as any).heritage_item.id,
                      title: (detail as any).heritage_item.title,
@@ -274,6 +275,7 @@ onMounted(() => {
                      category: (detail as any).heritage_item.heritage_category?.name,
                      image: (detail as any).heritage_item.images?.[0]?.file
                    }]"
+                   @view-details="(m) => m.id && router.push(`/heritage/${m.id}`)"
                  />
                  <div v-else class="flex items-center justify-center h-full bg-gray-50 text-gray-500">
                    {{ t('curatorReview.metadataLocation.invalidCoordinates') }}
@@ -307,7 +309,7 @@ onMounted(() => {
                 <div class="text-xs text-gray-500 mb-1" v-if="aud.caption || aud.file">{{ aud.caption || aud.file.split('/').pop() }}</div>
                 <audio controls class="w-full h-8">
                   <source :src="aud.file" />
-                  Your browser does not support the audio element.
+                  {{ t('curatorReview.media.audioUnsupported') }}
                 </audio>
               </div>
             </div>
@@ -323,7 +325,7 @@ onMounted(() => {
               >
                 <video controls class="w-full h-48 bg-black">
                   <source :src="vid.file" />
-                  Your browser does not support the video element.
+                  {{ t('curatorReview.media.videoUnsupported') }}
                 </video>
                 <div class="p-2 text-xs text-gray-600 truncate" v-if="vid.caption || vid.file">
                   {{ vid.caption || vid.file.split('/').pop() }}

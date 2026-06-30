@@ -44,11 +44,25 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('user', JSON.stringify(newUser));
     }
 
+    // Drop all service-worker caches. SW responses are keyed by URL only (the
+    // JWT is not part of the key), so without this a previous user's cached
+    // API data could be served to the next user on a shared device.
+    async function clearServiceWorkerCaches() {
+        if (typeof caches === 'undefined') return;
+        try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+        } catch {
+            // Best effort — never block logout on cache clearing.
+        }
+    }
+
     function logout() {
         token.value = null;
         user.value = null;
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        void clearServiceWorkerCaches();
     }
 
     async function loadUserIfNeeded() {

@@ -23,7 +23,8 @@ describe('RouteProgressTracker', () => {
 
     expect(wrapper.text()).toContain('1 / 2')
     expect(wrapper.text()).toContain('50%')
-    expect(wrapper.text()).toContain('Next:')
+    // "Next" is rendered through i18n (Spanish by default) followed by the next stop's title.
+    expect(wrapper.text()).toContain('Siguiente: B')
   })
 })
 

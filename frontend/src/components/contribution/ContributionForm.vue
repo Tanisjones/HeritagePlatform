@@ -14,6 +14,8 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import type { HeritageItemContribution, Parish, HeritageType, HeritageCategory } from '@/types/heritage';
 import api, { aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability'
+import AiActionButton from '@/components/common/AiActionButton.vue';
+import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 import { QuillEditor } from '@vueup/vue-quill'
@@ -89,6 +91,10 @@ const narrativeText = ref('');
 
 const aiDraftLoading = ref(false);
 const aiDraftError = ref('');
+const aiMetaLoading = ref(false);
+const aiMetaError = ref('');
+const aiMetaNote = ref('');
+const aiSuggestedKeywords = ref<string[]>([]);
 const { isAvailable: aiAvailable, refresh: refreshAIAvailability, markUnavailable: markAIUnavailable } = useAIAvailability()
 
 // Map settings
@@ -185,7 +191,8 @@ const nextStep = async () => {
       const data = err?.response?.data;
       console.error('Error uploading file:', err);
       if (status) {
-        step1Error.value = `Failed to upload (${status}). ${typeof data === 'string' ? data : ''}`.trim();
+        const detail = typeof data === 'string' ? data : '';
+        step1Error.value = `${t('contribution.step1.errors.uploadFailedStatus', { status })} ${detail}`.trim();
       } else {
         step1Error.value = t('contribution.step1.errors.uploadFailed');
       }
@@ -374,6 +381,20 @@ const uploadOneFile = async (file: File, fileType: string) => {
   });
 };
 
+// True only when a service worker controls this page AND the API shares the
+// page's origin — the two conditions under which the SW can intercept the
+// contribution POST and queue it for background sync.
+const canServiceWorkerQueueContribution = (): boolean => {
+  if (typeof navigator === 'undefined' || !navigator.serviceWorker?.controller) return false;
+  const base = api.defaults?.baseURL || import.meta.env.VITE_API_BASE_URL || '';
+  try {
+    // Relative base (e.g. "/api/v1") resolves against the page origin → same-origin.
+    return new URL(base, window.location.origin).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
+
 const submitContribution = async () => {
   submitting.value = true;
   try {
@@ -386,9 +407,13 @@ const submitContribution = async () => {
   } catch (error) {
     console.error('Error submitting contribution:', error);
 
-    // If offline, the service worker queues this POST and will retry when online.
-    const offline = typeof navigator !== 'undefined' && navigator && navigator.onLine === false;
-    if (offline) {
+    // The service worker only enqueues the POST for background sync if it is
+    // actually controlling this page AND the API is same-origin (a SW only
+    // intercepts requests within its own origin). Only then can we honestly
+    // tell the user the submission is queued; otherwise the POST is lost and we
+    // must surface a real error instead of a false success.
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (offline && canServiceWorkerQueueContribution()) {
       queuedOffline.value = true;
       submittedSuccess.value = true;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -398,6 +423,20 @@ const submitContribution = async () => {
     alert(t('contribution.actions.error'));
   } finally {
     submitting.value = false;
+  }
+};
+
+// Map an AI request error to a localized message in the given ref (503 →
+// unavailable + mark the service down, 429 → rate-limited, else → generic).
+const applyAIError = (err: any, target: { value: string }) => {
+  const status = err?.response?.status;
+  if (status === 503) {
+    target.value = t('ai.unavailable');
+    markAIUnavailable();
+  } else if (status === 429) {
+    target.value = t('ai.rateLimited');
+  } else {
+    target.value = t('ai.genericError');
   }
 };
 
@@ -414,17 +453,54 @@ const generateAIDraft = async () => {
     if (typeof res.title === 'string') contribution.title = res.title;
     if (typeof res.description === 'string') contribution.description = res.description;
   } catch (err: any) {
-    const status = err?.response?.status;
-    if (status === 503) {
-      aiDraftError.value = t('ai.unavailable');
-      markAIUnavailable()
-    } else if (status === 429) {
-      aiDraftError.value = t('ai.rateLimited');
-    } else {
-      aiDraftError.value = t('ai.genericError');
-    }
+    applyAIError(err, aiDraftError);
   } finally {
     aiDraftLoading.value = false;
+  }
+};
+
+const generateAIMetadata = async () => {
+  if (aiMetaLoading.value || submitting.value) return;
+  aiMetaError.value = '';
+  aiMetaNote.value = '';
+  aiSuggestedKeywords.value = [];
+  try {
+    aiMetaLoading.value = true;
+    const res = await aiService.contributionMetadata({
+      language: String(locale.value || 'es'),
+      title: String(contribution.title || ''),
+      description: String(contribution.description || ''),
+      address: String(contribution.address || ''),
+    });
+
+    let appliedField = false;
+    // Apply the historical period only if it matches a known option.
+    if (res.historical_period && historicalPeriods.value.some(p => p.value === res.historical_period)) {
+      contribution.historical_period = res.historical_period;
+      appliedField = true;
+    }
+    if (res.external_registry_url && !contribution.external_registry_url) {
+      contribution.external_registry_url = res.external_registry_url;
+      appliedField = true;
+    }
+    // Keywords belong to the LOM educational layer (added in a later phase),
+    // so surface them as a suggestion rather than silently dropping them.
+    aiSuggestedKeywords.value = Array.isArray(res.keywords) ? res.keywords : [];
+
+    // Report honestly what happened: a field was filled, only keywords were
+    // suggested, or nothing usable came back.
+    if (appliedField) {
+      aiMetaNote.value = t('ai.metadataApplied');
+    } else if (aiSuggestedKeywords.value.length) {
+      aiMetaNote.value = t('ai.metadataKeywordsOnly');
+    } else {
+      aiMetaNote.value = t('ai.metadataNothing');
+    }
+  } catch (err: any) {
+    aiSuggestedKeywords.value = [];
+    applyAIError(err, aiMetaError);
+  } finally {
+    aiMetaLoading.value = false;
   }
 };
 
@@ -543,15 +619,12 @@ const isStepValid = computed(() => {
 	        <div v-if="currentStep === 1" class="space-y-6">
           <div v-if="step1Uploading" class="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
             <div class="flex items-center">
-              <svg class="animate-spin h-5 w-5 text-indigo-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <div class="text-sm font-medium text-indigo-900">Uploading…</div>
+              <BaseSpinner class="h-5 w-5 text-indigo-600 mr-3" />
+              <div class="text-sm font-medium text-indigo-900">{{ t('contribution.step1.uploading') }}</div>
             </div>
             <div class="text-xs text-indigo-800 mt-1">
               <span v-if="step1UploadProgress !== null">{{ step1UploadProgress }}%</span>
-              <span v-else>Please wait, this can take a moment.</span>
+              <span v-else>{{ t('contribution.step1.uploadingWait') }}</span>
             </div>
             <div v-if="step1UploadProgress !== null" class="mt-2 h-2 w-full rounded-full bg-indigo-200 overflow-hidden">
               <div class="h-full bg-indigo-600 transition-all" :style="{ width: `${step1UploadProgress}%` }"></div>
@@ -562,7 +635,7 @@ const isStepValid = computed(() => {
                 class="text-xs font-medium text-indigo-900 underline"
                 @click="step1UploadXhr?.abort()"
               >
-                Cancel upload
+                {{ t('contribution.step1.cancelUpload') }}
               </button>
             </div>
           </div>
@@ -689,36 +762,15 @@ const isStepValid = computed(() => {
 
         <!-- Step 2: General Information -->
         <div v-if="currentStep === 2" class="space-y-6">
-          <div class="flex items-center justify-end gap-3">
-            <div v-if="aiDraftError" class="text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
-              {{ aiDraftError }}
-            </div>
-            <span class="inline-block" :title="!aiAvailable ? 'AI not available' : ''">
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                :disabled="aiDraftLoading || submitting || !aiAvailable"
-                @click="generateAIDraft"
-              >
-                <svg
-                  v-if="aiDraftLoading"
-                  class="animate-spin h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <span>{{ aiDraftLoading ? t('ai.generating') : t('ai.draftButton') }}</span>
-              </button>
-            </span>
-          </div>
+          <AiActionButton
+            :label="t('ai.draftButton')"
+            :loading-label="t('ai.generating')"
+            :loading="aiDraftLoading"
+            :available="aiAvailable"
+            :disabled="submitting"
+            :error="aiDraftError"
+            @click="generateAIDraft"
+          />
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step2.fields.title') }} <span class="text-red-500">*</span></label>
@@ -778,6 +830,20 @@ const isStepValid = computed(() => {
 
         <!-- Step 4: Details -->
         <div v-if="currentStep === 4" class="space-y-6">
+          <AiActionButton
+            :label="t('ai.metadataButton')"
+            :loading-label="t('ai.metadataGenerating')"
+            :loading="aiMetaLoading"
+            :available="aiAvailable"
+            :disabled="submitting"
+            :error="aiMetaError"
+            @click="generateAIMetadata"
+          />
+
+          <p v-if="aiMetaNote" class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
+            {{ aiMetaNote }}
+          </p>
+
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step4.fields.historicalPeriod') }}</label>
             <select v-model="contribution.historical_period" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
@@ -785,10 +851,21 @@ const isStepValid = computed(() => {
               <option v-for="p in historicalPeriods" :key="p.value" :value="p.value">{{ p.label }}</option>
             </select>
           </div>
-          
+
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step4.fields.externalUrl') }}</label>
             <input v-model="contribution.external_registry_url" type="url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step4.fields.urlPlaceholder')" />
+          </div>
+
+          <div v-if="aiSuggestedKeywords.length" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p class="text-sm font-medium text-gray-700 mb-2">{{ t('contribution.step4.fields.suggestedKeywords') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="kw in aiSuggestedKeywords"
+                :key="kw"
+                class="inline-block px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-800"
+              >{{ kw }}</span>
+            </div>
           </div>
         </div>
 
@@ -864,10 +941,7 @@ const isStepValid = computed(() => {
             :disabled="submitting"
             class="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold transition shadow-md flex items-center"
           >
-            <svg v-if="submitting" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <BaseSpinner v-if="submitting" class="-ml-1 mr-3 h-5 w-5 text-white" />
             {{ submitting ? t('contribution.actions.submitting') : t('contribution.actions.submit') }}
           </button>
         </div>

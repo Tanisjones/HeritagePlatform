@@ -16,10 +16,14 @@ const props = defineProps<{
   markers?: HeritageMarker[]
   center?: [number, number]
   zoom?: number
+  detailsLabel?: string
 }>()
 
 const emit = defineEmits<{
+  // Fired when the user clicks the marker itself (Leaflet also opens the popup).
   markerClick: [marker: HeritageMarker]
+  // Fired only when the "View details" button inside the popup is clicked.
+  viewDetails: [marker: HeritageMarker]
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
@@ -94,6 +98,8 @@ const addMarkers = (markers: HeritageMarker[]) => {
   // Clear existing markers
   markerLayer.value.clearLayers()
 
+  const detailsLabel = props.detailsLabel || 'View Details'
+
   // Add new markers
   markers.forEach((marker) => {
     const icon = createMarkerIcon(marker.type)
@@ -104,7 +110,7 @@ const addMarkers = (markers: HeritageMarker[]) => {
           <h3 style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">${marker.title}</h3>
           ${marker.category ? `<p style="color: #6b7280; font-size: 14px; margin-bottom: 4px;">${marker.category}</p>` : ''}
           <button
-            onclick="window.viewHeritageItem('${marker.id}')"
+            data-popup-details
             style="
               margin-top: 8px;
               padding: 6px 12px;
@@ -117,12 +123,20 @@ const addMarkers = (markers: HeritageMarker[]) => {
               width: 100%;
             "
           >
-            View Details
+            ${detailsLabel}
           </button>
         </div>
       `)
+      // Clicking the marker opens the bound popup (Leaflet default) and notifies
+      // the parent — it must NOT navigate, or the popup would never be usable.
       .on('click', () => {
         emit('markerClick', marker)
+      })
+      // Navigation is driven only by the popup's "View details" button, wired
+      // here (instead of a global window function) so the parent owns routing.
+      .on('popupopen', (e) => {
+        const button = e.popup.getElement()?.querySelector('[data-popup-details]')
+        button?.addEventListener('click', () => emit('viewDetails', marker), { once: true })
       })
 
     markerLayer.value?.addLayer(leafletMarker)

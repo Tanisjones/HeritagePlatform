@@ -51,7 +51,8 @@
         "login": "Login",
         "signup": "Sign Up",
         "logout": "Logout",
-        "notifications": "Notifications"
+        "notifications": "Notifications",
+        "myAccount": "My account"
     },
     "footer": {
         "description": "Preserving and sharing cultural heritage through collaborative digital innovation.",
@@ -87,7 +88,8 @@
             "subtitle": "Click on markers to explore heritage sites in Riobamba",
             "loading": "Loading heritage items...",
             "error": "Failed to load heritage items",
-            "tryAgain": "Try Again"
+            "tryAgain": "Try Again",
+            "viewDetails": "View details"
         },
         "features": {
             "title": "Why Use Heritage Platform?",
@@ -216,14 +218,37 @@
     },
     "ai": {
         "draftButton": "AI draft",
+        "metadataButton": "Suggest metadata with AI",
+        "metadataGenerating": "Analyzing…",
+        "metadataApplied": "Suggested metadata applied. Review it before continuing.",
+        "metadataKeywordsOnly": "AI suggested keywords. Review them below.",
+        "metadataNothing": "AI couldn't suggest metadata for this resource.",
         "generating": "Generating…",
         "unavailable": "AI unavailable.",
         "rateLimited": "Too many AI requests. Please try again shortly.",
         "genericError": "AI request failed."
     },
+    "myContributions": {
+        "title": "My Contributions",
+        "refresh": "Refresh",
+        "loginRequiredTitle": "Login required",
+        "loginRequiredText": "Please log in to view your contributions.",
+        "statusLabel": "Status",
+        "loading": "Loading…",
+        "empty": "No contributions.",
+        "filters": {
+            "all": "All",
+            "pending": "Pending",
+            "changesRequested": "Changes requested",
+            "published": "Published",
+            "rejected": "Rejected"
+        }
+    },
     "heritage": {
         "detail": {
             "unknownLocation": "Unknown Location",
+            "document": "Document",
+            "viewOriginal": "View original",
             "about": "About the Heritage",
             "educationalContext": "Educational Context",
             "resourceType": "Resource Type",
@@ -455,8 +480,12 @@
             "noUploadNeeded": "No upload needed. You can add the text description on the next step.",
             "errors": {
                 "selectFile": "Upload a file, or choose “Text / no upload” to continue.",
-                "uploadFailed": "Failed to upload. Please try again."
-            }
+                "uploadFailed": "Failed to upload. Please try again.",
+                "uploadFailedStatus": "Failed to upload ({status})."
+            },
+            "uploading": "Uploading…",
+            "uploadingWait": "Please wait, this can take a moment.",
+            "cancelUpload": "Cancel upload"
         },
         "step2": {
             "fields": {
@@ -487,7 +516,8 @@
                 "historicalPeriod": "Historical Period",
                 "selectPeriod": "Select Period",
                 "externalUrl": "External Registry URL (Optional)",
-                "urlPlaceholder": "https://..."
+                "urlPlaceholder": "https://...",
+                "suggestedKeywords": "AI-suggested keywords"
             }
         },
         "step5": {
@@ -728,7 +758,9 @@
             "audio": "Audio",
             "video": "Video",
             "documents": "Documents",
-            "view": "View"
+            "view": "View",
+            "audioUnsupported": "Your browser does not support the audio element.",
+            "videoUnsupported": "Your browser does not support the video element."
         },
         "aiReview": {
             "title": "AI Review",

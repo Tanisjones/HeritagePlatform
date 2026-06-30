@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useContributionsStore } from '@/stores/contributions'
 import ContributionStatusCard from '@/components/contributor/ContributionStatusCard.vue'
 import ContributionStatsCard from '@/components/contributor/ContributionStatsCard.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const contributionsStore = useContributionsStore()
@@ -47,18 +49,18 @@ onMounted(async () => {
 <template>
   <div class="container mx-auto px-4 py-8 space-y-4">
     <div class="flex items-center justify-between">
-      <h1 class="text-3xl font-bold text-gray-900">My Contributions</h1>
+      <h1 class="text-3xl font-bold text-gray-900">{{ t('myContributions.title') }}</h1>
       <button
         class="px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50"
         @click="refresh"
       >
-        Refresh
+        {{ t('myContributions.refresh') }}
       </button>
     </div>
 
     <div v-if="!authStore.isAuthenticated" class="bg-white border border-gray-200 rounded-xl p-6">
-      <h2 class="text-xl font-semibold text-gray-900">Login required</h2>
-      <p class="text-gray-600 mt-1">Please log in to view your contributions.</p>
+      <h2 class="text-xl font-semibold text-gray-900">{{ t('myContributions.loginRequiredTitle') }}</h2>
+      <p class="text-gray-600 mt-1">{{ t('myContributions.loginRequiredText') }}</p>
     </div>
 
     <template v-else>
@@ -66,13 +68,13 @@ onMounted(async () => {
 
       <div class="flex items-end justify-between gap-3">
         <div class="w-full md:w-64">
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('myContributions.statusLabel') }}</label>
           <select v-model="statusFilter" class="w-full rounded-lg border-gray-300">
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="changes_requested">Changes requested</option>
-            <option value="published">Published</option>
-            <option value="rejected">Rejected</option>
+            <option value="all">{{ t('myContributions.filters.all') }}</option>
+            <option value="pending">{{ t('myContributions.filters.pending') }}</option>
+            <option value="changes_requested">{{ t('myContributions.filters.changesRequested') }}</option>
+            <option value="published">{{ t('myContributions.filters.published') }}</option>
+            <option value="rejected">{{ t('myContributions.filters.rejected') }}</option>
           </select>
         </div>
       </div>
@@ -81,7 +83,7 @@ onMounted(async () => {
         {{ contributionsStore.error }}
       </div>
 
-      <div v-if="contributionsStore.loading" class="text-gray-600">Loading…</div>
+      <div v-if="contributionsStore.loading" class="text-gray-600">{{ t('myContributions.loading') }}</div>
 
       <div v-else class="grid grid-cols-1 gap-4">
         <ContributionStatusCard
@@ -91,7 +93,7 @@ onMounted(async () => {
           @feedback="openFeedback"
           @edit="(id) => router.push(`/my-contributions/${id}/edit`)"
         />
-        <div v-if="filtered.length === 0" class="text-sm text-gray-600">No contributions.</div>
+        <div v-if="filtered.length === 0" class="text-sm text-gray-600">{{ t('myContributions.empty') }}</div>
       </div>
     </template>
   </div>

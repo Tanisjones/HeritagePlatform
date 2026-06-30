@@ -84,12 +84,12 @@ const loadHeritageItems = async () => {
           const lon = parseFloat(matches[1])
           const lat = parseFloat(matches[2])
           coordinates = [lat, lon]
-          console.log(`Parsed WKT: ${feature.geometry} -> [${lat}, ${lon}]`)
         } else {
-             console.warn('Failed to match WKT:', feature.geometry)
+          console.warn('Could not parse WKT point geometry:', feature.geometry)
         }
       } else {
-          console.warn('Unknown geometry format:', feature.geometry)
+        // Unknown geometry shape — the marker will be dropped by the filter below.
+        console.warn('Unrecognized geometry format for feature:', feature.id, feature.geometry)
       }
 
       return {
@@ -114,17 +114,10 @@ const loadHeritageItems = async () => {
   }
 }
 
-const handleMarkerClick = (marker: HeritageMarker) => {
-  console.log('Marker clicked:', marker)
-  // In future, navigate to detail page
-  // router.push(`/heritage/${marker.id}`)
-}
-
-// Add global function for popup button clicks
-;(window as any).viewHeritageItem = (id: string) => {
-  console.log('View heritage item:', id)
-  // In future, navigate to detail page
-  // router.push(`/heritage/${id}`)
+const goToHeritage = (marker: HeritageMarker) => {
+  if (marker.id) {
+    router.push(`/heritage/${marker.id}`)
+  }
 }
 
 onMounted(() => {
@@ -270,7 +263,8 @@ onMounted(() => {
               :markers="markers"
               :center="[-1.6735, -78.6479]"
               :zoom="13"
-              @marker-click="handleMarkerClick"
+              :details-label="t('home.map.viewDetails')"
+              @view-details="goToHeritage"
             />
           </div>
         </div>

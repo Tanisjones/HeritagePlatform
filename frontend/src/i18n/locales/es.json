@@ -51,7 +51,8 @@
         "login": "Iniciar Sesión",
         "signup": "Registrarse",
         "logout": "Cerrar Sesión",
-        "notifications": "Notificaciones"
+        "notifications": "Notificaciones",
+        "myAccount": "Mi cuenta"
     },
     "footer": {
         "description": "Preservando y compartiendo el patrimonio cultural a través de innovación digital colaborativa.",
@@ -87,7 +88,8 @@
             "subtitle": "Haga clic en los marcadores para explorar sitios patrimoniales en Riobamba",
             "loading": "Cargando elementos patrimoniales...",
             "error": "Error al cargar elementos patrimoniales",
-            "tryAgain": "Intentar de nuevo"
+            "tryAgain": "Intentar de nuevo",
+            "viewDetails": "Ver detalles"
         },
         "features": {
             "title": "¿Por qué usar Heritage Platform?",
@@ -216,10 +218,31 @@
     },
     "ai": {
         "draftButton": "Borrador con IA",
+        "metadataButton": "Sugerir metadatos con IA",
+        "metadataGenerating": "Analizando…",
+        "metadataApplied": "Metadatos sugeridos aplicados. Revíselos antes de continuar.",
+        "metadataKeywordsOnly": "La IA sugirió palabras clave. Revíselas más abajo.",
+        "metadataNothing": "La IA no pudo sugerir metadatos para este recurso.",
         "generating": "Generando…",
         "unavailable": "IA no disponible.",
         "rateLimited": "Demasiadas solicitudes de IA. Inténtelo de nuevo en breve.",
         "genericError": "Falló la solicitud de IA."
+    },
+    "myContributions": {
+        "title": "Mis contribuciones",
+        "refresh": "Actualizar",
+        "loginRequiredTitle": "Inicio de sesión requerido",
+        "loginRequiredText": "Inicie sesión para ver sus contribuciones.",
+        "statusLabel": "Estado",
+        "loading": "Cargando…",
+        "empty": "No hay contribuciones.",
+        "filters": {
+            "all": "Todas",
+            "pending": "Pendiente",
+            "changesRequested": "Cambios solicitados",
+            "published": "Publicada",
+            "rejected": "Rechazada"
+        }
     },
     "heritage": {
         "detail": {
@@ -457,8 +480,12 @@
             "noUploadNeeded": "No se necesita subida.",
             "errors": {
                 "selectFile": "Suba un archivo, o elija “Texto / sin subida” para continuar.",
-                "uploadFailed": "Error al subir. Por favor intente de nuevo."
-            }
+                "uploadFailed": "Error al subir. Por favor intente de nuevo.",
+                "uploadFailedStatus": "Error al subir ({status})."
+            },
+            "uploading": "Subiendo…",
+            "uploadingWait": "Espere, esto puede tardar un momento.",
+            "cancelUpload": "Cancelar subida"
         },
         "step2": {
             "fields": {
@@ -489,7 +516,8 @@
                 "historicalPeriod": "Período Histórico",
                 "selectPeriod": "Seleccionar Período",
                 "externalUrl": "URL de Registro Externo (Opcional)",
-                "urlPlaceholder": "https://..."
+                "urlPlaceholder": "https://...",
+                "suggestedKeywords": "Palabras clave sugeridas por IA"
             }
         },
         "step5": {
@@ -730,7 +758,9 @@
             "audio": "Audio",
             "video": "Video",
             "documents": "Documentos",
-            "view": "Ver"
+            "view": "Ver",
+            "audioUnsupported": "Su navegador no admite el elemento de audio.",
+            "videoUnsupported": "Su navegador no admite el elemento de video."
         },
         "aiReview": {
             "title": "Revisión de IA",

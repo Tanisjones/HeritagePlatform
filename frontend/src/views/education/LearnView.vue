@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import api from '@/services/api';
+import { apiBaseUrl } from '@/utils/apiUrl';
 import type { LOMResource } from '@/types/heritage';
 import { useI18n } from 'vue-i18n';
 
@@ -95,8 +96,8 @@ const downloadScorm = async (resource: LOMResource) => {
   if (!heritageItemId) return;
   downloadingId.value = resource.id;
   try {
-    const baseUrl = api.defaults.baseURL || (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1');
-    const downloadUrl = `${String(baseUrl).replace(/\/$/, '')}/education/scorm-packages/${heritageItemId}/download/`;
+    const baseUrl = apiBaseUrl();
+    const downloadUrl = `${baseUrl.replace(/\/$/, '')}/education/scorm-packages/${heritageItemId}/download/`;
 
     // Use a normal browser navigation for the download; Chrome handles ZIP attachments
     // more reliably this way than blob/iframe strategies.

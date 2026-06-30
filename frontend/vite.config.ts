@@ -14,7 +14,9 @@ export default defineConfig({
       injectManifest: {
         swSrc: 'src/sw/service-worker.js',
       },
-      manifestFilename: 'manifest.json',
+      // A static manifest lives in public/manifest.json and is linked manually
+      // from index.html, so the plugin must not generate or inject its own.
+      manifest: false,
       injectRegister: null,
       registerType: 'autoUpdate',
       devOptions: {

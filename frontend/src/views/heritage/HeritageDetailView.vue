@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
+import { apiBaseUrl, resolveMediaUrl } from '@/utils/apiUrl';
 import type { HeritageItem } from '@/types/heritage';
 import AnnotationList from '@/components/annotations/AnnotationList.vue';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
@@ -79,18 +80,8 @@ const getResourceType = computed(() => {
     return educational.learning_resource_type || null;
 });
 
-// Helper to resolve media URLs
-const resolveUrl = (url: string) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    // If it's a relative path starting with /media, prepend backend host
-    if (url.startsWith('/media')) {
-         // Assuming backend is on port 8000 for local dev. 
-         // ideally this comes from env, stripping /api/v1 if needed
-         return `http://localhost:8000${url}`;
-    }
-    return url;
-}
+// Resolve media URLs via the shared, env-driven helper (no hardcoded host).
+const resolveUrl = (url: string) => resolveMediaUrl(url);
 
 // Aggregate all media into a uniform list
 const allMedia = computed<ViewableResource[]>(() => {
@@ -228,8 +219,8 @@ const downloadScorm = async () => {
   scormError.value = null;
   try {
     scormDownloading.value = true;
-    const baseUrl = api.defaults.baseURL || (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1');
-    const downloadUrl = `${String(baseUrl).replace(/\/$/, '')}/education/scorm-packages/${String(item.value.id)}/download/`;
+    const baseUrl = apiBaseUrl();
+    const downloadUrl = `${baseUrl.replace(/\/$/, '')}/education/scorm-packages/${String(item.value.id)}/download/`;
 
     const link = document.createElement('a');
     link.href = downloadUrl;

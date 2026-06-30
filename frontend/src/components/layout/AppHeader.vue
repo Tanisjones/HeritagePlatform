@@ -296,14 +296,14 @@ onUnmounted(() => {
         
         <div class="pt-3 border-t border-gray-200 space-y-2" v-if="authStore.isAuthenticated">
              <div class="px-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                 My Account
+                 {{ t('nav.myAccount') }}
              </div>
              <RouterLink
               to="/dashboard"
               class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium pl-2"
               @click="mobileMenuOpen = false"
             >
-              Dashboard
+              {{ t('nav.dashboard') }}
             </RouterLink>
             <RouterLink
               to="/routes/my"

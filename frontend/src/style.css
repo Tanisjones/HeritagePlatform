@@ -53,18 +53,3 @@
     @apply font-display;
   }
 }
-
-/* Custom component styles */
-@layer components {
-  .btn-primary {
-    @apply px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors;
-  }
-
-  .btn-secondary {
-    @apply px-4 py-2 bg-secondary-600 text-white rounded-lg hover:bg-secondary-700 transition-colors;
-  }
-
-  .card {
-    @apply bg-white rounded-lg shadow-md p-6;
-  }
-}
