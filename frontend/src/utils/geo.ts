@@ -76,13 +76,12 @@ export function parsePoint(value: string | GeoJsonGeometry | null | undefined): 
     return null
   }
 
-  // WKT string: grab the numbers inside the parentheses.
-  const match = value.match(/\(([^)]+)\)/)
-  if (!match || !match[1]) return null
-  const parts = match[1].trim().split(/\s+/).filter(Boolean)
-  if (parts.length < 2) return null
-  const lng = Number(parts[0])
-  const lat = Number(parts[1])
+  // WKT string: only accept an actual POINT (anchored to the keyword so a
+  // POLYGON/MULTIPOINT/LINESTRING isn't mis-parsed as its first vertex).
+  const match = value.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i)
+  if (!match) return null
+  const lng = Number(match[1])
+  const lat = Number(match[2])
   return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null
 }
 

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
@@ -18,6 +19,7 @@ interface Notification {
 
 const authStore = useAuthStore();
 const router = useRouter();
+const { t } = useI18n();
 const notifications = ref<Notification[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -35,7 +37,7 @@ const fetchNotifications = async () => {
     applyFilter();
   } catch (e) {
     console.error('Error fetching notifications:', e);
-    error.value = 'Error loading notifications.';
+    error.value = t('common.errorLoading');
   } finally {
     loading.value = false;
   }

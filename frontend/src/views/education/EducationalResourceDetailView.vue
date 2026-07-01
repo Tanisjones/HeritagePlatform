@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import type { EducationalResource } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
 
+const { t } = useI18n();
 const route = useRoute();
 const resource = ref<EducationalResource | null>(null);
 const loading = ref(true);
@@ -20,7 +22,7 @@ const fetchResource = async () => {
     resource.value = response.data;
   } catch (e) {
     console.error('Error fetching educational resource:', e);
-    error.value = 'Error loading educational resource.';
+    error.value = t('common.errorLoading');
   } finally {
     loading.value = false;
   }
@@ -48,7 +50,7 @@ onMounted(fetchResource);
     </div>
 
     <div v-else class="text-center py-12">
-      <p class="text-gray-600">Resource not found.</p>
+      <p class="text-gray-600">{{ t('common.noResults') }}</p>
     </div>
   </div>
 </template>

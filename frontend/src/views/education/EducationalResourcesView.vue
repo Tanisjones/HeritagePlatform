@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import type { EducationalResource } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 
+const { t } = useI18n();
 const resources = ref<EducationalResource[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -18,7 +20,7 @@ const fetchResources = async () => {
     resources.value = response.data.results;
   } catch (e) {
     console.error('Error fetching educational resources:', e);
-    error.value = 'Error loading educational resources.';
+    error.value = t('common.errorLoading');
   } finally {
     loading.value = false;
   }
@@ -50,7 +52,7 @@ onMounted(fetchResources);
 
     <EmptyState
       v-else-if="!error"
-      title="No educational resources found."
+      :title="t('common.noResults')"
     />
   </div>
 </template>

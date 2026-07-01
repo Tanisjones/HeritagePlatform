@@ -631,8 +631,11 @@ const isStepValid = computed(() => {
               <BaseSpinner class="h-5 w-5 text-primary-600 mr-3" />
               <div class="text-sm font-medium text-primary-900">{{ t('contribution.step1.uploading') }}</div>
             </div>
-            <div class="text-xs text-primary-800 mt-1">{{ step1UploadProgress }}%</div>
-            <div class="mt-2 h-2 w-full rounded-full bg-primary-200 overflow-hidden">
+            <div class="text-xs text-primary-800 mt-1">
+              <span v-if="step1UploadProgress > 0">{{ step1UploadProgress }}%</span>
+              <span v-else>{{ t('contribution.step1.uploadingWait') }}</span>
+            </div>
+            <div v-if="step1UploadProgress > 0" class="mt-2 h-2 w-full rounded-full bg-primary-200 overflow-hidden">
               <div class="h-full bg-primary-600 transition-all" :style="{ width: `${step1UploadProgress}%` }"></div>
             </div>
             <div class="mt-3">

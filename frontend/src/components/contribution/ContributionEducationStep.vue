@@ -67,9 +67,6 @@ const objectives = computed({
   get: () => props.objectivesText,
   set: (v: string) => emit('update:objectivesText', v),
 })
-
-// Expose the validity so the parent's step-gating can read it.
-defineExpose({ eduTimeError })
 </script>
 
 <template>

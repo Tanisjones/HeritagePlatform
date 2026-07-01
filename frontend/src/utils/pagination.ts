@@ -11,13 +11,3 @@ export function unwrapResults<T>(data: unknown): T[] {
   if (Array.isArray(results)) return results as T[]
   return []
 }
-
-/** Total item count from a DRF paginated envelope, else the array length. */
-export function resultCount(data: unknown): number {
-  if (!data) return 0
-  if (Array.isArray(data)) return data.length
-  const envelope = data as { count?: number; results?: unknown[] }
-  if (typeof envelope.count === 'number') return envelope.count
-  if (Array.isArray(envelope.results)) return envelope.results.length
-  return 0
-}

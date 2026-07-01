@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { unwrapResults, resultCount } from '@/utils/pagination'
+import { unwrapResults } from '@/utils/pagination'
 import { extractApiError } from '@/utils/apiError'
 
 describe('unwrapResults', () => {
@@ -15,17 +15,6 @@ describe('unwrapResults', () => {
     expect(unwrapResults(null)).toEqual([])
     expect(unwrapResults(undefined)).toEqual([])
     expect(unwrapResults({ detail: 'nope' })).toEqual([])
-  })
-})
-
-describe('resultCount', () => {
-  it('uses the envelope count when present', () => {
-    expect(resultCount({ count: 42, results: ['a'] })).toBe(42)
-  })
-
-  it('falls back to array length', () => {
-    expect(resultCount([1, 2, 3])).toBe(3)
-    expect(resultCount(null)).toBe(0)
   })
 })
 

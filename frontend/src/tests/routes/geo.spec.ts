@@ -64,6 +64,12 @@ describe('WKT / GeoJSON parsing', () => {
     expect(parsePoint({ type: 'Point' })).toBeNull()
   })
 
+  it('parsePoint does not mis-parse a non-POINT WKT geometry', () => {
+    // A POLYGON's first vertex must NOT be returned as if it were a Point.
+    expect(parsePoint('POLYGON ((-78.65 -1.67, -78.64 -1.66, -78.63 -1.67, -78.65 -1.67))')).toBeNull()
+    expect(parsePoint('LINESTRING (-78.65 -1.67, -78.64 -1.66)')).toBeNull()
+  })
+
   it('parseLineString reads WKT LINESTRING into [lat, lng] pairs', () => {
     expect(parseLineString('LINESTRING (-78.65 -1.67, -78.64 -1.66)')).toEqual([
       [-1.67, -78.65],

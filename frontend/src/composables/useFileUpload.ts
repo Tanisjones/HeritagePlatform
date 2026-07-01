@@ -51,15 +51,11 @@ export function useFileUpload() {
         done()
 
         const status = xhr.status
-        const data =
-          xhr.response ??
-          (() => {
-            try {
-              return xhr.responseText ? JSON.parse(xhr.responseText) : xhr.responseText
-            } catch {
-              return xhr.responseText
-            }
-          })()
+        // With responseType='json' the browser parses the body for us; `response`
+        // is null when the body wasn't valid JSON (e.g. an nginx 5xx HTML page).
+        // We must NOT touch xhr.responseText here — reading it while
+        // responseType='json' throws InvalidStateError. So fall back to null.
+        const data = xhr.response ?? null
 
         if (status >= 200 && status < 300) {
           const id = (data as { id?: unknown })?.id

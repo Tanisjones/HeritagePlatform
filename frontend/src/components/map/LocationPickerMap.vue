@@ -61,17 +61,19 @@ function init() {
 
 // Keep the marker in sync when the parent changes the location out-of-band
 // (e.g. an existing item loads, or AI fills the address) and recenter onto it.
-// Clicks that came from this map already moved the marker, so panTo is a no-op
-// jitter-wise; guard against feedback loops by only panning on a real change.
+// A click on THIS map already moved the marker to `next` in the click handler,
+// so we compare against the marker's current position (not the map center):
+// click-originated updates are then true no-ops and don't jerk the viewport,
+// while genuine external changes still pan the map onto the new point.
 watch(
   () => props.latlng,
   (next) => {
     if (!map || !marker || !next) return
+    const prev = marker.getLatLng()
+    const moved = Math.abs(prev.lat - next[0]) > 1e-6 || Math.abs(prev.lng - next[1]) > 1e-6
+    if (!moved) return
     marker.setLatLng(next)
-    const current = map.getCenter()
-    if (Math.abs(current.lat - next[0]) > 1e-6 || Math.abs(current.lng - next[1]) > 1e-6) {
-      map.panTo(next)
-    }
+    map.panTo(next)
   },
 )
 

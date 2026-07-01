@@ -20,7 +20,16 @@ const initial = ref<Partial<RouteCreateData> | null>(null)
 const forbidden = ref(false)
 
 onMounted(async () => {
-  const loaded = await routesStore.fetchRoute(routeId.value)
+  let loaded
+  try {
+    // fetchRoute re-throws on failure (store uses rethrow), so a 404/network
+    // error would otherwise leave `loading` stuck true; catch it and fall
+    // through to the "route not found" branch (initial stays null).
+    loaded = await routesStore.fetchRoute(routeId.value)
+  } catch {
+    loading.value = false
+    return
+  }
   if (!loaded) {
     loading.value = false
     return
