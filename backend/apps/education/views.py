@@ -14,11 +14,13 @@ from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 
+from django.db.models import Prefetch
+
 from .models import (
     LOMGeneral, LOMLifeCycle, LOMContributor, LOMEducational,
     LOMRights, LOMClassification, LOMRelation, AssessmentQuestion,
     EducationalResource, ResourceType, ResourceCategory,
-    LessonPlan
+    LessonPlan, LessonActivity
 )
 from .serializers import (
     LOMGeneralSerializer, LOMGeneralCreateSerializer, LOMGeneralWriteSerializer,
@@ -59,6 +61,24 @@ class IsAuthenticatedOrReadOnly(permissions.BasePermission):
         return request.user and request.user.is_authenticated
 
 
+class IsTeacherOrCuratorOrReadOnly(permissions.BasePermission):
+    """Public reads; writes restricted to teachers, curators, or staff.
+
+    Guards the LOM authoring surface (educational metadata + the AssessmentQuestion
+    answer key). Plain authenticated users (tourists/contributors) must NOT be able
+    to create or overwrite a learning object's questions/answers — mirrors the
+    frontend's canEditLom gate (curator || teacher || is_staff).
+    """
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        user = request.user
+        return bool(
+            user and user.is_authenticated
+            and (user.is_staff or _role_slug(user) in ('teacher', 'curator'))
+        )
+
+
 class LOMGeneralViewSet(viewsets.ModelViewSet):
     """
     ViewSet for LOM General metadata.
@@ -68,7 +88,9 @@ class LOMGeneralViewSet(viewsets.ModelViewSet):
     queryset = LOMGeneral.objects.select_related(
         'heritage_item', 'lifecycle', 'educational', 'rights'
     ).prefetch_related('classifications', 'relations', 'questions', 'lifecycle__contributors')
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # Writes author the educational layer incl. the quiz answer key — teacher/
+    # curator/staff only (a tourist must not be able to rewrite answers).
+    permission_classes = [IsTeacherOrCuratorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'language': ['exact'],
@@ -371,7 +393,8 @@ class AssessmentQuestionViewSet(viewsets.ModelViewSet):
 
     queryset = AssessmentQuestion.objects.select_related('lom_general')
     serializer_class = AssessmentQuestionSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # Answer-key writes are teacher/curator/staff only (see IsTeacherOrCuratorOrReadOnly).
+    permission_classes = [IsTeacherOrCuratorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['lom_general', 'question_type']
     ordering_fields = ['order', 'created_at', 'updated_at']
@@ -579,7 +602,15 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         return [IsTeacher()]
 
     def get_queryset(self):
-        qs = LessonPlan.objects.all().prefetch_related('activities')
+        # Prefetch activities WITH their bound content so the serializer's
+        # heritage_item_title / route_title / educational_resource_title reads don't
+        # trigger a query per activity (N+1 on every list/retrieve).
+        activities_qs = LessonActivity.objects.select_related(
+            'heritage_item', 'route', 'educational_resource'
+        )
+        qs = LessonPlan.objects.all().prefetch_related(
+            Prefetch('activities', queryset=activities_qs)
+        )
         user = self.request.user
         if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
             return qs
@@ -643,6 +674,18 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
     # publishing is additionally restricted to curators/staff (a teacher submits,
     # a curator publishes) and requires at least one activity.
 
+    # Allowed source states per transition — the state machine is directional
+    # (draft → review → published → archived), with sensible back-edges. Anything
+    # not listed is rejected with 409, so a published plan can't jump back to review
+    # nor an archived plan re-publish out of order.
+    _ALLOWED_SOURCES = {
+        LessonPlan.STATUS_REVIEW: {LessonPlan.STATUS_DRAFT},
+        LessonPlan.STATUS_PUBLISHED: {LessonPlan.STATUS_DRAFT, LessonPlan.STATUS_REVIEW},
+        LessonPlan.STATUS_ARCHIVED: {
+            LessonPlan.STATUS_DRAFT, LessonPlan.STATUS_REVIEW, LessonPlan.STATUS_PUBLISHED,
+        },
+    }
+
     def _transition(self, request, *, to_status, require_curator=False, require_activities=False):
         plan = self.get_object()
         self._require_owner_or_curator(plan)
@@ -651,13 +694,25 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         if require_curator and not is_curator:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Only a curator can publish a lesson plan.')
+        # Source-state guard: reject out-of-order transitions (e.g. published→review).
+        if plan.status not in self._ALLOWED_SOURCES.get(to_status, set()):
+            return Response(
+                {'detail': f"Cannot move a '{plan.status}' plan to '{to_status}'."},
+                status=status.HTTP_409_CONFLICT,
+            )
         if require_activities and not plan.activities.exists():
             return Response(
                 {'detail': 'A lesson plan needs at least one activity before it can be published.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        update_fields = ['status', 'updated_at']
         plan.status = to_status
-        plan.save(update_fields=['status', 'updated_at'])
+        # Publishing makes the plan publicly visible; without this a default-private
+        # plan would be "published" yet still 404 on the public detail route.
+        if to_status == LessonPlan.STATUS_PUBLISHED and plan.visibility == LessonPlan.VISIBILITY_PRIVATE:
+            plan.visibility = LessonPlan.VISIBILITY_PUBLIC
+            update_fields.append('visibility')
+        plan.save(update_fields=update_fields)
         return Response(LessonPlanSerializer(plan, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
@@ -667,7 +722,8 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
-        """Curator publishes a plan (→ published); requires ≥1 activity."""
+        """Curator publishes a plan (draft/review → published); requires ≥1 activity
+        and makes a private plan public."""
         return self._transition(
             request, to_status=LessonPlan.STATUS_PUBLISHED,
             require_curator=True, require_activities=True,
@@ -675,7 +731,7 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def archive(self, request, pk=None):
-        """Retire a plan (→ archived)."""
+        """Retire a plan (any non-archived state → archived)."""
         return self._transition(request, to_status=LessonPlan.STATUS_ARCHIVED)
 
     @action(detail=True, methods=['get'], url_path='export-scorm')

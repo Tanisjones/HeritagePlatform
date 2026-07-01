@@ -128,11 +128,15 @@ def enforce_budget(*, user_id: int | None, config: AIConfig) -> None:
         return
 
 
-def budget_status(*, user_id: int | None, config: AIConfig) -> dict | None:
+def budget_status(*, user_id: int | None, config: AIConfig, include_global: bool = False) -> dict | None:
     """Remaining monthly allowance for `/ai/status/`, or None if no caps configured.
 
     Shape: ``{ enabled, user: {...}|null, global: {...} }`` with per-metric
     ``{cap, used, remaining}`` (cost as strings). Only configured metrics appear.
+
+    ``include_global`` gates the platform-wide ``global`` block: it is sensitive
+    internal spend data, so callers pass True ONLY for staff/curator. For everyone
+    else (incl. the public /ai/status/ endpoint) ``global`` is an empty dict.
     """
     b = config.budget
     if not b.any_enabled:
@@ -159,7 +163,7 @@ def budget_status(*, user_id: int | None, config: AIConfig) -> dict | None:
         out["user"] = None
 
     global_block: dict = {}
-    if b.monthly_usd_global is not None or b.monthly_tokens_global is not None:
+    if include_global and (b.monthly_usd_global is not None or b.monthly_tokens_global is not None):
         g = _aggregate(user_id=None)
         if b.monthly_usd_global is not None:
             global_block["usd"] = _usd_block(b.monthly_usd_global, g["cost"])

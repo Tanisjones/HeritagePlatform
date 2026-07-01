@@ -42,9 +42,15 @@ const budget = ref<AIBudgetStatus | null>(null)
 const chartMetric = ref<'estimated_cost_usd' | 'total_tokens' | 'calls'>('estimated_cost_usd')
 
 function sinceParam(): string {
+  // Use LOCAL date parts, not toISOString() (which is UTC): the backend windows by
+  // its local date, so a UTC slice would shift the range by a day near midnight in
+  // a non-UTC timezone (e.g. Ecuador, UTC-5).
   const d = new Date()
   d.setDate(d.getDate() - rangeDays.value)
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 async function loadAll() {
@@ -85,12 +91,12 @@ onMounted(loadAll)
 const totals = computed(() => byOperation.value?.totals ?? null)
 
 const errorRate = computed(() => {
-  // Derive error-rate from the recent rows we have (a proxy over the window's tail);
-  // the summary totals don't split by status, so we compute it from the audit sample.
-  const rows = recent.value?.results ?? []
-  if (rows.length === 0) return null
-  const errs = rows.filter((r) => r.status !== 'ok').length
-  return (errs / rows.length) * 100
+  // True window-wide error rate from the summary totals (error_calls / calls),
+  // not a 50-row sample.
+  const total = totals.value?.calls ?? 0
+  const errs = totals.value?.error_calls ?? 0
+  if (total === 0) return null
+  return (errs / total) * 100
 })
 
 // ---- formatting -----------------------------------------------------------

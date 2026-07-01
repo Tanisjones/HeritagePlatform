@@ -350,6 +350,11 @@ class LessonPlanWriteSerializer(serializers.ModelSerializer):
             'estimated_total_minutes', 'status', 'visibility', 'related_route',
             'activities',
         ]
+        # `status` is a state machine — it must ONLY change via the submit/publish/
+        # archive actions (which enforce the curator gate + required activities).
+        # Leaving it writable here let an owning teacher self-publish by PATCH,
+        # bypassing that gate. `visibility` stays writable (a plain user setting).
+        read_only_fields = ['status']
 
     @transaction.atomic
     def create(self, validated_data):

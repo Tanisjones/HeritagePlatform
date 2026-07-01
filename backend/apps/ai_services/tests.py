@@ -877,13 +877,22 @@ class AIBudgetEnforcementTest(TestCase):
         from apps.ai_services.budget import budget_status
         cfg = self._config_with(monthly_usd_per_user=2.0, monthly_usd_global=10.0)
         self._record(cost="0.50", user=self.user)
-        st = budget_status(user_id=self.user.id, config=cfg)
+        # include_global=True (staff/curator view) exposes the platform-wide block.
+        st = budget_status(user_id=self.user.id, config=cfg, include_global=True)
         self.assertTrue(st["enabled"])
         # cap/used/remaining are uniform 6dp strings (matching the cost column scale).
         self.assertEqual(st["user"]["usd"]["cap"], "2.000000")
         self.assertEqual(st["user"]["usd"]["used"], "0.500000")
         self.assertEqual(st["user"]["usd"]["remaining"], "1.500000")
         self.assertIn("usd", st["global"])
+
+    def test_budget_status_hides_global_without_include_flag(self):
+        from apps.ai_services.budget import budget_status
+        cfg = self._config_with(monthly_usd_global=10.0)
+        self._record(cost="0.50", user=self.user)
+        # Default (non-staff / anonymous): the sensitive global block is empty.
+        st = budget_status(user_id=self.user.id, config=cfg)
+        self.assertEqual(st["global"], {})
 
     def test_budget_status_none_when_no_caps(self):
         from apps.ai_services.budget import budget_status

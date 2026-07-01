@@ -7,6 +7,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useToast, useConfirm } from '@/composables/useDialogs'
 import { useAiError } from '@/composables/useAiError'
 import { useAIAvailability } from '@/services/aiAvailability'
+import { extractApiError } from '@/utils/apiError'
 import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download'
 import type { LessonActivity, LessonActivityType, LessonPlan, LessonPlanWriteData } from '@/types/heritage'
 import AppButton from '@/components/common/AppButton.vue'
@@ -178,7 +179,8 @@ function buildPayload(): LessonPlanWriteData {
     audience: form.audience,
     curriculum_alignment: form.curriculum_alignment,
     pedagogical_approach: form.pedagogical_approach,
-    status: form.status,
+    // `status` is read-only on the write serializer — it changes only via the
+    // submit/publish/archive actions, so we don't send it here.
     visibility: form.visibility,
     objectives,
     activities: form.activities.map((a, i) => ({
@@ -210,8 +212,8 @@ async function save(): Promise<LessonPlan | null> {
     if (isNew.value) router.replace({ name: 'lesson-plan-edit', params: { id: plan.id } })
     hydrate(plan)
     return plan
-  } catch (e: any) {
-    saveError.value = e?.response?.data ? JSON.stringify(e.response.data) : t('common.errorSaving')
+  } catch (e: unknown) {
+    saveError.value = extractApiError(e, t('common.errorSaving'))
     return null
   } finally {
     saving.value = false
@@ -275,10 +277,8 @@ async function transition(kind: 'submit' | 'publish' | 'archive') {
     const res = await lessonPlanService[kind](saved.id)
     hydrate(res.data as LessonPlan)
     toast.success(t(`lessonPlans.actions.${kind}Done`))
-  } catch (e: any) {
-    saveError.value = e?.response?.data?.detail || e?.response?.data
-      ? JSON.stringify(e.response.data)
-      : t('common.errorGeneric')
+  } catch (e: unknown) {
+    saveError.value = extractApiError(e, t('common.errorGeneric'))
   } finally {
     acting.value = false
   }
@@ -367,9 +367,10 @@ onMounted(load)
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.status') }}</label>
-            <select v-model="form.status" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-              <option v-for="s in ['draft','review','published','archived']" :key="s" :value="s">{{ t(`lessonPlans.status.${s}`) }}</option>
-            </select>
+            <!-- status is read-only; it changes via the submit/publish/archive buttons below -->
+            <div class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+              {{ t(`lessonPlans.status.${form.status}`) }}
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.visibility') }}</label>

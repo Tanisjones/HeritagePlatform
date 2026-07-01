@@ -224,4 +224,8 @@ class LessonPlanDraftAssistView(BaseAssistView):
             "subject": data.get("subject", ""),
             "grade_level": data.get("grade_level", ""),
             "audience": data.get("audience", ""),
+            # The teacher's existing objectives/content hints must inform the draft,
+            # not be ignored (the frontend sends them and then overwrites objectives).
+            "objectives": data.get("objectives") or [],
+            "heritage_hints": data.get("heritage_hints") or [],
         }

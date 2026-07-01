@@ -136,13 +136,17 @@ class AIUsageSummaryView(_UsageRangeMixin, APIView):
             rows = [{"key": _row_key(r, fields), **_row_metrics(r)} for r in grouped]
 
         totals = qs.aggregate(**agg)
+        totals_metrics = _row_metrics(totals)
+        # True window-wide error count (not ok) so the dashboard KPI reflects the
+        # whole period, not a 50-row sample.
+        totals_metrics["error_calls"] = qs.exclude(status=AIUsageRecord.STATUS_OK).count()
         since, until = _range_echo(request)
         return Response(
             {
                 "group_by": group_by,
                 "since": since,
                 "until": until,
-                "totals": _row_metrics(totals),
+                "totals": totals_metrics,
                 "rows": rows,
             },
             status=status.HTTP_200_OK,

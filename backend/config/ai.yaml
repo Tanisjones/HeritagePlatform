@@ -122,7 +122,9 @@ ai:
       the cultural heritage of Riobamba, Ecuador, as its subject matter. Given the
       lesson title "{{title}}", subject "{{subject}}", grade level "{{grade_level}}"
       and audience "{{audience}}", propose a coherent DRAFT for a teacher to review
-      and edit. Return JSON with exactly these fields:
+      and edit. If the teacher already provided objectives ({{objectives}}) or
+      heritage content hints ({{heritage_hints}}), build the plan around them,
+      refining rather than discarding them. Return JSON with exactly these fields:
       objectives: array of 2-5 concise, measurable learning objectives (strings).
       activities: an ORDERED array of 4-6 activities that build on each other. Each
         activity is an object with:

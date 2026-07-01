@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { educationService } from '@/services/api'
 import { withLoading } from '@/composables/useAsyncAction'
 import { useToast } from '@/composables/useDialogs'
+import { extractApiError } from '@/utils/apiError'
 import type { AssessmentQuestion } from '@/types/heritage'
 import AppButton from '@/components/common/AppButton.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -134,8 +135,8 @@ async function save() {
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
       .map((q) => ({ ...q, choices: (q.choices || []).map((c) => ({ ...c })) }))
     toast.success(t('common.saved'))
-  } catch (e: any) {
-    saveError.value = e?.response?.data ? JSON.stringify(e.response.data) : t('common.errorSaving')
+  } catch (e: unknown) {
+    saveError.value = extractApiError(e, t('common.errorSaving'))
   } finally {
     saving.value = false
   }

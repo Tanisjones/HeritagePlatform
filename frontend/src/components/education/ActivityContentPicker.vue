@@ -66,6 +66,10 @@ watch(query, () => {
   debounceTimer = setTimeout(runSearch, 300)
 })
 
+// Monotonic request token: only the most recently-issued search may write
+// results, so a slow earlier response (or a kind switch mid-flight) can't clobber
+// a newer one and bind the wrong FK kind.
+let searchSeq = 0
 async function runSearch() {
   const q = query.value.trim()
   if (!q) {
@@ -73,15 +77,17 @@ async function runSearch() {
     return
   }
   const kind = KINDS.find((k) => k.key === activeKind.value)!
+  const seq = ++searchSeq
   searching.value = true
   try {
     const res = await api.get(kind.endpoint, { params: { search: q, page_size: 8 } })
+    if (seq !== searchSeq) return // a newer search superseded this one
     const rows = unwrapResults<any>(res.data)
     results.value = rows.slice(0, 8).map((r: any) => ({ id: r.id, title: r.title || r.name || String(r.id) }))
   } catch {
-    results.value = []
+    if (seq === searchSeq) results.value = []
   } finally {
-    searching.value = false
+    if (seq === searchSeq) searching.value = false
   }
 }
 

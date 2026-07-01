@@ -599,7 +599,8 @@ class EducationAssessmentQuestionNestedWriteTest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(email='q_user@example.com', password='password')
+        # LOM/question authoring now requires teacher/curator/staff (answer-key gate).
+        self.user = User.objects.create_user(email='q_user@example.com', password='password', is_staff=True)
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
         self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
@@ -645,6 +646,20 @@ class EducationAssessmentQuestionNestedWriteTest(TestCase):
         )
         self.assertEqual(resp2.status_code, status.HTTP_200_OK, resp2.content)
         self.assertEqual(self.lom.questions.count(), 1)
+
+    def test_plain_authenticated_user_cannot_write_answer_key(self):
+        """Security regression: a non-teacher/non-curator must NOT be able to
+        create/overwrite the quiz answer key (IsTeacherOrCuratorOrReadOnly)."""
+        tourist = User.objects.create_user(email='tourist_q@example.com', password='pw')
+        self.client.force_authenticate(user=tourist)
+        resp = self.client.patch(
+            f'/api/v1/lom/{self.lom.id}/',
+            {'questions': [{'order': 1, 'question_type': 'true_false', 'prompt': '¿?', 'correct_response': 'true'}]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+        # Reads stay public though.
+        self.assertEqual(self.client.get(f'/api/v1/lom/{self.lom.id}/').status_code, status.HTTP_200_OK)
 
     def test_export_qti_endpoint_returns_zip(self):
         self.client.force_authenticate(user=self.user)
@@ -773,7 +788,8 @@ class EducationReviewFixesTest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(email='rev_user@example.com', password='password')
+        # LOM/question authoring now requires teacher/curator/staff (answer-key gate).
+        self.user = User.objects.create_user(email='rev_user@example.com', password='password', is_staff=True)
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
         self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
@@ -1248,3 +1264,35 @@ class LessonPlanExportStateTest(TestCase):
         resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/submit/')
         # tourist is not a teacher → IsTeacher blocks at 403.
         self.assertEqual(resp.status_code, 403)
+
+    def test_publish_makes_private_plan_public(self):
+        # Security/UX fix: publishing a default-private plan must flip visibility so
+        # the public /learn/plans/:id route can actually show it.
+        self.assertEqual(self.plan.visibility, self.LessonPlan.VISIBILITY_PRIVATE)
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/publish/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.visibility, self.LessonPlan.VISIBILITY_PUBLIC)
+
+    def test_teacher_cannot_self_publish_via_patch_status(self):
+        # Security fix: status is read-only on the write serializer, so a PATCH that
+        # sets status='published' is ignored — publishing must go through publish().
+        from apps.users.models import UserRole, UserProfile
+        role, _ = UserRole.objects.get_or_create(name='Teacher', slug='teacher')
+        plain_teacher = User.objects.create_user(email='pt_pub@example.com', password='pw')
+        UserProfile.objects.create(user=plain_teacher, role=role)
+        plan = self.LessonPlan.objects.create(title='mine', author=plain_teacher, status='draft')
+        self.client.force_authenticate(user=plain_teacher)
+        resp = self.client.patch(f'/api/v1/lesson-plans/{plan.id}/', {'status': 'published'}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        plan.refresh_from_db()
+        self.assertEqual(plan.status, 'draft')  # unchanged — status is read-only
+
+    def test_illegal_transition_rejected(self):
+        # published → review (via submit) is not a legal edge → 409.
+        self.plan.status = self.LessonPlan.STATUS_PUBLISHED
+        self.plan.save(update_fields=['status'])
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/submit/')
+        self.assertEqual(resp.status_code, 409, resp.content)

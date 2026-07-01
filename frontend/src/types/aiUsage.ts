@@ -17,11 +17,16 @@ export interface AiUsageSummaryRow {
 
 export type AiUsageGroupBy = 'operation' | 'provider' | 'model' | 'user' | 'day'
 
+/** Window-wide totals; `error_calls` is the true non-ok count over the period. */
+export interface AiUsageTotals extends Omit<AiUsageSummaryRow, 'key'> {
+  error_calls?: number
+}
+
 export interface AiUsageSummaryResponse {
   group_by: AiUsageGroupBy
   since: string
   until: string
-  totals: Omit<AiUsageSummaryRow, 'key'>
+  totals: AiUsageTotals
   rows: AiUsageSummaryRow[]
 }
 
