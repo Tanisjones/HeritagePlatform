@@ -9,6 +9,8 @@
 import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { routeService, teacherService } from '@/services/api';
+import { useAsyncAction } from '@/composables/useAsyncAction';
+import { unwrapResults } from '@/utils/pagination';
 import type { HeritageRoute } from '@/types/heritage';
 import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
@@ -19,8 +21,8 @@ import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 
 const routes = ref<HeritageRoute[]>([]);
-const loading = ref(false);
-const errorMessage = ref('');
+// H.3: unified fetch via the V1 composable.
+const { loading, error, run } = useAsyncAction();
 const packagingId = ref<string | null>(null);
 const packagingError = ref<string | null>(null);
 // Route packages support SCORM 1.2 / 2004 only (cmi5 collections aren't modelled).
@@ -31,19 +33,11 @@ const formats = [
   { value: 'scorm2004', labelKey: 'teach.formats.scorm2004' },
 ];
 
-const fetchRoutes = async () => {
-  try {
-    loading.value = true;
-    errorMessage.value = '';
+const fetchRoutes = () =>
+  run(async () => {
     const res = await routeService.list({ status: 'published' });
-    routes.value = res.data.results || res.data || [];
-  } catch (e) {
-    console.error('Error loading routes', e);
-    errorMessage.value = t('teach.errors.load');
-  } finally {
-    loading.value = false;
-  }
-};
+    routes.value = unwrapResults<HeritageRoute>(res.data);
+  });
 
 const exportRoute = async (route: HeritageRoute) => {
   packagingError.value = null;
@@ -93,7 +87,7 @@ onMounted(fetchRoutes);
         <BaseSpinner class="h-8 w-8 text-primary-600" />
       </div>
 
-      <ErrorBanner v-else-if="errorMessage" :message="errorMessage" @retry="fetchRoutes" />
+      <ErrorBanner v-else-if="error" :message="error" @retry="fetchRoutes" />
 
       <EmptyState v-else-if="routes.length === 0" :title="t('teach.noRoutes')" />
 

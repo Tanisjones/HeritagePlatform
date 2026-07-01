@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import api from '@/services/api';
+import { useAsyncAction } from '@/composables/useAsyncAction';
+import { unwrapResults } from '@/utils/pagination';
 import { apiBaseUrl } from '@/utils/apiUrl';
 import { iso8601ToMinutes } from '@/utils/duration';
 import type { LOMResource } from '@/types/heritage';
@@ -15,8 +17,8 @@ const { t } = useI18n();
 const toast = useToast();
 // Shared LOM vocab translators (aliased to keep existing template calls).
 const { humanize: humanizeEnum, translate: translateEnum } = useLomLabels();
-const loading = ref(false);
-const errorMessage = ref('');
+// H.3: unified fetch via the V1 composable.
+const { loading, error, run } = useAsyncAction();
 const lomResources = ref<LOMResource[]>([]);
 const downloadingId = ref<string | null>(null);
 
@@ -89,19 +91,11 @@ const languages = [
   { value: 'qu', labelKey: 'learn.languages.qu' },
 ];
 
-const fetchLom = async () => {
-  try {
-    loading.value = true;
-    errorMessage.value = '';
+const fetchLom = () =>
+  run(async () => {
     const response = await api.get('/lom/');
-    lomResources.value = response.data.results || response.data || [];
-  } catch (error) {
-    console.error('Error fetching LOM resources', error);
-    errorMessage.value = t('learn.labels.loadError');
-  } finally {
-    loading.value = false;
-  }
-};
+    lomResources.value = unwrapResults<LOMResource>(response.data);
+  });
 
 const downloadScorm = async (resource: LOMResource) => {
   if (!resource.id) return;
@@ -355,7 +349,7 @@ onMounted(fetchLom);
         <BaseSpinner class="h-8 w-8 text-primary-600" />
       </div>
 
-      <ErrorBanner v-else-if="errorMessage" :message="errorMessage" @retry="fetchLom" />
+      <ErrorBanner v-else-if="error" :message="error" @retry="fetchLom" />
 
       <EmptyState
         v-else-if="filteredResources.length === 0"

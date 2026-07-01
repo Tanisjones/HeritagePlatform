@@ -12,6 +12,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import { useAsyncAction } from '@/composables/useAsyncAction'
+import { unwrapResults } from '@/utils/pagination'
 import type { HeritageCategory, HeritageItem, HeritageType, Parish } from '@/types/heritage'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -23,8 +25,8 @@ const route = useRoute()
 const router = useRouter()
 
 const items = ref<HeritageItem[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
+// H.3: unified fetch via the V1 composable.
+const { loading, error, run } = useAsyncAction()
 
 const types = ref<HeritageType[]>([])
 const categories = ref<HeritageCategory[]>([])
@@ -77,21 +79,13 @@ const hasOfflineBundleForCurrentQuery = computed(() => {
   }
 })
 
-const fetchItems = async () => {
-  try {
-    loading.value = true
-    error.value = null
+const fetchItems = () =>
+  run(async () => {
     const params: Record<string, any> = { ...currentQuerySnapshot.value }
 
     const response = await api.get('/heritage-items/', { params })
-    items.value = response.data.results
-  } catch (e) {
-    console.error('Error fetching heritage items:', e)
-    error.value = t('common.errorLoading')
-  } finally {
-    loading.value = false
-  }
-};
+    items.value = unwrapResults<HeritageItem>(response.data)
+  });
 
 const downloadForOffline = async () => {
   offlineDownloadError.value = null
