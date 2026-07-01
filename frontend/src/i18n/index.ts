@@ -13,8 +13,26 @@ const normalizeLocale = (rawLocale: string | null | undefined): SupportedLocale 
     return (SUPPORTED_LOCALES as readonly string[]).includes(normalized) ? (normalized as SupportedLocale) : null
 }
 
+// localStorage can be absent (SSR, web workers, some test runtimes) — access it
+// defensively so importing this module never throws.
+const safeGetStoredLocale = (): string | null => {
+    try {
+        return typeof localStorage !== 'undefined' ? localStorage.getItem(LOCALE_STORAGE_KEY) : null
+    } catch {
+        return null
+    }
+}
+
+const safeStoreLocale = (locale: string): void => {
+    try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+    } catch {
+        /* storage unavailable — non-fatal */
+    }
+}
+
 const getInitialLocale = (): SupportedLocale => {
-    const stored = normalizeLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+    const stored = normalizeLocale(safeGetStoredLocale())
     if (stored) return stored
 
     const browserLocale = normalizeLocale(
@@ -45,7 +63,7 @@ if (i18n.global && 'locale' in i18n.global) {
     if (localeRef && typeof localeRef === 'object' && 'value' in localeRef) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const current = normalizeLocale((localeRef as any).value)
-        if (current) localStorage.setItem(LOCALE_STORAGE_KEY, current)
+        if (current) safeStoreLocale(current)
     }
 }
 

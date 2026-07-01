@@ -36,11 +36,9 @@
         "waitUpload": "Por favor espere a que termine la carga",
         "retry": "Reintentar",
         "dismiss": "Descartar",
-        "close": "Cerrar",
         "confirm": "Confirmar",
         "error": "Error",
-        "success": "Éxito",
-        "nothingHere": "No hay nada aquí todavía"
+        "errorGeneric": "Algo salió mal. Inténtelo de nuevo."
     },
     "nav": {
         "home": "Inicio",

@@ -53,6 +53,11 @@ describe('WKT / GeoJSON parsing', () => {
     expect(parsePoint('POINT(-78.65 -1.67)')).toEqual([-1.67, -78.65])
   })
 
+  it('parsePoint tolerates signs and scientific notation', () => {
+    expect(parsePoint('POINT (1.5e-3 -1.6)')).toEqual([-1.6, 0.0015])
+    expect(parsePoint('POINT (+78.6 -1.6)')).toEqual([-1.6, 78.6])
+  })
+
   it('parsePoint reads a GeoJSON Point object into [lat, lng]', () => {
     expect(parsePoint({ type: 'Point', coordinates: [-78.65, -1.67] })).toEqual([-1.67, -78.65])
   })

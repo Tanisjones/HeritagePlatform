@@ -30,9 +30,11 @@ _ALLOWED_TAGS = {
 }
 
 # Per-tag attribute allowlist. No ``style`` (CSS can smuggle behaviour) and no
-# ``on*`` handlers (nh3 strips event handlers regardless).
+# ``on*`` handlers (nh3 strips event handlers regardless). NB: do NOT allow
+# ``rel`` on <a> here — we set ``link_rel`` below and ammonia panics if both are
+# configured ("it makes no sense to let the user set rel while forcing a value").
 _ALLOWED_ATTRIBUTES = {
-    "a": {"href", "title", "target", "rel"},
+    "a": {"href", "title", "target"},
     "img": {"src", "alt", "title", "width", "height"},
     "td": {"colspan", "rowspan"},
     "th": {"colspan", "rowspan", "scope"},

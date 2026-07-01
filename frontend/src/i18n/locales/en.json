@@ -36,11 +36,9 @@
         "waitUpload": "Please wait for upload to finish",
         "retry": "Retry",
         "dismiss": "Dismiss",
-        "close": "Close",
         "confirm": "Confirm",
         "error": "Error",
-        "success": "Success",
-        "nothingHere": "Nothing here yet"
+        "errorGeneric": "Something went wrong. Please try again."
     },
     "nav": {
         "home": "Home",

@@ -184,14 +184,13 @@ const nextStep = async () => {
       if (!plainText) return;
 
       try {
-          step1Uploading.value = true;
           step1Error.value = '';
-          
+          // useFileUpload owns the uploading/progress state.
           const blob = new Blob([narrativeText.value], { type: 'text/html' });
           const file = new File([blob], "narrative_text.html", { type: 'text/html' });
 
           const id = await uploadOneFile(file, 'document');
-          
+
           // Store as document
           contribution.documents = [id];
           contribution.images = [];
@@ -202,11 +201,10 @@ const nextStep = async () => {
           return;
       } catch (error) {
         const err = error as any;
+        if (err?.code === 'ERR_CANCELED') return; // user cancelled — not an error
         console.error('Error uploading text file:', err);
         step1Error.value = t('contribution.step1.errors.uploadFailed');
         return;
-      } finally {
-        step1Uploading.value = false;
       }
     }
 
@@ -234,6 +232,7 @@ const nextStep = async () => {
       return;
     } catch (error) {
       const err = error as any;
+      if (err?.code === 'ERR_CANCELED') return; // user cancelled — not an error
       const status = err?.response?.status;
       const data = err?.response?.data;
       console.error('Error uploading file:', err);

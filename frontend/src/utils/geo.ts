@@ -77,8 +77,10 @@ export function parsePoint(value: string | GeoJsonGeometry | null | undefined): 
   }
 
   // WKT string: only accept an actual POINT (anchored to the keyword so a
-  // POLYGON/MULTIPOINT/LINESTRING isn't mis-parsed as its first vertex).
-  const match = value.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i)
+  // POLYGON/MULTIPOINT/LINESTRING isn't mis-parsed as its first vertex). The
+  // number pattern tolerates a sign and scientific notation (e.g. "1.5e-3").
+  const num = String.raw`[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?`
+  const match = value.match(new RegExp(String.raw`POINT\s*\(\s*(${num})\s+(${num})\s*\)`, 'i'))
   if (!match) return null
   const lng = Number(match[1])
   const lat = Number(match[2])

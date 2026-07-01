@@ -1,3 +1,5 @@
+import i18n from '@/i18n'
+
 /**
  * extractApiError — turn an axios/DRF error into a human-readable string.
  *
@@ -8,9 +10,12 @@
  *   - `{ "field": ["msg"] }`             → "msg"
  *   - `{ "detail": "msg" }`              → "msg"
  *   - `{ "field": "msg" }`               → "msg"
- * Falls back to `fallback` (or the error's own message) when nothing matches.
+ * When nothing matches (e.g. a network/timeout error whose only `.message` is a
+ * technical English string), returns `fallback` — defaulting to the localized
+ * `common.errorGeneric` so a Spanish user never sees an English fallback.
  */
-export function extractApiError(err: unknown, fallback = 'Something went wrong'): string {
+export function extractApiError(err: unknown, fallback?: string): string {
+  const resolvedFallback = fallback ?? i18n.global.t('common.errorGeneric')
   const anyErr = err as { response?: { data?: unknown }; message?: string }
   const data = anyErr?.response?.data
 
@@ -36,5 +41,7 @@ export function extractApiError(err: unknown, fallback = 'Something went wrong')
     return data
   }
 
-  return anyErr?.message || fallback
+  // Note: we deliberately do NOT surface the raw axios `.message` ("Network
+  // Error", "timeout of…") — those are untranslated technical strings.
+  return resolvedFallback
 }

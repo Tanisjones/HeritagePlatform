@@ -41,8 +41,11 @@ describe('extractApiError', () => {
     expect(extractApiError(err)).toBe('Server exploded')
   })
 
-  it('falls back to the error message then the default', () => {
-    expect(extractApiError({ message: 'Network Error' })).toBe('Network Error')
+  it('uses an explicit fallback and never surfaces the raw axios message', () => {
+    // A technical, untranslated axios message must NOT reach the user.
+    expect(extractApiError({ message: 'Network Error' })).not.toBe('Network Error')
+    // An explicit (already-localized) fallback wins.
     expect(extractApiError({}, 'Oops')).toBe('Oops')
+    expect(extractApiError({ message: 'timeout' }, 'Oops')).toBe('Oops')
   })
 })
