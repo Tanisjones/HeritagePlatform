@@ -1188,6 +1188,7 @@
             "curriculum": "Alineación curricular",
             "approach": "Enfoque pedagógico",
             "approachNone": "— Sin especificar —",
+            "standards": "Estándares curriculares",
             "objectives": "Objetivos de aprendizaje",
             "objectivesPlaceholder": "Un objetivo por línea",
             "objectivesHelp": "Escribe un objetivo por línea.",
@@ -1232,6 +1233,7 @@
             "publish": "Publicar",
             "archive": "Archivar",
             "exportScorm": "Exportar SCORM",
+            "exportPdf": "Exportar PDF",
             "submitDone": "Enviado a revisión.",
             "publishDone": "Plan publicado.",
             "archiveDone": "Plan archivado."

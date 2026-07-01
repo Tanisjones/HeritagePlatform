@@ -905,6 +905,12 @@ class LessonPlan(models.Model):
         related_name='lesson_plans',
         verbose_name=_('related route'),
     )
+    # P.6: curated curriculum standards this plan aligns to (beyond the free-text
+    # curriculum_alignment). Optional.
+    standards = models.ManyToManyField(
+        'CurriculumStandard', blank=True, related_name='lesson_plans',
+        verbose_name=_('curriculum standards'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -973,3 +979,76 @@ class LessonActivity(models.Model):
 
     def __str__(self):
         return f"{self.order}. {self.title}"
+
+
+class CurriculumStandard(models.Model):
+    """A curated curriculum standard/competency (P.6).
+
+    Seeded from the Ecuadorian national curriculum so lesson plans can align to a
+    governed catalog instead of only free text. `code` is the official identifier
+    (e.g. "CS.4.1.1"); `subject`/`grade_level` scope it; `description` is the
+    competency text (translatable, es-first).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(_('code'), max_length=40, unique=True)
+    subject = models.CharField(_('subject'), max_length=120, blank=True)
+    grade_level = models.CharField(_('grade level'), max_length=60, blank=True)
+    description = models.TextField(_('description'))
+    order = models.IntegerField(_('order'), default=0)
+
+    class Meta:
+        verbose_name = _('curriculum standard')
+        verbose_name_plural = _('curriculum standards')
+        ordering = ['subject', 'grade_level', 'code']
+
+    def __str__(self):
+        return f"{self.code} — {self.subject}"
+
+
+class Rubric(models.Model):
+    """Assessment rubric attached to a lesson plan (P.6).
+
+    A rubric is a small set of ordered criteria, each scored on a max points scale
+    with descriptive levels. Reused across a plan's assess activities.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lesson = models.ForeignKey(
+        LessonPlan, on_delete=models.CASCADE, related_name='rubrics', verbose_name=_('lesson plan')
+    )
+    title = models.CharField(_('title'), max_length=200)
+    description = models.TextField(_('description'), blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('rubric')
+        verbose_name_plural = _('rubrics')
+        ordering = ['created_at']
+
+    def __str__(self):
+        return self.title
+
+
+class RubricCriterion(models.Model):
+    """One ordered criterion of a Rubric: a label, a max-points value, and
+    free-text level descriptors (JSON list of {level, points, descriptor})."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rubric = models.ForeignKey(
+        Rubric, on_delete=models.CASCADE, related_name='criteria', verbose_name=_('rubric')
+    )
+    order = models.IntegerField(_('order'), default=0)
+    label = models.CharField(_('label'), max_length=200)
+    max_points = models.IntegerField(_('max points'), default=4)
+    # [{ "level": "Excelente", "points": 4, "descriptor": "..." }, ...]
+    levels = models.JSONField(_('levels'), default=list, blank=True)
+
+    class Meta:
+        verbose_name = _('rubric criterion')
+        verbose_name_plural = _('rubric criteria')
+        ordering = ['order']
+        constraints = [
+            models.UniqueConstraint(fields=['rubric', 'order'], name='unique_criterion_order_per_rubric'),
+        ]
+
+    def __str__(self):
+        return self.label

@@ -37,3 +37,7 @@ httpx==0.28.1
 # HTML sanitization for user-authored rich text (EducationalResource.content is
 # rendered via v-html in the SPA) — see apps/education/sanitize.py
 nh3==0.2.18
+
+# PDF generation for lesson-plan classroom handouts (P.6). Pure-Python (no system
+# libs, unlike weasyprint) — safe for the slim Docker image.
+reportlab==4.2.5

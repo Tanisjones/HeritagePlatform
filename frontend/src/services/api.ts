@@ -191,6 +191,21 @@ export const lessonPlanService = {
   // Bundle the plan's linked heritage items into one SCORM collection package.
   exportScorm: (id: string, variant: 'scorm12' | 'scorm2004' = 'scorm12') =>
     api.get(`/lesson-plans/${id}/export-scorm/`, { params: { variant }, responseType: 'blob' }),
+  // P.6: printable classroom handout (PDF).
+  exportPdf: (id: string) =>
+    api.get(`/lesson-plans/${id}/export-pdf/`, { responseType: 'blob' }),
+};
+
+// P.6: curated curriculum-standard catalog + lesson-plan rubrics.
+export const curriculumService = {
+  standards: (params?: Record<string, any>) => api.get('/curriculum-standards/', { params }),
+};
+
+export const rubricService = {
+  list: (lessonId: string) => api.get('/rubrics/', { params: { lesson: lessonId } }),
+  create: (payload: Record<string, any>) => api.post('/rubrics/', payload),
+  update: (id: string, payload: Record<string, any>) => api.patch(`/rubrics/${id}/`, payload),
+  delete: (id: string) => api.delete(`/rubrics/${id}/`),
 };
 
 export const aiSuggestionService = {

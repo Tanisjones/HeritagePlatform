@@ -20,7 +20,8 @@ from .models import (
     LOMGeneral, LOMLifeCycle, LOMContributor, LOMEducational,
     LOMRights, LOMClassification, LOMRelation, AssessmentQuestion,
     EducationalResource, ResourceType, ResourceCategory,
-    LessonPlan, LessonActivity
+    LessonPlan, LessonActivity,
+    CurriculumStandard, Rubric,
 )
 from .serializers import (
     LOMGeneralSerializer, LOMGeneralCreateSerializer, LOMGeneralWriteSerializer,
@@ -30,7 +31,8 @@ from .serializers import (
     AssessmentQuestionSerializer, AssessmentQuestionPublicSerializer,
     EducationalResourceSerializer,
     ResourceTypeSerializer, ResourceCategorySerializer,
-    LessonPlanSerializer, LessonPlanWriteSerializer
+    LessonPlanSerializer, LessonPlanWriteSerializer,
+    CurriculumStandardSerializer, RubricSerializer,
 )
 from apps.moderation.permissions import IsTeacher
 from apps.heritage.models import HeritageItem
@@ -597,7 +599,7 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         # transitions/duplicate) is teacher-gated.
         if self.action in ('list', 'retrieve'):
             return [permissions.AllowAny()]
-        if self.action == 'export_scorm':
+        if self.action in ('export_scorm', 'export_pdf'):
             return [permissions.IsAuthenticated()]
         return [IsTeacher()]
 
@@ -609,7 +611,9 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
             'heritage_item', 'route', 'educational_resource'
         )
         qs = LessonPlan.objects.all().prefetch_related(
-            Prefetch('activities', queryset=activities_qs)
+            Prefetch('activities', queryset=activities_qs),
+            'standards',
+            'rubrics__criteria',
         )
         user = self.request.user
         if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
@@ -778,3 +782,47 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
             package_format=variant,
         )
         return _zip_file_response(zip_file, filename)
+
+    @action(detail=True, methods=['get'], url_path='export-pdf')
+    def export_pdf(self, request, pk=None):
+        """Render this plan as a printable classroom handout (PDF, P.6).
+
+        Available to any authenticated user who can see the plan (visibility is
+        enforced by get_queryset). Includes the header, objectives, standards, the
+        activity sequence, and any rubrics.
+        """
+        from .pdf import build_lesson_plan_pdf
+
+        plan = self.get_object()
+        pdf_buf, filename = build_lesson_plan_pdf(plan)
+        response = FileResponse(pdf_buf, content_type='application/pdf')
+        response['Content-Disposition'] = content_disposition_header(as_attachment=True, filename=filename)
+        return response
+
+
+class CurriculumStandardViewSet(viewsets.ReadOnlyModelViewSet):
+    """Curated curriculum-standard catalog (P.6), for the plan editor's picker.
+
+    Read-only + public; the vocabulary is seeded/managed in the admin. Filterable by
+    subject/grade_level and searchable by code/description.
+    """
+    queryset = CurriculumStandard.objects.all()
+    serializer_class = CurriculumStandardSerializer
+    permission_classes = [permissions.AllowAny]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['subject', 'grade_level']
+    search_fields = ['code', 'description', 'subject']
+    ordering = ['subject', 'grade_level', 'code']
+
+
+class RubricViewSet(viewsets.ModelViewSet):
+    """CRUD for lesson-plan rubrics (P.6) with nested criteria.
+
+    Teacher/curator/staff writes (authoring); reads are public. Filter by
+    ?lesson=<plan id>.
+    """
+    queryset = Rubric.objects.prefetch_related('criteria').select_related('lesson')
+    serializer_class = RubricSerializer
+    permission_classes = [IsTeacherOrCuratorOrReadOnly]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['lesson']

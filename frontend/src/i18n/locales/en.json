@@ -1188,6 +1188,7 @@
             "curriculum": "Curriculum alignment",
             "approach": "Pedagogical approach",
             "approachNone": "— Not specified —",
+            "standards": "Curriculum standards",
             "objectives": "Learning objectives",
             "objectivesPlaceholder": "One objective per line",
             "objectivesHelp": "Write one objective per line.",
@@ -1232,6 +1233,7 @@
             "publish": "Publish",
             "archive": "Archive",
             "exportScorm": "Export SCORM",
+            "exportPdf": "Export PDF",
             "submitDone": "Submitted for review.",
             "publishDone": "Plan published.",
             "archiveDone": "Plan archived."

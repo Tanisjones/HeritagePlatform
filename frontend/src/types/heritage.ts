@@ -363,11 +363,38 @@ export interface LessonActivity {
 export type LessonPlanStatus = 'draft' | 'review' | 'published' | 'archived';
 export type LessonPlanVisibility = 'private' | 'unlisted' | 'public';
 
+export interface CurriculumStandard {
+  id: string;
+  code: string;
+  subject?: string;
+  grade_level?: string;
+  description: string;
+}
+
+export interface RubricCriterion {
+  id?: string;
+  order: number;
+  label: string;
+  max_points: number;
+  levels: Array<{ level?: string; points?: number; descriptor?: string }>;
+}
+
+export interface Rubric {
+  id?: string;
+  lesson?: string;
+  title: string;
+  description?: string;
+  criteria: RubricCriterion[];
+}
+
 export interface LessonPlan {
   id: string;
   title: string;
   summary?: string;
   objectives: string[];
+  standards?: string[];
+  standards_detail?: CurriculumStandard[];
+  rubrics?: Rubric[];
   subject?: string;
   grade_level?: string;
   audience?: string;

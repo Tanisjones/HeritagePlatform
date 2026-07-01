@@ -2,14 +2,15 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { lessonPlanService, aiService, educationService } from '@/services/api'
+import { lessonPlanService, aiService, educationService, curriculumService } from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useToast, useConfirm } from '@/composables/useDialogs'
 import { useAiError } from '@/composables/useAiError'
 import { useAIAvailability } from '@/services/aiAvailability'
 import { extractApiError } from '@/utils/apiError'
 import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download'
-import type { LessonActivity, LessonActivityType, LessonPlan, LessonPlanWriteData } from '@/types/heritage'
+import { unwrapResults } from '@/utils/pagination'
+import type { LessonActivity, LessonActivityType, LessonPlan, LessonPlanWriteData, CurriculumStandard } from '@/types/heritage'
 import AppButton from '@/components/common/AppButton.vue'
 import AppInput from '@/components/common/AppInput.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -47,6 +48,7 @@ const form = reactive<{
   visibility: LessonPlan['visibility']
   objectivesText: string
   activities: LessonActivity[]
+  standards: string[]
 }>({
   title: '',
   summary: '',
@@ -59,7 +61,11 @@ const form = reactive<{
   visibility: 'private',
   objectivesText: '',
   activities: [],
+  standards: [],
 })
+
+// P.6: curriculum-standard catalog for the multi-select.
+const standardsCatalog = ref<CurriculumStandard[]>([])
 
 function hydrate(plan: LessonPlan) {
   form.title = plan.title
@@ -72,14 +78,24 @@ function hydrate(plan: LessonPlan) {
   form.status = plan.status
   form.visibility = plan.visibility
   form.objectivesText = (plan.objectives || []).join('\n')
+  form.standards = (plan.standards || []).slice()
   form.activities = (plan.activities || [])
     .slice()
     .sort((a, b) => a.order - b.order)
     .map((a) => ({ ...a }))
 }
 
+async function loadStandards() {
+  try {
+    standardsCatalog.value = unwrapResults<CurriculumStandard>((await curriculumService.standards()).data)
+  } catch {
+    standardsCatalog.value = []
+  }
+}
+
 async function load() {
   refreshAi()
+  loadStandards()
   if (isNew.value) {
     addActivity()
     return
@@ -183,6 +199,7 @@ function buildPayload(): LessonPlanWriteData {
     // submit/publish/archive actions, so we don't send it here.
     visibility: form.visibility,
     objectives,
+    standards: form.standards,
     activities: form.activities.map((a, i) => ({
       ...(a.id ? { id: a.id } : {}),
       order: i,
@@ -298,6 +315,20 @@ async function exportScorm() {
   }
 }
 
+const exportingPdf = ref(false)
+async function exportPdf() {
+  if (isNew.value) return
+  exportingPdf.value = true
+  try {
+    const res = await lessonPlanService.exportPdf(planId.value as string)
+    saveBlob(res.data as Blob, `${slugifyFilename(form.title || 'lesson-plan')}-lesson-plan.pdf`)
+  } catch (e: any) {
+    saveError.value = await readBlobError(e, t('common.errorGeneric'))
+  } finally {
+    exportingPdf.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -364,6 +395,28 @@ onMounted(load)
           <textarea v-model="form.objectivesText" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" :placeholder="t('lessonPlans.fields.objectivesPlaceholder')"></textarea>
           <p class="mt-1 text-xs text-gray-500">{{ t('lessonPlans.fields.objectivesHelp') }}</p>
         </div>
+
+        <!-- P.6: curriculum standards (toggle chips from the curated catalog) -->
+        <div v-if="standardsCatalog.length">
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.standards') }}</label>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="std in standardsCatalog"
+              :key="std.id"
+              type="button"
+              class="px-2 py-1 rounded-full text-xs border"
+              :class="form.standards.includes(std.id)
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-primary-50'"
+              :title="std.description"
+              @click="form.standards.includes(std.id)
+                ? form.standards.splice(form.standards.indexOf(std.id), 1)
+                : form.standards.push(std.id)"
+            >
+              {{ std.code }}
+            </button>
+          </div>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.status') }}</label>
@@ -385,7 +438,8 @@ onMounted(load)
           <AppButton size="sm" variant="secondary" :loading="acting" @click="transition('submit')">{{ t('lessonPlans.actions.submit') }}</AppButton>
           <AppButton size="sm" variant="secondary" :loading="acting" @click="transition('publish')">{{ t('lessonPlans.actions.publish') }}</AppButton>
           <AppButton size="sm" variant="ghost" :loading="acting" @click="transition('archive')">{{ t('lessonPlans.actions.archive') }}</AppButton>
-          <AppButton size="sm" variant="ghost" :loading="exporting" class="ml-auto" @click="exportScorm">{{ t('lessonPlans.actions.exportScorm') }}</AppButton>
+          <AppButton size="sm" variant="ghost" :loading="exportingPdf" class="ml-auto" @click="exportPdf">{{ t('lessonPlans.actions.exportPdf') }}</AppButton>
+          <AppButton size="sm" variant="ghost" :loading="exporting" @click="exportScorm">{{ t('lessonPlans.actions.exportScorm') }}</AppButton>
         </div>
       </section>
 

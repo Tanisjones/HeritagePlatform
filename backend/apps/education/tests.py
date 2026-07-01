@@ -1296,3 +1296,83 @@ class LessonPlanExportStateTest(TestCase):
         self.client.force_authenticate(user=self.teacher)
         resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/submit/')
         self.assertEqual(resp.status_code, 409, resp.content)
+
+
+class LessonPlanP6Test(TestCase):
+    """P.6 — PDF export, curriculum standards catalog, rubric CRUD."""
+
+    def setUp(self):
+        from apps.education.models import LessonPlan, LessonActivity, CurriculumStandard
+        self.LessonPlan = LessonPlan
+        self.CurriculumStandard = CurriculumStandard
+        self.client = APIClient()
+        self.teacher = User.objects.create_user(email='p6_t@example.com', password='pw', is_staff=True)
+        self.tourist = User.objects.create_user(email='p6_tour@example.com', password='pw')
+        self.plan = LessonPlan.objects.create(
+            title='Plan P6', summary='s', author=self.teacher,
+            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC,
+            objectives=['O1'],
+        )
+        LessonActivity.objects.create(lesson=self.plan, order=0, title='A', activity_type='hook',
+                                      instructions='<p>hola</p>', duration_minutes=10)
+
+    def test_standards_seeded_and_public(self):
+        self.assertGreaterEqual(self.CurriculumStandard.objects.count(), 5)
+        resp = self.client.get('/api/v1/curriculum-standards/')
+        self.assertEqual(resp.status_code, 200)
+        rows = resp.data['results'] if 'results' in resp.data else resp.data
+        self.assertTrue(any(s['code'] == 'CS.4.1.1' for s in rows))
+
+    def test_export_pdf_returns_pdf(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/export-pdf/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/pdf')
+        content = b''.join(resp.streaming_content)
+        self.assertTrue(content.startswith(b'%PDF-'))
+
+    def test_export_pdf_requires_auth(self):
+        resp = self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/export-pdf/')
+        self.assertIn(resp.status_code, (401, 403))
+
+    def test_plan_can_attach_standards(self):
+        std = self.CurriculumStandard.objects.first()
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.patch(
+            f'/api/v1/lesson-plans/{self.plan.id}/',
+            {'standards': [str(std.id)]}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.plan.refresh_from_db()
+        self.assertEqual(list(self.plan.standards.values_list('id', flat=True)), [std.id])
+        # Read shape exposes nested standard detail.
+        self.assertTrue(any(s['code'] == std.code for s in resp.data['standards_detail']))
+
+    def test_rubric_crud_with_nested_criteria(self):
+        self.client.force_authenticate(user=self.teacher)
+        payload = {
+            'lesson': str(self.plan.id),
+            'title': 'Rúbrica 1',
+            'criteria': [
+                {'order': 0, 'label': 'Claridad', 'max_points': 4,
+                 'levels': [{'level': 'Alto', 'points': 4, 'descriptor': 'x'}]},
+                {'order': 1, 'label': 'Contenido', 'max_points': 4, 'levels': []},
+            ],
+        }
+        resp = self.client.post('/api/v1/rubrics/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        rubric_id = resp.data['id']
+        self.assertEqual(len(resp.data['criteria']), 2)
+        # Reorder-by-id preserves criterion identity (no unique-order collision).
+        first_id = resp.data['criteria'][0]['id']
+        patch = {'criteria': [
+            {'id': first_id, 'order': 1, 'label': 'Claridad', 'max_points': 4, 'levels': []},
+        ]}
+        resp2 = self.client.patch(f'/api/v1/rubrics/{rubric_id}/', patch, format='json')
+        self.assertEqual(resp2.status_code, 200, resp2.content)
+        self.assertEqual(len(resp2.data['criteria']), 1)
+
+    def test_tourist_cannot_write_rubric(self):
+        self.client.force_authenticate(user=self.tourist)
+        resp = self.client.post('/api/v1/rubrics/', {'lesson': str(self.plan.id), 'title': 'x'}, format='json')
+        self.assertEqual(resp.status_code, 403)

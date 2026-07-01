@@ -5,7 +5,8 @@ from .models import (
     LOMClassification, LOMContributor,
     LOMRelation, AssessmentQuestion,
     EducationalResource, ResourceType, ResourceCategory,
-    LessonPlan, LessonActivity
+    LessonPlan, LessonActivity,
+    CurriculumStandard, Rubric, RubricCriterion,
 )
 from .sanitize import sanitize_html
 
@@ -312,11 +313,60 @@ class LessonActivitySerializer(serializers.ModelSerializer):
         return sanitize_html(value)
 
 
+class CurriculumStandardSerializer(serializers.ModelSerializer):
+    """Curated curriculum standard (P.6). Read shape for the catalog + nested reads."""
+
+    class Meta:
+        model = CurriculumStandard
+        fields = ['id', 'code', 'subject', 'grade_level', 'description']
+
+
+class RubricCriterionSerializer(serializers.ModelSerializer):
+    """Nested rubric criterion; `id` optional-writable for identity reconciliation."""
+
+    id = serializers.UUIDField(required=False)
+
+    class Meta:
+        model = RubricCriterion
+        fields = ['id', 'order', 'label', 'max_points', 'levels']
+
+
+class RubricSerializer(serializers.ModelSerializer):
+    """A rubric with its ordered criteria, scoped to a lesson plan (P.6)."""
+
+    criteria = RubricCriterionSerializer(many=True, required=False)
+
+    class Meta:
+        model = Rubric
+        fields = ['id', 'lesson', 'title', 'description', 'criteria', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+    @transaction.atomic
+    def create(self, validated_data):
+        criteria = validated_data.pop('criteria', None)
+        rubric = Rubric.objects.create(**validated_data)
+        if criteria is not None:
+            _sync_ordered_children(rubric.criteria, criteria)
+        return rubric
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        criteria = validated_data.pop('criteria', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if criteria is not None:
+            _sync_ordered_children(instance.criteria, criteria)
+        return instance
+
+
 class LessonPlanSerializer(serializers.ModelSerializer):
     """Read shape: the plan plus its ordered activities and the author's display."""
 
     activities = LessonActivitySerializer(many=True, read_only=True)
     author_name = serializers.SerializerMethodField()
+    rubrics = RubricSerializer(many=True, read_only=True)
+    standards_detail = CurriculumStandardSerializer(source='standards', many=True, read_only=True)
 
     class Meta:
         model = LessonPlan
@@ -324,6 +374,7 @@ class LessonPlanSerializer(serializers.ModelSerializer):
             'id', 'title', 'summary', 'objectives', 'subject', 'grade_level',
             'audience', 'curriculum_alignment', 'pedagogical_approach',
             'estimated_total_minutes', 'status', 'visibility', 'related_route',
+            'standards', 'standards_detail', 'rubrics',
             'author', 'author_name', 'activities', 'created_at', 'updated_at',
         ]
         read_only_fields = ['author', 'created_at', 'updated_at']
@@ -348,7 +399,7 @@ class LessonPlanWriteSerializer(serializers.ModelSerializer):
             'id', 'title', 'summary', 'objectives', 'subject', 'grade_level',
             'audience', 'curriculum_alignment', 'pedagogical_approach',
             'estimated_total_minutes', 'status', 'visibility', 'related_route',
-            'activities',
+            'standards', 'activities',
         ]
         # `status` is a state machine — it must ONLY change via the submit/publish/
         # archive actions (which enforce the curator gate + required activities).
@@ -359,7 +410,10 @@ class LessonPlanWriteSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         activities = validated_data.pop('activities', None)
+        standards = validated_data.pop('standards', None)  # M2M — set after create.
         plan = LessonPlan.objects.create(**validated_data)
+        if standards is not None:
+            plan.standards.set(standards)
         if activities is not None:
             _sync_ordered_children(plan.activities, activities)
         return plan
@@ -367,9 +421,12 @@ class LessonPlanWriteSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         activities = validated_data.pop('activities', None)
+        standards = validated_data.pop('standards', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        if standards is not None:
+            instance.standards.set(standards)
         if activities is not None:
             _sync_ordered_children(instance.activities, activities)
         return instance

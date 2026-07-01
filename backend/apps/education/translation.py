@@ -7,7 +7,8 @@ from modeltranslation.translator import translator, TranslationOptions
 from .models import (
     LOMGeneral, LOMEducational, LOMClassification,
     EducationalResource, ResourceType, ResourceCategory,
-    AssessmentQuestion, LessonPlan, LessonActivity
+    AssessmentQuestion, LessonPlan, LessonActivity,
+    CurriculumStandard, Rubric,
 )
 
 
@@ -56,6 +57,16 @@ class LessonActivityTranslationOptions(TranslationOptions):
     fields = ('title', 'instructions', 'materials')
 
 
+class CurriculumStandardTranslationOptions(TranslationOptions):
+    """Curriculum-standard descriptions are user-facing (es-first)."""
+    fields = ('description',)
+
+
+class RubricTranslationOptions(TranslationOptions):
+    """Rubric labels are user-facing (es-first)."""
+    fields = ('title', 'description')
+
+
 # Register models for translation
 translator.register(LOMGeneral, LOMGeneralTranslationOptions)
 translator.register(LOMEducational, LOMEducationalTranslationOptions)
@@ -66,3 +77,5 @@ translator.register(EducationalResource, EducationalResourceTranslationOptions)
 translator.register(AssessmentQuestion, AssessmentQuestionTranslationOptions)
 translator.register(LessonPlan, LessonPlanTranslationOptions)
 translator.register(LessonActivity, LessonActivityTranslationOptions)
+translator.register(CurriculumStandard, CurriculumStandardTranslationOptions)
+translator.register(Rubric, RubricTranslationOptions)

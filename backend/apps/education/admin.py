@@ -6,8 +6,30 @@ from django.contrib import admin
 from .models import (
     LOMGeneral, LOMLifeCycle, LOMContributor, LOMEducational,
     LOMRights, LOMClassification, ResourceType, ResourceCategory,
-    EducationalResource, LessonPlan, LessonActivity
+    EducationalResource, LessonPlan, LessonActivity,
+    CurriculumStandard, Rubric, RubricCriterion,
 )
+
+
+@admin.register(CurriculumStandard)
+class CurriculumStandardAdmin(admin.ModelAdmin):
+    """Admin for the curated curriculum-standard catalog (P.6)."""
+    list_display = ['code', 'subject', 'grade_level', 'order']
+    list_filter = ['subject', 'grade_level']
+    search_fields = ['code', 'description']
+    ordering = ['subject', 'grade_level', 'code']
+
+
+class RubricCriterionInline(admin.TabularInline):
+    model = RubricCriterion
+    extra = 1
+    ordering = ['order']
+
+
+@admin.register(Rubric)
+class RubricAdmin(admin.ModelAdmin):
+    list_display = ['title', 'lesson', 'created_at']
+    inlines = [RubricCriterionInline]
 
 
 class LOMContributorInline(admin.TabularInline):
