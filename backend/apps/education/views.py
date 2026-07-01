@@ -318,11 +318,15 @@ class SCORMPackageViewSet(viewsets.ViewSet):
     """Generate a learning package for a single heritage item.
 
     Bundles all media (images, audio, video, documents) and embeds all available
-    LOM data (JSON + valid IEEE LOM XML) into the package. The ``?format=`` query
+    LOM data (JSON + valid IEEE LOM XML) into the package. The ``?variant=`` query
     param selects the packaging profile: ``scorm12`` (default), ``scorm2004`` or
     ``cmi5``.
 
-    Route (via router): /api/v1/education/scorm-packages/{heritage_item_id}/download/?format=scorm12
+    NB: the param is ``variant``, NOT ``format`` — ``format`` is reserved by DRF
+    content negotiation, and an unrecognised value there yields a 404 before the
+    view runs.
+
+    Route (via router): /api/v1/education/scorm-packages/{heritage_item_id}/download/?variant=scorm12
 
     Downloading requires authentication; the ``/learn`` catalogue itself stays
     public.
@@ -334,11 +338,11 @@ class SCORMPackageViewSet(viewsets.ViewSet):
     def download(self, request, pk=None):
         item = get_object_or_404(HeritageItem, pk=pk)
 
-        fmt = request.query_params.get('format', 'scorm12')
-        builder = _SINGLE_ITEM_BUILDERS.get(fmt)
+        variant = request.query_params.get('variant', 'scorm12')
+        builder = _SINGLE_ITEM_BUILDERS.get(variant)
         if builder is None:
             return Response(
-                {'error': f"Unknown format '{fmt}'. Use one of: {', '.join(_SINGLE_ITEM_BUILDERS)}."},
+                {'error': f"Unknown variant '{variant}'. Use one of: {', '.join(_SINGLE_ITEM_BUILDERS)}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -422,13 +426,16 @@ class RoutePackageViewSet(viewsets.ViewSet):
 
     Loads the route, walks its ordered stops, and bundles each stop's heritage
     item (with its LOM + media) into ONE package titled after the route. The
-    ``?format=`` query param selects ``scorm12`` (default) or ``scorm2004``.
+    ``?variant=`` query param selects ``scorm12`` (default) or ``scorm2004``.
 
     cmi5 is intentionally NOT accepted here: a cmi5 *collection* isn't modelled,
     and silently downgrading it to SCORM 2004 would hand the user a mislabelled
     file. Callers wanting cmi5 should export single items.
 
-    Route (via router): /api/v1/education/route-packages/{route_id}/download/?format=scorm12
+    NB: the param is ``variant``, NOT ``format`` — ``format`` is reserved by DRF
+    content negotiation (an unknown value there 404s before the view runs).
+
+    Route (via router): /api/v1/education/route-packages/{route_id}/download/?variant=scorm12
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -437,16 +444,16 @@ class RoutePackageViewSet(viewsets.ViewSet):
     def download(self, request, pk=None):
         route = get_object_or_404(HeritageRoute, pk=pk)
 
-        fmt = request.query_params.get('format', 'scorm12')
-        if fmt not in ('scorm12', 'scorm2004'):
+        variant = request.query_params.get('variant', 'scorm12')
+        if variant not in ('scorm12', 'scorm2004'):
             return Response(
                 {'error': (
-                    f"Unsupported route package format '{fmt}'. "
+                    f"Unsupported route package variant '{variant}'. "
                     "Route packages support: scorm12, scorm2004."
                 )},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        package_format = fmt
+        package_format = variant
 
         entries = []
         for stop in route.stops.order_by('order').select_related('heritage_item'):
@@ -477,11 +484,14 @@ class RoutePackageViewSet(viewsets.ViewSet):
 class CollectionPackageViewSet(viewsets.ViewSet):
     """Export an arbitrary set of heritage items as ONE collection package.
 
-    Route (via router): /api/v1/education/collection-packages/download/?ids=<uuid>,<uuid>&format=scorm12
+    Route (via router): /api/v1/education/collection-packages/download/?ids=<uuid>,<uuid>&variant=scorm12
 
     ``ids`` is a comma-separated list of HeritageItem UUIDs (max
-    ``MAX_COLLECTION_ITEMS``). ``format`` is ``scorm12`` (default) or
+    ``MAX_COLLECTION_ITEMS``). ``variant`` is ``scorm12`` (default) or
     ``scorm2004``. Requires authentication.
+
+    NB: the param is ``variant``, NOT ``format`` — ``format`` is reserved by DRF
+    content negotiation (an unknown value there 404s before the view runs).
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -502,10 +512,10 @@ class CollectionPackageViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        fmt = request.query_params.get('format', 'scorm12')
-        if fmt not in ('scorm12', 'scorm2004'):
+        variant = request.query_params.get('variant', 'scorm12')
+        if variant not in ('scorm12', 'scorm2004'):
             return Response(
-                {'error': f"Unknown format '{fmt}'. Use one of: scorm12, scorm2004."},
+                {'error': f"Unknown variant '{variant}'. Use one of: scorm12, scorm2004."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -532,7 +542,7 @@ class CollectionPackageViewSet(viewsets.ViewSet):
             title='Heritage Collection',
             description=f'Collection of {len(entries)} heritage items',
             entries=entries,
-            package_format=fmt,
+            package_format=variant,
         )
         return _zip_file_response(zip_file, filename)
 

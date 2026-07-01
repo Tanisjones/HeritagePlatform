@@ -131,21 +131,23 @@ export const teacherService = {
   lomPackages: (params?: Record<string, any>) => api.get('/education/lom-packages/', { params }),
   downloadLomPackage: (id: string) =>
     api.get(`/education/lom-packages/${id}/download/`, { responseType: 'blob' }),
+  // The wire param is `variant`, NOT `format`: `format` is reserved by DRF
+  // content negotiation and an unknown value (e.g. scorm2004) 404s server-side.
   downloadScormPackage: (heritageItemId: string, format: string = 'scorm12') =>
     api.get(`/education/scorm-packages/${heritageItemId}/download/`, {
-      params: { format },
+      params: { variant: format },
       responseType: 'blob',
     }),
   // F2.c: export a whole route as one learning package (scorm12 | scorm2004 | cmi5).
   downloadRoutePackage: (routeId: string, format: string = 'scorm12') =>
     api.get(`/education/route-packages/${routeId}/download/`, {
-      params: { format },
+      params: { variant: format },
       responseType: 'blob',
     }),
   // F2.c: export an arbitrary curated set of heritage items as one package.
   downloadCollectionPackage: (ids: string[], format: string = 'scorm12') =>
     api.get('/education/collection-packages/download/', {
-      params: { ids: ids.join(','), format },
+      params: { ids: ids.join(','), variant: format },
       responseType: 'blob',
     }),
 };

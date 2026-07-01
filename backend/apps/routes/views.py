@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.contrib.gis.db.models import GeographyField
+from django.contrib.gis.db.models import GeometryField
 from django.contrib.gis.geos import Point
 from django.db.models import Q, F, Count, Avg
 from django.db.models.functions import Cast
@@ -453,8 +453,8 @@ class RouteViewSet(viewsets.ModelViewSet):
         # any of its stops does.
         near = (
             base.annotate(
-                path_geog=Cast('path', GeographyField()),
-                stop_geog=Cast('stops__heritage_item__location', GeographyField()),
+                path_geog=Cast('path', GeometryField(geography=True)),
+                stop_geog=Cast('stops__heritage_item__location', GeometryField(geography=True)),
             )
             .filter(
                 Q(path__isnull=False, path_geog__dwithin=(point, radius_m))

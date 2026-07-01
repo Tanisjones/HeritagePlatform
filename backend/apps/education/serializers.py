@@ -10,6 +10,15 @@ from .models import (
 from .sanitize import sanitize_html
 
 
+def _model_has_field(model, field_name):
+    try:
+        model._meta.get_field(field_name)
+        return True
+    except Exception:  # noqa: BLE001 — FieldDoesNotExist
+        return False
+
+
+@transaction.atomic
 def _sync_ordered_children(manager, entries):
     """Reconcile a FK-many relation with a desired list of child dicts.
 
@@ -23,30 +32,57 @@ def _sync_ordered_children(manager, entries):
 
     ``manager`` is a reverse-FK related manager; the model and parent instance and
     the FK field name are all derived from it.
+
+    Ordering is applied collision-safe: dropped rows are deleted FIRST, and every
+    kept row is parked at a temporary non-colliding ``order`` before the final
+    orders are written. Without this, a model with a ``UniqueConstraint(parent,
+    order)`` (e.g. LessonActivity) raises an IntegrityError the instant an
+    intermediate save re-uses an ``order`` still held by another row — which
+    happens on any reorder or drop-then-add-at-same-order. The whole reconcile
+    runs in one transaction so a mid-flight failure rolls back cleanly.
     """
     model = manager.model
     parent = manager.instance
     field_name = manager.field.name
+    has_order = _model_has_field(model, 'order')
 
     existing = {obj.pk: obj for obj in manager.all()}
-    seen_ids = set()
 
+    # Resolve which incoming entries map to existing rows vs. new rows, and which
+    # existing rows are being dropped — WITHOUT writing anything yet.
+    updates = []  # (obj, data-without-id)
+    creates = []  # data-without-id
+    seen_ids = set()
     for data in entries:
         data = dict(data)
         entry_id = data.pop('id', None)
         obj = existing.get(entry_id) if entry_id is not None else None
         if obj is not None:
             seen_ids.add(obj.pk)
-            for attr, value in data.items():
-                setattr(obj, attr, value)
-            obj.save()
+            updates.append((obj, data))
         else:
-            model.objects.create(**{field_name: parent}, **data)
+            creates.append(data)
 
-    # Delete rows the client dropped (present before, absent from the payload).
+    # 1) Delete dropped rows first, so their `order` slots are freed before any
+    #    new/updated row tries to claim them.
     for pk, obj in existing.items():
         if pk not in seen_ids:
             obj.delete()
+
+    # 2) Park surviving rows at a temporary, guaranteed-free `order` range so no
+    #    two rows momentarily share an `order` while we rewrite them. Negative
+    #    orders can't collide with the incoming (non-negative) values.
+    if has_order and updates:
+        for offset, (obj, _data) in enumerate(updates, start=1):
+            model.objects.filter(pk=obj.pk).update(order=-offset)
+
+    # 3) Apply the real updates (final `order` included) and create new rows.
+    for obj, data in updates:
+        for attr, value in data.items():
+            setattr(obj, attr, value)
+        obj.save()
+    for data in creates:
+        model.objects.create(**{field_name: parent}, **data)
 
 
 class LOMContributorSerializer(serializers.ModelSerializer):

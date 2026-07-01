@@ -713,7 +713,7 @@ class EducationRoutePackageAPITest(TestCase):
     def test_route_package_scorm2004_format(self):
         self.client.force_authenticate(user=self.user)
         resp = self.client.get(
-            f'/api/v1/education/route-packages/{self.route.id}/download/?format=scorm2004'
+            f'/api/v1/education/route-packages/{self.route.id}/download/?variant=scorm2004'
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         content = b''.join(resp.streaming_content)
@@ -944,7 +944,7 @@ class EducationReviewFixesTest(TestCase):
         route = HeritageRoute.objects.create(title='R', description='d', status='published')
         RouteStop.objects.create(route=route, heritage_item=self.item, order=1)
         self.client.force_authenticate(user=self.user)
-        resp = self.client.get(f'/api/v1/education/route-packages/{route.id}/download/?format=cmi5')
+        resp = self.client.get(f'/api/v1/education/route-packages/{route.id}/download/?variant=cmi5')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
 
