@@ -18,14 +18,12 @@ import { useAIAvailability } from '@/services/aiAvailability'
 import { useAiError } from '@/composables/useAiError';
 import { useDurationValidation } from '@/composables/useDurationValidation';
 import { useToast } from '@/composables/useDialogs';
-import {
-  LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS, LOM_INTERACTIVITY_TYPES,
-  LOM_END_USER_ROLES, LOM_PEDAGOGICAL_APPROACHES,
-} from '@/constants/lomVocab';
+import { useFileUpload } from '@/composables/useFileUpload';
+import { LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS } from '@/constants/lomVocab';
 import AiActionButton from '@/components/common/AiActionButton.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
-import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
-import "leaflet/dist/leaflet.css";
+import LocationPickerMap from '@/components/map/LocationPickerMap.vue';
+import ContributionEducationStep, { type EducationalDraft } from '@/components/contribution/ContributionEducationStep.vue';
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import { useI18n } from 'vue-i18n';
@@ -67,22 +65,10 @@ const contribution = reactive<Partial<HeritageItemContribution>>({
 });
 
 // --- Educational (IEEE-LOM §5) layer captured in step 5 ---
-// Sent to the backend under `educational` on the contribution POST; the API
-// validates it through LOMEducationalSerializer and attaches it to the item's
-// LOM. All fields are optional — blanks are stripped before submit.
-interface EducationalDraft {
-  learning_resource_type: string;
-  difficulty: string;
-  typical_age_range: string;
-  typical_learning_time: string;
-  context: string;
-  interactivity_type: string;
-  intended_end_user_role: string;
-  pedagogical_approach: string;
-  learning_objectives: string[];
-  prerequisites: string;
-  competencies: string;
-}
+// The educational draft shape lives with the step component (single source of
+// truth). Sent to the backend under `educational` on the contribution POST; the
+// API validates it through LOMEducationalSerializer. All fields optional —
+// blanks are stripped before submit.
 const createEducationalDraft = (): EducationalDraft => ({
   learning_resource_type: '',
   difficulty: '',
@@ -107,14 +93,11 @@ const eduTimeError = useDurationValidation(
   { invalidKey: 'contribution.step5edu.errors.duration', monthsKey: 'contribution.step5edu.errors.months' },
 );
 
-// Vocabularies shared with the LOM editor and /learn; labels come from i18n
-// (reuse the existing `lom.*` and `learn.*` keys where possible).
+// Vocabularies the AI-metadata mapping validates against (the full option lists
+// for the selects now live in ContributionEducationStep).
 const resourceTypeOptions = LOM_RESOURCE_TYPES;
 const difficultyOptions = LOM_DIFFICULTIES;
 const contextOptions = LOM_CONTEXTS;
-const interactivityOptions = LOM_INTERACTIVITY_TYPES;
-const endUserRoleOptions = LOM_END_USER_ROLES;
-const pedagogicalApproachOptions = LOM_PEDAGOGICAL_APPROACHES;
 
 const formLocation = ref({ lat: -1.67, lng: -78.65 }); // Helper for map binding
 
@@ -142,9 +125,14 @@ const historicalPeriods = ref([
 const loading = ref(false);
 const submitting = ref(false);
 const step1Error = ref('');
-const step1Uploading = ref(false);
-const step1UploadProgress = ref<number | null>(null);
-const step1UploadXhr = ref<XMLHttpRequest | null>(null);
+// Shared XHR uploader (progress + abort) — replaces the hand-rolled XHR that
+// used to live in this component. Aliased to the existing template names.
+const {
+  uploading: step1Uploading,
+  progress: step1UploadProgress,
+  uploadFile: uploadOneFile,
+  abort: abortUpload,
+} = useFileUpload();
 
 const narrativeText = ref('');
 
@@ -161,7 +149,6 @@ const { isAvailable: aiAvailable, refresh: refreshAIAvailability } = useAIAvaila
 
 // Map settings
 const zoom = ref(13);
-const center = ref<[number, number]>([-1.67, -78.65]);
 
 // --- Lifecycle ---
 onMounted(async () => {
@@ -236,10 +223,8 @@ const nextStep = async () => {
     }
 
     try {
-      step1Uploading.value = true;
-      step1UploadProgress.value = 0;
-      step1UploadXhr.value = null;
       step1Error.value = '';
+      // useFileUpload owns the uploading/progress state.
       const id = await uploadOneFile(file, resourceType.value);
       contribution.images = resourceType.value === 'image' ? [id] : [];
       contribution.audio = resourceType.value === 'audio' ? [id] : [];
@@ -259,10 +244,6 @@ const nextStep = async () => {
         step1Error.value = t('contribution.step1.errors.uploadFailed');
       }
       return;
-    } finally {
-      step1Uploading.value = false;
-      step1UploadXhr.value = null;
-      step1UploadProgress.value = null;
     }
   }
 
@@ -274,173 +255,65 @@ const prevStep = () => {
   if (currentStep.value > 1) currentStep.value--;
 };
 
-const setResourceType = (nextType: ContributionResourceType) => {
-  resourceType.value = nextType;
+// Clear the four parallel file arrays (staged File objects) and their uploaded-id
+// counterparts on `contribution`. Centralizes the reset that used to be
+// copy-pasted across setResourceType / handleFileUpload / resetForm.
+const clearAllMedia = () => {
   files.images = [];
   files.audio = [];
   files.video = [];
   files.documents = [];
-  imagePreviews.value = [];
-  step1Error.value = '';
-  // narrativeText.value = ''; // Keep text if they switch back and forth? Maybe better to keep it.
-  step1UploadProgress.value = null;
-  step1UploadXhr.value?.abort();
-  step1UploadXhr.value = null;
   contribution.images = [];
   contribution.audio = [];
   contribution.video = [];
   contribution.documents = [];
 };
 
-const handleMapClick = (e: any) => {
-  formLocation.value = e.latlng;
-  contribution.location = { 
-    type: 'Point', 
-    coordinates: [e.latlng.lng, e.latlng.lat] 
-  };
+const setResourceType = (nextType: ContributionResourceType) => {
+  resourceType.value = nextType;
+  imagePreviews.value = [];
+  step1Error.value = '';
+  // narrativeText kept intentionally so switching type back and forth doesn't lose it.
+  abortUpload();
+  clearAllMedia();
+};
+
+const onLocationUpdate = ([lat, lng]: [number, number]) => {
+  formLocation.value = { lat, lng };
+  contribution.location = { type: 'Point', coordinates: [lng, lat] };
+};
+
+// The <input id> matches the `files`/`contribution` array key; map it to the
+// singular resourceType so one branch handles all four inputs.
+const FILE_INPUT_TO_TYPE: Record<'images' | 'audio' | 'video' | 'documents', ContributionResourceType> = {
+  images: 'image',
+  audio: 'audio',
+  video: 'video',
+  documents: 'document',
 };
 
 const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement;
-  const fileList = target.files;
-  if (fileList) {
-    const fileType = target.id as 'images' | 'audio' | 'video' | 'documents';
-    const firstFile = fileList.item(0);
-    if (!firstFile) return;
+  const fileType = target.id as 'images' | 'audio' | 'video' | 'documents';
+  const firstFile = target.files?.item(0);
+  if (!firstFile || !(fileType in FILE_INPUT_TO_TYPE)) return;
 
-    if (fileType === 'images') {
-      resourceType.value = 'image';
-      files.images = [firstFile];
-      files.audio = [];
-      files.video = [];
-      files.documents = [];
-      contribution.images = [];
-      contribution.audio = [];
-      contribution.video = [];
-      contribution.documents = [];
-    } else if (fileType === 'audio') {
-      resourceType.value = 'audio';
-      files.images = [];
-      files.audio = [firstFile];
-      files.video = [];
-      files.documents = [];
-      contribution.images = [];
-      contribution.audio = [];
-      contribution.video = [];
-      contribution.documents = [];
-    } else if (fileType === 'video') {
-      resourceType.value = 'video';
-      files.images = [];
-      files.audio = [];
-      files.video = [firstFile];
-      files.documents = [];
-      contribution.images = [];
-      contribution.audio = [];
-      contribution.video = [];
-      contribution.documents = [];
-    } else if (fileType === 'documents') {
-      resourceType.value = 'document';
-      files.images = [];
-      files.audio = [];
-      files.video = [];
-      files.documents = [firstFile];
-      contribution.images = [];
-      contribution.audio = [];
-      contribution.video = [];
-      contribution.documents = [];
-    }
+  resourceType.value = FILE_INPUT_TO_TYPE[fileType];
+  clearAllMedia();
+  files[fileType] = [firstFile];
 
-    if (fileType === 'images') {
-      imagePreviews.value = [];
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          imagePreviews.value = [e.target.result as string];
-        }
-      };
-      reader.readAsDataURL(firstFile);
-    }
-
-    step1Error.value = '';
-  }
-};
-
-const uploadOneFile = async (file: File, fileType: string) => {
-  return await new Promise<string>((resolve, reject) => {
-    const token = localStorage.getItem('token');
-    const url = `${api.defaults.baseURL}/media/`;
-    const xhr = new XMLHttpRequest();
-    step1UploadXhr.value = xhr;
-
-    xhr.open('POST', url, true);
-    xhr.responseType = 'json';
-    xhr.timeout = 600000;
-
-    if (token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    }
-
-    xhr.upload.onprogress = (event) => {
-      if (!event.total) return;
-      step1UploadProgress.value = Math.round((event.loaded / event.total) * 100);
-    };
-
-    let settled = false;
-    const finalize = () => {
-      if (settled) return;
-      if (xhr.readyState !== XMLHttpRequest.DONE) return;
-      settled = true;
-
-      const status = xhr.status;
-      const data =
-        xhr.response ??
-        (() => {
-          if (xhr.responseType === '' || xhr.responseType === 'text') {
-            try {
-              return xhr.responseText ? JSON.parse(xhr.responseText) : xhr.responseText;
-            } catch {
-              return xhr.responseText;
-            }
-          }
-          return null;
-        })();
-
-      if (status >= 200 && status < 300) {
-        const id = (data as any)?.id;
-        if (typeof id === 'string' && id.length) {
-          resolve(id);
-        } else {
-          reject({ response: { status, data } });
-        }
-        return;
+  if (fileType === 'images') {
+    imagePreviews.value = [];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        imagePreviews.value = [e.target.result as string];
       }
+    };
+    reader.readAsDataURL(firstFile);
+  }
 
-      reject({ response: { status, data } });
-    };
-
-    xhr.onload = finalize;
-    xhr.onreadystatechange = finalize;
-    xhr.onerror = () => {
-      if (settled) return;
-      settled = true;
-      reject({ message: 'Network error' });
-    };
-    xhr.ontimeout = () => {
-      if (settled) return;
-      settled = true;
-      reject({ message: 'Upload timed out' });
-    };
-    xhr.onabort = () => {
-      if (settled) return;
-      settled = true;
-      reject({ code: 'ERR_CANCELED' });
-    };
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('file_type', fileType);
-    xhr.send(formData);
-  });
+  step1Error.value = '';
 };
 
 // True only when a service worker controls this page AND the API shares the
@@ -636,8 +509,8 @@ const resetForm = () => {
   submittedSuccess.value = false;
   queuedOffline.value = false;
   currentStep.value = 1;
-  setResourceType('text');
-  
+  setResourceType('text'); // also clears the file/media arrays
+
   contribution.title = '';
   contribution.description = '';
   contribution.location = { type: 'Point', coordinates: [-78.65, -1.67] };
@@ -647,11 +520,7 @@ const resetForm = () => {
   contribution.heritage_category = null;
   contribution.historical_period = '';
   contribution.external_registry_url = '';
-  contribution.images = [];
-  contribution.audio = [];
-  contribution.video = [];
-  contribution.documents = [];
-  
+
   formLocation.value = { lat: -1.67, lng: -78.65 };
 
   aiDraftLoading.value = false;
@@ -716,7 +585,7 @@ const isStepValid = computed(() => {
       <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
         <button 
           @click="resetForm"
-          class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold transition shadow-lg"
+          class="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold transition shadow-lg"
         >
           {{ t('contribution.successPage.submitAnother') }}
         </button>
@@ -738,7 +607,7 @@ const isStepValid = computed(() => {
         <div class="flex space-x-2">
           <div v-for="step in totalSteps" :key="step" 
                class="h-2 w-10 rounded-full transition-colors duration-300"
-               :class="step <= currentStep ? 'bg-indigo-600' : 'bg-gray-200'"></div>
+               :class="step <= currentStep ? 'bg-primary-600' : 'bg-gray-200'"></div>
         </div>
       </div>
       <h2 class="text-xl font-bold text-gray-900 mt-2">
@@ -757,30 +626,27 @@ const isStepValid = computed(() => {
         
 	        <!-- Step 1: Resource -->
 	        <div v-if="currentStep === 1" class="space-y-6">
-          <div v-if="step1Uploading" class="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+          <div v-if="step1Uploading" class="rounded-lg border border-primary-200 bg-primary-50 p-4">
             <div class="flex items-center">
-              <BaseSpinner class="h-5 w-5 text-indigo-600 mr-3" />
-              <div class="text-sm font-medium text-indigo-900">{{ t('contribution.step1.uploading') }}</div>
+              <BaseSpinner class="h-5 w-5 text-primary-600 mr-3" />
+              <div class="text-sm font-medium text-primary-900">{{ t('contribution.step1.uploading') }}</div>
             </div>
-            <div class="text-xs text-indigo-800 mt-1">
-              <span v-if="step1UploadProgress !== null">{{ step1UploadProgress }}%</span>
-              <span v-else>{{ t('contribution.step1.uploadingWait') }}</span>
-            </div>
-            <div v-if="step1UploadProgress !== null" class="mt-2 h-2 w-full rounded-full bg-indigo-200 overflow-hidden">
-              <div class="h-full bg-indigo-600 transition-all" :style="{ width: `${step1UploadProgress}%` }"></div>
+            <div class="text-xs text-primary-800 mt-1">{{ step1UploadProgress }}%</div>
+            <div class="mt-2 h-2 w-full rounded-full bg-primary-200 overflow-hidden">
+              <div class="h-full bg-primary-600 transition-all" :style="{ width: `${step1UploadProgress}%` }"></div>
             </div>
             <div class="mt-3">
               <button
                 type="button"
-                class="text-xs font-medium text-indigo-900 underline"
-                @click="step1UploadXhr?.abort()"
+                class="text-xs font-medium text-primary-900 underline"
+                @click="abortUpload()"
               >
                 {{ t('contribution.step1.cancelUpload') }}
               </button>
             </div>
           </div>
 
-	          <div class="bg-blue-50 p-4 rounded-lg text-blue-800 text-sm">
+	          <div class="bg-primary-50 p-4 rounded-lg text-primary-800 text-sm">
 	            {{ t('contribution.step1.instruction') }}
 	          </div>
 
@@ -792,7 +658,7 @@ const isStepValid = computed(() => {
 	                @click="setResourceType('image')"
                   :disabled="step1Uploading || submitting"
 	                class="px-4 py-3 rounded-lg border text-left transition"
-	                :class="resourceType === 'image' ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
+	                :class="resourceType === 'image' ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
 	              >
                 <div class="font-semibold">{{ t('contribution.step1.types.image') }}</div>
                 <div class="text-xs text-gray-600">{{ t('contribution.step1.types.imageDesc') }}</div>
@@ -802,7 +668,7 @@ const isStepValid = computed(() => {
 	                @click="setResourceType('audio')"
                   :disabled="step1Uploading || submitting"
 	                class="px-4 py-3 rounded-lg border text-left transition"
-	                :class="resourceType === 'audio' ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
+	                :class="resourceType === 'audio' ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
 	              >
                 <div class="font-semibold">{{ t('contribution.step1.types.audio') }}</div>
                 <div class="text-xs text-gray-600">{{ t('contribution.step1.types.audioDesc') }}</div>
@@ -812,7 +678,7 @@ const isStepValid = computed(() => {
 	                @click="setResourceType('video')"
                   :disabled="step1Uploading || submitting"
 	                class="px-4 py-3 rounded-lg border text-left transition"
-	                :class="resourceType === 'video' ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
+	                :class="resourceType === 'video' ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
 	              >
                 <div class="font-semibold">{{ t('contribution.step1.types.video') }}</div>
                 <div class="text-xs text-gray-600">{{ t('contribution.step1.types.videoDesc') }}</div>
@@ -822,7 +688,7 @@ const isStepValid = computed(() => {
 	                @click="setResourceType('document')"
                   :disabled="step1Uploading || submitting"
 	                class="px-4 py-3 rounded-lg border text-left transition"
-	                :class="resourceType === 'document' ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
+	                :class="resourceType === 'document' ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
 	              >
                 <div class="font-semibold">{{ t('contribution.step1.types.document') }}</div>
                 <div class="text-xs text-gray-600">{{ t('contribution.step1.types.documentDesc') }}</div>
@@ -832,7 +698,7 @@ const isStepValid = computed(() => {
 	                @click="setResourceType('text')"
                   :disabled="step1Uploading || submitting"
 	                class="px-4 py-3 rounded-lg border text-left transition"
-	                :class="resourceType === 'text' ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
+	                :class="resourceType === 'text' ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'"
 	              >
                 <div class="font-semibold">{{ t('contribution.step1.types.text') }}</div>
                 <div class="text-xs text-gray-600">{{ t('contribution.step1.types.textDesc') }}</div>
@@ -914,25 +780,25 @@ const isStepValid = computed(() => {
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step2.fields.title') }} <span class="text-red-500">*</span></label>
-            <input v-model="contribution.title" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step2.fields.placeholders.title')" required />
+            <input v-model="contribution.title" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500" :placeholder="t('contribution.step2.fields.placeholders.title')" required />
           </div>
           
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step2.fields.description') }} <span class="text-red-500">*</span></label>
-            <textarea v-model="contribution.description" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step2.fields.placeholders.description')" required></textarea>
+            <textarea v-model="contribution.description" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500" :placeholder="t('contribution.step2.fields.placeholders.description')" required></textarea>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step2.fields.heritageType') }} <span class="text-red-500">*</span></label>
-              <select v-model="contribution.heritage_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+              <select v-model="contribution.heritage_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
                 <option :value="null" disabled>{{ t('contribution.step2.fields.selectType') }}</option>
                 <option v-for="t in heritageTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step2.fields.category') }} <span class="text-red-500">*</span></label>
-              <select v-model="contribution.heritage_category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+              <select v-model="contribution.heritage_category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
                 <option :value="null" disabled>{{ t('contribution.step2.fields.selectCategory') }}</option>
                 <option v-for="c in heritageCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
@@ -944,7 +810,7 @@ const isStepValid = computed(() => {
         <div v-if="currentStep === 3" class="space-y-6">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step3.fields.parish') }} <span class="text-red-500">*</span></label>
-            <select v-model="contribution.parish" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            <select v-model="contribution.parish" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
               <option :value="null" disabled>{{ t('contribution.step3.fields.selectParish') }}</option>
               <option v-for="p in parishes" :key="p.id" :value="p.id">{{ p.name }} ({{ p.canton }})</option>
             </select>
@@ -952,17 +818,17 @@ const isStepValid = computed(() => {
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step3.fields.address') }}</label>
-            <input v-model="contribution.address" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step3.fields.addressPlaceholder')" />
+            <input v-model="contribution.address" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500" :placeholder="t('contribution.step3.fields.addressPlaceholder')" />
           </div>
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('contribution.step3.fields.pinLocation') }} <span class="text-red-500">*</span></label>
             <div class="h-80 rounded-lg overflow-hidden border border-gray-300">
-              <l-map ref="map" v-model:zoom="zoom" :center="center" @click="handleMapClick">
-                <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                              layer-type="base" name="OpenStreetMap"></l-tile-layer>
-                <l-marker :lat-lng="[formLocation.lat, formLocation.lng] as [number, number]"></l-marker>
-              </l-map>
+              <LocationPickerMap
+                :latlng="[formLocation.lat, formLocation.lng]"
+                :zoom="zoom"
+                @update:latlng="onLocationUpdate"
+              />
             </div>
             <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step3.fields.coordinates', { lat: formLocation.lat.toFixed(5), lng: formLocation.lng.toFixed(5) }) }}</p>
           </div>
@@ -986,7 +852,7 @@ const isStepValid = computed(() => {
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step4.fields.historicalPeriod') }}</label>
-            <select v-model="contribution.historical_period" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            <select v-model="contribution.historical_period" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
               <option value="" disabled>{{ t('contribution.step4.fields.selectPeriod') }}</option>
               <option v-for="p in historicalPeriods" :key="p.value" :value="p.value">{{ p.label }}</option>
             </select>
@@ -994,7 +860,7 @@ const isStepValid = computed(() => {
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step4.fields.externalUrl') }}</label>
-            <input v-model="contribution.external_registry_url" type="url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step4.fields.urlPlaceholder')" />
+            <input v-model="contribution.external_registry_url" type="url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500" :placeholder="t('contribution.step4.fields.urlPlaceholder')" />
           </div>
 
           <div v-if="aiSuggestedKeywords.length" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -1003,103 +869,25 @@ const isStepValid = computed(() => {
               <span
                 v-for="kw in aiSuggestedKeywords"
                 :key="kw"
-                class="inline-block px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-800"
+                class="inline-block px-2 py-1 text-xs rounded-full bg-primary-100 text-primary-800"
               >{{ kw }}</span>
             </div>
           </div>
         </div>
 
         <!-- Step 5: Educational layer (IEEE-LOM) -->
-        <div v-if="currentStep === 5" class="space-y-6">
-          <div class="bg-blue-50 p-4 rounded-lg text-blue-800 text-sm">
-            {{ t('contribution.step5edu.instruction') }}
-          </div>
-
-          <AiActionButton
-            :label="t('ai.educationalButton')"
-            :loading-label="t('ai.educationalGenerating')"
-            :loading="aiEduLoading"
-            :available="aiAvailable"
-            :disabled="submitting"
-            :error="aiEduError"
-            @click="generateAIEducational"
-          />
-
-          <p v-if="aiEduNote" class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
-            {{ aiEduNote }}
-          </p>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.resourceType') }}</label>
-              <select v-model="educational.learning_resource_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">{{ t('contribution.step5edu.unset') }}</option>
-                <option v-for="opt in resourceTypeOptions" :key="opt" :value="opt">{{ t(`lom.resource_type.${opt}`, opt) }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.difficulty') }}</label>
-              <select v-model="educational.difficulty" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">{{ t('contribution.step5edu.unset') }}</option>
-                <option v-for="opt in difficultyOptions" :key="opt" :value="opt">{{ t(`lom.difficulty.${opt}`, opt) }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.context') }}</label>
-              <select v-model="educational.context" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">{{ t('contribution.step5edu.unset') }}</option>
-                <option v-for="opt in contextOptions" :key="opt" :value="opt">{{ t(`lom.context.${opt}`, opt) }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.ageRange') }}</label>
-              <input v-model="educational.typical_age_range" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.ageRange')" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.learningTime') }}</label>
-              <input v-model="educational.typical_learning_time" type="text" class="w-full px-4 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :class="eduTimeError ? 'border-red-400' : 'border-gray-300'" :placeholder="t('contribution.step5edu.placeholders.learningTime')" />
-              <p v-if="eduTimeError" class="text-xs text-red-600 mt-1">{{ eduTimeError }}</p>
-              <p v-else class="text-xs text-gray-500 mt-1">{{ t('contribution.step5edu.help.learningTime') }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.interactivity') }}</label>
-              <select v-model="educational.interactivity_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">{{ t('contribution.step5edu.unset') }}</option>
-                <option v-for="opt in interactivityOptions" :key="opt" :value="opt">{{ t(`lom.interactivity.${opt}`, opt) }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.audience') }}</label>
-              <select v-model="educational.intended_end_user_role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">{{ t('contribution.step5edu.unset') }}</option>
-                <option v-for="opt in endUserRoleOptions" :key="opt" :value="opt">{{ t(`lom.audience.${opt}`, opt) }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.approach') }}</label>
-              <select v-model="educational.pedagogical_approach" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">{{ t('contribution.step5edu.unset') }}</option>
-                <option v-for="opt in pedagogicalApproachOptions" :key="opt" :value="opt">{{ t(`lom.approach.${opt}`, opt) }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.objectives') }}</label>
-            <textarea v-model="objectivesText" @blur="syncObjectivesFromText" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.objectives')"></textarea>
-            <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step5edu.help.objectives') }}</p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.prerequisites') }}</label>
-            <textarea v-model="educational.prerequisites" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.prerequisites')"></textarea>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.competencies') }}</label>
-            <textarea v-model="educational.competencies" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.competencies')"></textarea>
-          </div>
-        </div>
+        <ContributionEducationStep
+          v-if="currentStep === 5"
+          :educational="educational"
+          v-model:objectives-text="objectivesText"
+          :ai-available="aiAvailable"
+          :ai-loading="aiEduLoading"
+          :ai-error="aiEduError"
+          :ai-note="aiEduNote"
+          :submitting="submitting"
+          @sync-objectives="syncObjectivesFromText"
+          @generate="generateAIEducational"
+        />
 
         <!-- Step 6: Review -->
         <div v-if="currentStep === 6" class="space-y-6">
@@ -1161,7 +949,7 @@ const isStepValid = computed(() => {
 	            type="button" 
 	            @click="nextStep" 
 	            :disabled="submitting || step1Uploading || (currentStep !== 1 && !isStepValid)"
-	            class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition shadow-sm"
+	            class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition shadow-sm"
 	          >
 	            {{ t('contribution.actions.next') }}
 	          </button>
