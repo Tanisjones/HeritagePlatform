@@ -922,3 +922,73 @@ class AIBudgetEndpointTest(TestCase):
         rec = AIUsageRecord.objects.filter(operation="contribution_draft", error_type="budget_exceeded").first()
         self.assertIsNotNone(rec)
         self.assertEqual(rec.status, AIUsageRecord.STATUS_RATE_LIMITED)
+
+
+class LessonPlanDraftAssistTest(TestCase):
+    """P.3 — /ai/assist/lesson-plan-draft/ (teacher-gated; response not persisted)."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.teacher = User.objects.create_user(
+            username="lpTeacher", email="lpt@example.com", password="pw", is_staff=True
+        )
+        self.tourist = User.objects.create_user(username="lpTour", email="lpo@example.com", password="pw")
+
+    _VALID_DRAFT = {
+        "objectives": ["Identificar rasgos coloniales", "Comparar estilos"],
+        "activities": [
+            {"title": "Observa la fachada", "activity_type": "hook",
+             "instructions": "Mira la catedral", "duration_minutes": 10,
+             "suggested_heritage_item_hint": "Catedral de Riobamba"},
+            {"title": "Investiga", "activity_type": "explore", "duration_minutes": 20},
+            {"title": "Evalúa", "activity_type": "assess", "duration_minutes": 15},
+        ],
+    }
+
+    @patch("httpx.Client.post")
+    def test_requires_teacher(self, post_mock):
+        self.client.force_authenticate(user=self.tourist)
+        resp = self.client.post("/api/v1/ai/assist/lesson-plan-draft/", {"title": "X"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        post_mock.assert_not_called()
+
+    @patch("httpx.Client.post")
+    def test_teacher_gets_structured_draft(self, post_mock):
+        import json as _json
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200, json_data={"message": {"content": _json.dumps(self._VALID_DRAFT)}}
+        )
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(
+            "/api/v1/ai/assist/lesson-plan-draft/",
+            {"title": "Arquitectura colonial", "subject": "Historia", "grade_level": "8"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(len(resp.data["objectives"]), 2)
+        self.assertEqual(resp.data["activities"][0]["activity_type"], "hook")
+        # Recorded in the AI economy (G.3) under the right operation.
+        self.assertTrue(
+            AIUsageRecord.objects.filter(operation="lesson_plan_draft", status="ok").exists()
+        )
+        # Nothing persisted: no LessonPlan created by the draft call.
+        from apps.education.models import LessonPlan
+        self.assertEqual(LessonPlan.objects.count(), 0)
+
+    @patch("httpx.Client.post")
+    def test_invalid_activity_type_rejected(self, post_mock):
+        import json as _json
+        bad = {
+            "objectives": ["x"],
+            "activities": [{"title": "T", "activity_type": "not_a_type"}],
+        }
+        # Provider always returns the bad shape; strict response serializer should
+        # reject it (the view retries then 502s on unusable output).
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200, json_data={"message": {"content": _json.dumps(bad)}}
+        )
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(
+            "/api/v1/ai/assist/lesson-plan-draft/", {"title": "X"}, format="json"
+        )
+        self.assertNotEqual(resp.status_code, 200)

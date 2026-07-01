@@ -63,6 +63,7 @@ ai:
     - educational_metadata
     - route_metadata
     - translate
+    - lesson_plan_draft
 
   # Prompt templates are stored here so they can evolve without code changes.
   prompts:
@@ -115,3 +116,23 @@ ai:
       preserving proper nouns and place names. Return JSON with the SAME field
       names you received under "fields": title, description, keywords (array).
       Translate only; do not add commentary.
+
+    lesson_plan_draft: |
+      You are an instructional designer creating a structured lesson plan that uses
+      the cultural heritage of Riobamba, Ecuador, as its subject matter. Given the
+      lesson title "{{title}}", subject "{{subject}}", grade level "{{grade_level}}"
+      and audience "{{audience}}", propose a coherent DRAFT for a teacher to review
+      and edit. Return JSON with exactly these fields:
+      objectives: array of 2-5 concise, measurable learning objectives (strings).
+      activities: an ORDERED array of 4-6 activities that build on each other. Each
+        activity is an object with:
+          title (short string),
+          activity_type (EXACTLY one of: hook, explore, explain, practice, assess,
+            reflect — follow a sensible pedagogical arc, e.g. start with hook,
+            include at least one assess),
+          instructions (a short paragraph of classroom instructions; plain text or
+            simple HTML),
+          duration_minutes (integer),
+          suggested_heritage_item_hint (optional string naming a heritage site or
+            route that would fit — a HINT only, never an id; omit or null if none).
+      Do NOT invent database ids. Return ONLY the JSON object. Language: {{language}}.

@@ -126,3 +126,50 @@ class RouteMetadataAssistResponseSerializer(StrictSerializer):
     theme = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=100)
     difficulty = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     estimated_duration = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=40)
+
+
+# ---- lesson_plan_draft (P.3) ----------------------------------------------
+# The AI proposes a structured DRAFT (objectives + an ordered activity sequence)
+# that fills the editor for the teacher to review, edit, and save. Nothing is
+# persisted from this response — matching contribution_draft / route_metadata.
+
+# Keep in sync with LessonActivity.ACTIVITY_TYPE_CHOICES.
+LESSON_ACTIVITY_TYPES = ("hook", "explore", "explain", "practice", "assess", "reflect")
+
+
+class LessonPlanDraftAssistRequestSerializer(serializers.Serializer):
+    language = serializers.CharField(required=False, default="es", max_length=10)
+    title = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    subject = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    grade_level = serializers.CharField(required=False, allow_blank=True, max_length=60)
+    audience = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    # Free-text hints the teacher already has; the AI shapes a plan around them.
+    objectives = serializers.ListField(
+        child=serializers.CharField(allow_blank=True, max_length=300),
+        required=False, allow_empty=True, max_length=20,
+    )
+    # Optional titles/hints of heritage content to weave in (matching to real FKs
+    # is done later by the UI content-picker, never forced from the AI).
+    heritage_hints = serializers.ListField(
+        child=serializers.CharField(allow_blank=True, max_length=200),
+        required=False, allow_empty=True, max_length=20,
+    )
+
+
+class LessonPlanDraftActivitySerializer(StrictSerializer):
+    title = serializers.CharField(max_length=200)
+    activity_type = serializers.ChoiceField(choices=LESSON_ACTIVITY_TYPES)
+    instructions = serializers.CharField(required=False, allow_blank=True, max_length=5000)
+    duration_minutes = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=1000)
+    # A textual hint at the heritage item/route to bind — NOT an id (the UI resolves it).
+    suggested_heritage_item_hint = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, max_length=200
+    )
+
+
+class LessonPlanDraftAssistResponseSerializer(StrictSerializer):
+    objectives = serializers.ListField(
+        child=serializers.CharField(allow_blank=False, max_length=300),
+        allow_empty=True, max_length=20,
+    )
+    activities = LessonPlanDraftActivitySerializer(many=True)

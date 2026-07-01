@@ -24,9 +24,12 @@ from .assist_serializers import (
     RouteMetadataAssistResponseSerializer,
     TranslateAssistRequestSerializer,
     TranslateAssistResponseSerializer,
+    LessonPlanDraftAssistRequestSerializer,
+    LessonPlanDraftAssistResponseSerializer,
 )
 from .providers import get_provider, is_supported_provider
 from .rate_limit import AIRateLimited, enforce_user_rate_limit
+from apps.moderation.permissions import IsTeacher
 from .budget import AIBudgetExceeded, enforce_budget
 from .models import AIUsageRecord
 from .usage import record_ai_usage
@@ -202,4 +205,23 @@ class TranslateAssistView(BaseAssistView):
         return {
             "source_lang": data.get("source_lang", ""),
             "target_lang": data.get("target_lang", ""),
+        }
+
+
+class LessonPlanDraftAssistView(BaseAssistView):
+    """P.3 — propose a structured lesson-plan DRAFT (objectives + activity
+    sequence) that fills the editor. Teacher-gated; response is never persisted."""
+
+    operation = "lesson_plan_draft"
+    request_serializer = LessonPlanDraftAssistRequestSerializer
+    response_serializer = LessonPlanDraftAssistResponseSerializer
+    permission_classes = [IsTeacher]
+
+    def prompt_variables(self, data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "language": data.get("language", "es"),
+            "title": data.get("title", ""),
+            "subject": data.get("subject", ""),
+            "grade_level": data.get("grade_level", ""),
+            "audience": data.get("audience", ""),
         }

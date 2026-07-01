@@ -31,6 +31,7 @@ from apps.ai_services.assist_views import (
     EducationalMetadataAssistView,
     RouteMetadataAssistView,
     TranslateAssistView,
+    LessonPlanDraftAssistView,
 )
 from apps.ai_services.status_views import AIStatusView
 from apps.ai_services.usage_views import (
@@ -125,6 +126,7 @@ urlpatterns = [
     ),
     path('ai/assist/route-metadata/', RouteMetadataAssistView.as_view(), name='ai-route-metadata'),
     path('ai/assist/translate/', TranslateAssistView.as_view(), name='ai-translate'),
+    path('ai/assist/lesson-plan-draft/', LessonPlanDraftAssistView.as_view(), name='ai-lesson-plan-draft'),
 
     # AI-economy dashboard aggregation endpoints (staff/curator only)
     path('ai/usage/summary/', AIUsageSummaryView.as_view(), name='ai-usage-summary'),

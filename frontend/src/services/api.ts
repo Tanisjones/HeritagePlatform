@@ -365,6 +365,31 @@ export type AIAssistRouteMetadataResponse = {
   estimated_duration?: string | null
 }
 
+export type LessonActivityType = 'hook' | 'explore' | 'explain' | 'practice' | 'assess' | 'reflect'
+
+export type AIAssistLessonPlanDraftRequest = {
+  language?: string
+  title?: string
+  subject?: string
+  grade_level?: string
+  audience?: string
+  objectives?: string[]
+  heritage_hints?: string[]
+}
+
+export type AIAssistLessonPlanDraftActivity = {
+  title: string
+  activity_type: LessonActivityType
+  instructions?: string
+  duration_minutes?: number | null
+  suggested_heritage_item_hint?: string | null
+}
+
+export type AIAssistLessonPlanDraftResponse = {
+  objectives: string[]
+  activities: AIAssistLessonPlanDraftActivity[]
+}
+
 export const aiService = {
   status: async () => {
     const response = await api.get<AIStatusResponse>('/ai/status/')
@@ -392,6 +417,10 @@ export const aiService = {
   },
   routeMetadata: async (payload: AIAssistRouteMetadataRequest) => {
     const response = await api.post<AIAssistRouteMetadataResponse>('/ai/assist/route-metadata/', payload)
+    return response.data
+  },
+  lessonPlanDraft: async (payload: AIAssistLessonPlanDraftRequest) => {
+    const response = await api.post<AIAssistLessonPlanDraftResponse>('/ai/assist/lesson-plan-draft/', payload)
     return response.data
   },
 }
