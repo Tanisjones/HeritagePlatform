@@ -6,7 +6,7 @@ from django.contrib import admin
 from .models import (
     LOMGeneral, LOMLifeCycle, LOMContributor, LOMEducational,
     LOMRights, LOMClassification, ResourceType, ResourceCategory,
-    EducationalResource
+    EducationalResource, LessonPlan, LessonActivity
 )
 
 
@@ -209,3 +209,21 @@ class EducationalResourceAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+class LessonActivityInline(admin.TabularInline):
+    """Inline admin for a lesson's ordered activities."""
+    model = LessonActivity
+    extra = 1
+    fields = ('order', 'title', 'activity_type', 'duration_minutes', 'heritage_item', 'route')
+
+
+@admin.register(LessonPlan)
+class LessonPlanAdmin(admin.ModelAdmin):
+    """Admin for pedagogical lesson plans."""
+    list_display = ('title', 'subject', 'grade_level', 'status', 'visibility', 'author', 'updated_at')
+    list_filter = ('status', 'visibility', 'subject', 'grade_level')
+    search_fields = ('title', 'summary', 'subject')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    date_hierarchy = 'updated_at'
+    inlines = [LessonActivityInline]

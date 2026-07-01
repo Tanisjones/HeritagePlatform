@@ -172,6 +172,24 @@ const router = createRouter({
       component: () => import('../views/education/TeacherResourcesView.vue'),
       meta: { requiresAuth: true, requiresTeacher: true },
     },
+    {
+      path: '/teach/plans',
+      name: 'lesson-plans',
+      component: () => import('../views/education/LessonPlanListView.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true },
+    },
+    {
+      path: '/teach/plans/new',
+      name: 'lesson-plan-new',
+      component: () => import('../views/education/LessonPlanEditView.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true },
+    },
+    {
+      path: '/teach/plans/:id/edit',
+      name: 'lesson-plan-edit',
+      component: () => import('../views/education/LessonPlanEditView.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true },
+    },
   ],
 })
 

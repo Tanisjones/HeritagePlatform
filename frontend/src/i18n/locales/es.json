@@ -1135,5 +1135,60 @@
             "load": "No se pudieron cargar las rutas.",
             "package": "No se pudo generar el paquete."
         }
+    },
+    "lessonPlans": {
+        "title": "Planes de lección",
+        "subtitle": "Diseña secuencias de aprendizaje que conectan patrimonio, rutas y recursos.",
+        "create": "Nuevo plan",
+        "newTitle": "Nuevo plan de lección",
+        "editTitle": "Editar plan de lección",
+        "duplicate": "Duplicar",
+        "duplicated": "Plan duplicado",
+        "confirmDelete": "¿Eliminar este plan de lección?",
+        "gradeShort": "Grado",
+        "activitiesCount": "actividades",
+        "activities": "Actividades",
+        "addActivity": "Añadir actividad",
+        "reorderHint": "Arrastra las actividades para reordenarlas.",
+        "dragToReorder": "Arrastrar para reordenar",
+        "noActivities": "Aún no hay actividades. Añade la primera.",
+        "empty": {
+            "title": "Todavía no hay planes de lección",
+            "description": "Crea tu primer plan para secuenciar contenido en una experiencia de aula."
+        },
+        "status": {
+            "draft": "Borrador",
+            "review": "En revisión",
+            "published": "Publicado",
+            "archived": "Archivado"
+        },
+        "visibility": {
+            "private": "Privado",
+            "unlisted": "No listado",
+            "public": "Público"
+        },
+        "activityTypes": {
+            "hook": "Gancho / motivación",
+            "explore": "Explorar",
+            "explain": "Explicar",
+            "practice": "Practicar",
+            "assess": "Evaluar",
+            "reflect": "Reflexionar"
+        },
+        "fields": {
+            "title": "Título",
+            "titlePlaceholder": "p. ej. Arquitectura colonial de Riobamba",
+            "summary": "Resumen",
+            "subject": "Asignatura",
+            "gradeLevel": "Grado / nivel",
+            "objectives": "Objetivos de aprendizaje",
+            "objectivesPlaceholder": "Un objetivo por línea",
+            "objectivesHelp": "Escribe un objetivo por línea.",
+            "status": "Estado",
+            "visibility": "Visibilidad",
+            "activityTitle": "Título de la actividad",
+            "instructions": "Instrucciones para el aula",
+            "minutes": "minutos"
+        }
     }
 }

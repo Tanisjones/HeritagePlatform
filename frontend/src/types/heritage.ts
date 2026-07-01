@@ -325,3 +325,52 @@ export interface EducationalResource {
   } | null;
   content: string;
 }
+
+// --- Pedagogical authoring: Lesson Plans (see IMPROVEMENT_PLAN_V2 · Pilar P) ---
+
+export type LessonActivityType = 'hook' | 'explore' | 'explain' | 'practice' | 'assess' | 'reflect';
+
+export interface LessonActivity {
+  id?: string;
+  order: number;
+  title: string;
+  activity_type: LessonActivityType;
+  instructions?: string;
+  duration_minutes?: number | null;
+  materials?: string;
+  heritage_item?: string | null;
+  route?: string | null;
+  educational_resource?: number | null;
+  lom_general?: string | null;
+  // Read-only labels for bound content (server-provided).
+  heritage_item_title?: string | null;
+  route_title?: string | null;
+  educational_resource_title?: string | null;
+}
+
+export type LessonPlanStatus = 'draft' | 'review' | 'published' | 'archived';
+export type LessonPlanVisibility = 'private' | 'unlisted' | 'public';
+
+export interface LessonPlan {
+  id: string;
+  title: string;
+  summary?: string;
+  objectives: string[];
+  subject?: string;
+  grade_level?: string;
+  audience?: string;
+  curriculum_alignment?: string;
+  pedagogical_approach?: string;
+  estimated_total_minutes?: number | null;
+  status: LessonPlanStatus;
+  visibility: LessonPlanVisibility;
+  related_route?: string | null;
+  author?: number | null;
+  author_name?: string | null;
+  activities: LessonActivity[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Write shape for creating/updating a lesson plan (nested activities reconciled by id). */
+export type LessonPlanWriteData = Partial<Omit<LessonPlan, 'id' | 'author' | 'author_name' | 'created_at' | 'updated_at'>>;

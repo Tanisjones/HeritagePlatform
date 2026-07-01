@@ -1135,5 +1135,60 @@
             "load": "Could not load routes.",
             "package": "Could not build the package."
         }
+    },
+    "lessonPlans": {
+        "title": "Lesson plans",
+        "subtitle": "Design learning sequences that connect heritage, routes and resources.",
+        "create": "New plan",
+        "newTitle": "New lesson plan",
+        "editTitle": "Edit lesson plan",
+        "duplicate": "Duplicate",
+        "duplicated": "Plan duplicated",
+        "confirmDelete": "Delete this lesson plan?",
+        "gradeShort": "Grade",
+        "activitiesCount": "activities",
+        "activities": "Activities",
+        "addActivity": "Add activity",
+        "reorderHint": "Drag activities to reorder them.",
+        "dragToReorder": "Drag to reorder",
+        "noActivities": "No activities yet. Add the first one.",
+        "empty": {
+            "title": "No lesson plans yet",
+            "description": "Create your first plan to sequence content into a classroom experience."
+        },
+        "status": {
+            "draft": "Draft",
+            "review": "In review",
+            "published": "Published",
+            "archived": "Archived"
+        },
+        "visibility": {
+            "private": "Private",
+            "unlisted": "Unlisted",
+            "public": "Public"
+        },
+        "activityTypes": {
+            "hook": "Hook / engage",
+            "explore": "Explore",
+            "explain": "Explain",
+            "practice": "Practice",
+            "assess": "Assess",
+            "reflect": "Reflect"
+        },
+        "fields": {
+            "title": "Title",
+            "titlePlaceholder": "e.g. Colonial architecture of Riobamba",
+            "summary": "Summary",
+            "subject": "Subject",
+            "gradeLevel": "Grade / level",
+            "objectives": "Learning objectives",
+            "objectivesPlaceholder": "One objective per line",
+            "objectivesHelp": "Write one objective per line.",
+            "status": "Status",
+            "visibility": "Visibility",
+            "activityTitle": "Activity title",
+            "instructions": "Classroom instructions",
+            "minutes": "minutes"
+        }
     }
 }

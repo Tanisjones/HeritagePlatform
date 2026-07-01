@@ -1035,3 +1035,97 @@ class EducationalResourceContentSanitizeTest(TestCase):
         self.assertIn('<p>ok</p>', res.content)
         self.assertNotIn('<script', res.content)
         self.assertNotIn('document.cookie', res.content)
+
+
+class LessonPlanAPITest(TestCase):
+    """Lesson-plan authoring (Pilar P): teacher-gated writes with nested-activity
+    reconciliation, and visibility-filtered reads."""
+
+    def setUp(self):
+        from apps.education.models import LessonPlan
+        self.LessonPlan = LessonPlan
+        self.client = APIClient()
+        # IsTeacher allows staff; use staff as a stand-in teacher for the slice.
+        self.teacher = User.objects.create_user(
+            email='teacher@example.com', password='pw', is_staff=True
+        )
+        self.other = User.objects.create_user(email='tourist@example.com', password='pw')
+
+    def _payload(self):
+        return {
+            'title': 'Riobamba colonial',
+            'summary': 'Un recorrido pedagógico',
+            'objectives': ['Identificar la arquitectura colonial'],
+            'subject': 'Historia',
+            'grade_level': '8',
+            'activities': [
+                {'order': 0, 'title': 'Introducción', 'activity_type': 'hook',
+                 'instructions': '<p>Observa <strong>la fachada</strong></p><script>alert(1)</script>'},
+                {'order': 1, 'title': 'Exploración', 'activity_type': 'explore', 'duration_minutes': 20},
+            ],
+        }
+
+    def test_non_teacher_cannot_create(self):
+        self.client.force_authenticate(user=self.other)
+        resp = self.client.post('/api/v1/lesson-plans/', self._payload(), format='json')
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+
+    def test_teacher_creates_plan_with_activities_and_sanitizes(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post('/api/v1/lesson-plans/', self._payload(), format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        self.assertEqual(len(resp.data['activities']), 2)
+        plan = self.LessonPlan.objects.get(id=resp.data['id'])
+        self.assertEqual(plan.author_id, self.teacher.id)
+        # instructions HTML sanitized on write.
+        hook = plan.activities.get(order=0)
+        self.assertIn('<strong>la fachada</strong>', hook.instructions)
+        self.assertNotIn('<script', hook.instructions)
+
+    def test_nested_activity_reconcile_by_id_on_update(self):
+        self.client.force_authenticate(user=self.teacher)
+        created = self.client.post('/api/v1/lesson-plans/', self._payload(), format='json').data
+        plan_id = created['id']
+        first_activity_id = created['activities'][0]['id']
+
+        # PATCH: keep+edit the first activity (by id), drop the second, add a third.
+        patch = {
+            'activities': [
+                {'id': first_activity_id, 'order': 0, 'title': 'Introducción (editada)',
+                 'activity_type': 'hook'},
+                {'order': 1, 'title': 'Evaluación', 'activity_type': 'assess'},
+            ]
+        }
+        resp = self.client.patch(f'/api/v1/lesson-plans/{plan_id}/', patch, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
+        plan = self.LessonPlan.objects.get(id=plan_id)
+        self.assertEqual(plan.activities.count(), 2)
+        # The kept activity preserved its UUID (reconciled by id, not recreated).
+        kept = plan.activities.get(order=0)
+        self.assertEqual(str(kept.id), str(first_activity_id))
+        self.assertEqual(kept.title, 'Introducción (editada)')
+
+    def test_visibility_hides_unpublished_from_anon(self):
+        plan = self.LessonPlan.objects.create(
+            title='Borrador', author=self.teacher,
+            status=self.LessonPlan.STATUS_DRAFT, visibility=self.LessonPlan.VISIBILITY_PRIVATE,
+        )
+        published = self.LessonPlan.objects.create(
+            title='Publicado', author=self.teacher,
+            status=self.LessonPlan.STATUS_PUBLISHED, visibility=self.LessonPlan.VISIBILITY_PUBLIC,
+        )
+        # Anonymous sees only the published-public plan.
+        resp = self.client.get('/api/v1/lesson-plans/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        ids = {row['id'] for row in (resp.data['results'] if 'results' in resp.data else resp.data)}
+        self.assertIn(str(published.id), ids)
+        self.assertNotIn(str(plan.id), ids)
+
+    def test_duplicate_clones_plan_and_activities(self):
+        self.client.force_authenticate(user=self.teacher)
+        created = self.client.post('/api/v1/lesson-plans/', self._payload(), format='json').data
+        resp = self.client.post(f"/api/v1/lesson-plans/{created['id']}/duplicate/")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        self.assertNotEqual(resp.data['id'], created['id'])
+        self.assertEqual(len(resp.data['activities']), 2)
+        self.assertEqual(resp.data['status'], self.LessonPlan.STATUS_DRAFT)

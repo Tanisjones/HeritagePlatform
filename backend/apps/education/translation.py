@@ -7,7 +7,7 @@ from modeltranslation.translator import translator, TranslationOptions
 from .models import (
     LOMGeneral, LOMEducational, LOMClassification,
     EducationalResource, ResourceType, ResourceCategory,
-    AssessmentQuestion
+    AssessmentQuestion, LessonPlan, LessonActivity
 )
 
 
@@ -46,6 +46,16 @@ class AssessmentQuestionTranslationOptions(TranslationOptions):
     fields = ('prompt', 'feedback')
 
 
+class LessonPlanTranslationOptions(TranslationOptions):
+    """Translation options for LessonPlan model."""
+    fields = ('title', 'summary', 'curriculum_alignment')
+
+
+class LessonActivityTranslationOptions(TranslationOptions):
+    """Translation options for LessonActivity model."""
+    fields = ('title', 'instructions', 'materials')
+
+
 # Register models for translation
 translator.register(LOMGeneral, LOMGeneralTranslationOptions)
 translator.register(LOMEducational, LOMEducationalTranslationOptions)
@@ -54,3 +64,5 @@ translator.register(ResourceType, ResourceTypeTranslationOptions)
 translator.register(ResourceCategory, ResourceCategoryTranslationOptions)
 translator.register(EducationalResource, EducationalResourceTranslationOptions)
 translator.register(AssessmentQuestion, AssessmentQuestionTranslationOptions)
+translator.register(LessonPlan, LessonPlanTranslationOptions)
+translator.register(LessonActivity, LessonActivityTranslationOptions)

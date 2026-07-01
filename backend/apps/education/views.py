@@ -17,7 +17,8 @@ from rest_framework import filters
 from .models import (
     LOMGeneral, LOMLifeCycle, LOMContributor, LOMEducational,
     LOMRights, LOMClassification, LOMRelation, AssessmentQuestion,
-    EducationalResource, ResourceType, ResourceCategory
+    EducationalResource, ResourceType, ResourceCategory,
+    LessonPlan
 )
 from .serializers import (
     LOMGeneralSerializer, LOMGeneralCreateSerializer, LOMGeneralWriteSerializer,
@@ -26,7 +27,8 @@ from .serializers import (
     LOMClassificationSerializer, LOMRelationSerializer, LOMRelationCreateSerializer,
     AssessmentQuestionSerializer, AssessmentQuestionPublicSerializer,
     EducationalResourceSerializer,
-    ResourceTypeSerializer, ResourceCategorySerializer
+    ResourceTypeSerializer, ResourceCategorySerializer,
+    LessonPlanSerializer, LessonPlanWriteSerializer
 )
 from apps.moderation.permissions import IsTeacher
 from apps.heritage.models import HeritageItem
@@ -37,6 +39,13 @@ from .scorm import (
     build_collection_scorm_zip,
 )
 from .qti import build_qti_21_zip
+
+
+def _role_slug(user):
+    """Role slug ('curator'/'teacher'/…) for a user, or None. Mirrors moderation.permissions."""
+    profile = getattr(user, "profile", None)
+    role = getattr(profile, "role", None)
+    return getattr(role, "slug", None)
 
 
 class IsAuthenticatedOrReadOnly(permissions.BasePermission):
@@ -526,3 +535,88 @@ class CollectionPackageViewSet(viewsets.ViewSet):
             package_format=fmt,
         )
         return _zip_file_response(zip_file, filename)
+
+
+class LessonPlanViewSet(viewsets.ModelViewSet):
+    """
+    Structured lesson plans (pedagogical authoring · Pilar P).
+
+    Reads: published + public plans are visible to everyone; an author sees their
+    own plans in any state; curators/staff see all. Writes: teachers/staff only,
+    and a plan is edited by its author (or a curator).
+    """
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['subject', 'grade_level', 'status', 'related_route']
+    search_fields = ['title', 'summary', 'subject']
+    ordering_fields = ['updated_at', 'created_at', 'title']
+    ordering = ['-updated_at']
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return LessonPlanWriteSerializer
+        return LessonPlanSerializer
+
+    def get_permissions(self):
+        # Reading is open (list/retrieve filtered by visibility); writing is teacher-gated.
+        if self.action in ('list', 'retrieve'):
+            return [permissions.AllowAny()]
+        return [IsTeacher()]
+
+    def get_queryset(self):
+        qs = LessonPlan.objects.all().prefetch_related('activities')
+        user = self.request.user
+        if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
+            return qs
+        published_public = qs.filter(
+            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC
+        )
+        if user and user.is_authenticated:
+            # Own plans (any state) OR published-public.
+            return (qs.filter(author=user) | published_public).distinct()
+        return published_public
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+    def _require_owner_or_curator(self, plan):
+        user = self.request.user
+        if user.is_staff or _role_slug(user) == 'curator' or plan.author_id == user.id:
+            return
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied('You can only edit your own lesson plans.')
+
+    def perform_update(self, serializer):
+        self._require_owner_or_curator(serializer.instance)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._require_owner_or_curator(instance)
+        instance.delete()
+
+    @action(detail=True, methods=['post'])
+    def duplicate(self, request, pk=None):
+        """Clone a plan (and its activities) as a fresh draft owned by the caller."""
+        source = self.get_object()
+        clone = LessonPlan.objects.create(
+            title=f"{source.title} (copy)",
+            summary=source.summary,
+            objectives=list(source.objectives or []),
+            subject=source.subject,
+            grade_level=source.grade_level,
+            audience=source.audience,
+            curriculum_alignment=source.curriculum_alignment,
+            pedagogical_approach=source.pedagogical_approach,
+            estimated_total_minutes=source.estimated_total_minutes,
+            related_route=source.related_route,
+            status=LessonPlan.STATUS_DRAFT,
+            visibility=LessonPlan.VISIBILITY_PRIVATE,
+            author=request.user,
+        )
+        for activity in source.activities.all():
+            activity.pk = None
+            activity.id = None
+            activity.lesson = clone
+            activity.save()
+        return Response(LessonPlanSerializer(clone, context={'request': request}).data,
+                        status=status.HTTP_201_CREATED)

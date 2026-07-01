@@ -1,9 +1,11 @@
 from rest_framework import serializers
+from django.db import transaction
 from .models import (
     LOMGeneral, LOMLifeCycle, LOMEducational, LOMRights,
     LOMClassification, LOMContributor,
     LOMRelation, AssessmentQuestion,
-    EducationalResource, ResourceType, ResourceCategory
+    EducationalResource, ResourceType, ResourceCategory,
+    LessonPlan, LessonActivity
 )
 from .sanitize import sanitize_html
 
@@ -243,3 +245,94 @@ class EducationalResourceSerializer(serializers.ModelSerializer):
         # `content` is rendered as raw HTML (v-html) in the SPA; sanitize on
         # write so a stored payload can't XSS every reader. See sanitize.py.
         return sanitize_html(value)
+
+
+# --- Lesson plans (pedagogical authoring · Pilar P) ---
+
+class LessonActivitySerializer(serializers.ModelSerializer):
+    """Nested read/write shape for a lesson activity. `id` is optional-writable
+    so the parent can reconcile the list by identity (see _sync_ordered_children).
+    Read-only labels for the bound content help the UI render without extra fetches.
+    """
+
+    id = serializers.UUIDField(required=False)
+    heritage_item_title = serializers.CharField(source='heritage_item.title', read_only=True, default=None)
+    route_title = serializers.CharField(source='route.title', read_only=True, default=None)
+    educational_resource_title = serializers.CharField(
+        source='educational_resource.title', read_only=True, default=None
+    )
+
+    class Meta:
+        model = LessonActivity
+        fields = [
+            'id', 'order', 'title', 'activity_type', 'instructions',
+            'duration_minutes', 'materials',
+            'heritage_item', 'route', 'educational_resource', 'lom_general',
+            'heritage_item_title', 'route_title', 'educational_resource_title',
+        ]
+
+    def validate_instructions(self, value):
+        # Rendered as HTML in the lesson view — sanitize on write. See sanitize.py.
+        return sanitize_html(value)
+
+
+class LessonPlanSerializer(serializers.ModelSerializer):
+    """Read shape: the plan plus its ordered activities and the author's display."""
+
+    activities = LessonActivitySerializer(many=True, read_only=True)
+    author_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonPlan
+        fields = [
+            'id', 'title', 'summary', 'objectives', 'subject', 'grade_level',
+            'audience', 'curriculum_alignment', 'pedagogical_approach',
+            'estimated_total_minutes', 'status', 'visibility', 'related_route',
+            'author', 'author_name', 'activities', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['author', 'created_at', 'updated_at']
+
+    def get_author_name(self, obj):
+        author = obj.author
+        if not author:
+            return None
+        full = (author.get_full_name() or "").strip()
+        return full or getattr(author, 'email', None)
+
+
+class LessonPlanWriteSerializer(serializers.ModelSerializer):
+    """Write shape: create/update the plan AND reconcile its `activities` in a
+    single PATCH, matching activities by id (preserving UUIDs on reorder)."""
+
+    activities = LessonActivitySerializer(many=True, required=False)
+
+    class Meta:
+        model = LessonPlan
+        fields = [
+            'id', 'title', 'summary', 'objectives', 'subject', 'grade_level',
+            'audience', 'curriculum_alignment', 'pedagogical_approach',
+            'estimated_total_minutes', 'status', 'visibility', 'related_route',
+            'activities',
+        ]
+
+    @transaction.atomic
+    def create(self, validated_data):
+        activities = validated_data.pop('activities', None)
+        plan = LessonPlan.objects.create(**validated_data)
+        if activities is not None:
+            _sync_ordered_children(plan.activities, activities)
+        return plan
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        activities = validated_data.pop('activities', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if activities is not None:
+            _sync_ordered_children(instance.activities, activities)
+        return instance
+
+    def to_representation(self, instance):
+        # Return the read shape (with nested activities + author) after a write.
+        return LessonPlanSerializer(instance, context=self.context).data

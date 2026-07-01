@@ -821,3 +821,155 @@ class EducationalResource(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# --- Pedagogical authoring: structured Lesson Plans (see IMPROVEMENT_PLAN_V2 · Pilar P) ---
+
+PEDAGOGICAL_APPROACH_CHOICES = [
+    ('expository', _('Expository')),
+    ('inquiry', _('Inquiry-based')),
+    ('constructivist', _('Constructivist')),
+    ('project_based', _('Project-based')),
+    ('collaborative', _('Collaborative')),
+    ('gamified', _('Gamified')),
+]
+
+
+class LessonPlan(models.Model):
+    """
+    A teacher-authored, structured lesson that SEQUENCES existing content
+    (heritage items, routes, resources, quizzes) into ordered activities with
+    objectives and (optionally) assessment. The composition layer the LOM
+    metadata never provided.
+    """
+
+    STATUS_DRAFT = 'draft'
+    STATUS_REVIEW = 'review'
+    STATUS_PUBLISHED = 'published'
+    STATUS_ARCHIVED = 'archived'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, _('Draft')),
+        (STATUS_REVIEW, _('In review')),
+        (STATUS_PUBLISHED, _('Published')),
+        (STATUS_ARCHIVED, _('Archived')),
+    ]
+
+    VISIBILITY_PRIVATE = 'private'
+    VISIBILITY_UNLISTED = 'unlisted'
+    VISIBILITY_PUBLIC = 'public'
+    VISIBILITY_CHOICES = [
+        (VISIBILITY_PRIVATE, _('Private')),
+        (VISIBILITY_UNLISTED, _('Unlisted')),
+        (VISIBILITY_PUBLIC, _('Public')),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(_('title'), max_length=200)
+    summary = models.TextField(_('summary'), blank=True)
+    objectives = models.JSONField(_('learning objectives'), default=list, blank=True)
+    subject = models.CharField(_('subject'), max_length=120, blank=True)
+    grade_level = models.CharField(_('grade level'), max_length=120, blank=True)
+    audience = models.CharField(
+        _('audience'),
+        max_length=20,
+        blank=True,
+        choices=[
+            ('teacher', _('Teacher')),
+            ('author', _('Author')),
+            ('learner', _('Learner')),
+            ('manager', _('Manager')),
+        ],
+    )
+    curriculum_alignment = models.CharField(_('curriculum alignment'), max_length=300, blank=True)
+    pedagogical_approach = models.CharField(
+        _('pedagogical approach'), max_length=30, blank=True, choices=PEDAGOGICAL_APPROACH_CHOICES
+    )
+    estimated_total_minutes = models.IntegerField(_('estimated total minutes'), null=True, blank=True)
+    status = models.CharField(_('status'), max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    visibility = models.CharField(
+        _('visibility'), max_length=20, choices=VISIBILITY_CHOICES, default=VISIBILITY_PRIVATE
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lesson_plans',
+        verbose_name=_('author'),
+    )
+    related_route = models.ForeignKey(
+        'routes.HeritageRoute',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lesson_plans',
+        verbose_name=_('related route'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('lesson plan')
+        verbose_name_plural = _('lesson plans')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return self.title
+
+
+class LessonActivity(models.Model):
+    """One ordered step of a LessonPlan. Optionally binds a piece of existing
+    content (heritage item / route / educational resource / a LOM object that
+    carries a quiz) so the lesson reuses the catalogue instead of duplicating it.
+    """
+
+    ACTIVITY_TYPE_CHOICES = [
+        ('hook', _('Hook / engage')),
+        ('explore', _('Explore')),
+        ('explain', _('Explain')),
+        ('practice', _('Practice')),
+        ('assess', _('Assess')),
+        ('reflect', _('Reflect')),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lesson = models.ForeignKey(
+        LessonPlan, on_delete=models.CASCADE, related_name='activities', verbose_name=_('lesson')
+    )
+    order = models.IntegerField(_('order'), default=0)
+    title = models.CharField(_('title'), max_length=200)
+    activity_type = models.CharField(
+        _('activity type'), max_length=20, choices=ACTIVITY_TYPE_CHOICES, default='explore'
+    )
+    instructions = models.TextField(_('instructions'), blank=True)  # sanitized HTML (see serializer)
+    duration_minutes = models.IntegerField(_('duration (minutes)'), null=True, blank=True)
+    materials = models.TextField(_('materials'), blank=True)
+
+    # Optional bound content — at most a handful set; all nullable.
+    heritage_item = models.ForeignKey(
+        'heritage.HeritageItem', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name=_('heritage item'),
+    )
+    route = models.ForeignKey(
+        'routes.HeritageRoute', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name=_('route'),
+    )
+    educational_resource = models.ForeignKey(
+        EducationalResource, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name=_('educational resource'),
+    )
+    lom_general = models.ForeignKey(
+        LOMGeneral, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name=_('quiz (LOM object)'),
+    )
+
+    class Meta:
+        verbose_name = _('lesson activity')
+        verbose_name_plural = _('lesson activities')
+        ordering = ['order']
+        constraints = [
+            models.UniqueConstraint(fields=['lesson', 'order'], name='unique_activity_order_per_lesson'),
+        ]
+
+    def __str__(self):
+        return f"{self.order}. {self.title}"

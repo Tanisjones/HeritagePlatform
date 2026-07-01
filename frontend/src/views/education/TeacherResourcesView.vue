@@ -68,9 +68,14 @@ onMounted(fetchRoutes);
       <p class="text-sm font-semibold uppercase tracking-wide text-primary-600">{{ t('teach.subtitle') }}</p>
       <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mt-2">{{ t('teach.title') }}</h1>
       <p class="text-gray-600 mt-3 max-w-3xl">{{ t('teach.description') }}</p>
-      <RouterLink to="/learn" class="inline-block mt-4 text-primary-700 font-medium hover:underline">
-        {{ t('teach.browseCatalogue') }} →
-      </RouterLink>
+      <div class="mt-4 flex flex-wrap items-center gap-4">
+        <RouterLink to="/teach/plans" class="inline-flex items-center px-4 py-2 rounded-lg bg-primary-600 text-white font-medium hover:bg-primary-700">
+          {{ t('lessonPlans.title') }} →
+        </RouterLink>
+        <RouterLink to="/learn" class="text-primary-700 font-medium hover:underline">
+          {{ t('teach.browseCatalogue') }} →
+        </RouterLink>
+      </div>
     </header>
 
     <section class="bg-white shadow-sm border border-gray-200 rounded-xl p-5 md:p-6 mb-6">

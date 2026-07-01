@@ -18,6 +18,7 @@ from apps.education.views import (
     SCORMPackageViewSet,
     RoutePackageViewSet,
     CollectionPackageViewSet,
+    LessonPlanViewSet,
 )
 from apps.moderation.views import ModerationViewSet, ReviewChecklistViewSet, ContributionFlagViewSet
 from apps.routes.views import RouteViewSet, UserRouteProgressViewSet
@@ -62,6 +63,7 @@ router.register(r'lom-classifications', LOMClassificationViewSet, basename='lom-
 router.register(r'lom-relations', LOMRelationViewSet, basename='lom-relation')
 router.register(r'lom-questions', AssessmentQuestionViewSet, basename='lom-question')
 router.register(r'educational-resources', EducationalResourceViewSet, basename='educational-resource')
+router.register(r'lesson-plans', LessonPlanViewSet, basename='lesson-plan')
 router.register(r'resource-types', ResourceTypeViewSet, basename='resource-type')
 router.register(r'resource-categories', ResourceCategoryViewSet, basename='resource-category')
 router.register(r'education/lom-packages', LOMPackageViewSet, basename='lom-packages')

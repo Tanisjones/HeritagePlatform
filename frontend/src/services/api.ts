@@ -1,5 +1,5 @@
 import axios, { AxiosHeaders } from 'axios';
-import type { RouteCreateData } from '@/types/heritage';
+import type { RouteCreateData, LessonPlanWriteData } from '@/types/heritage';
 
 const LOCALE_STORAGE_KEY = 'hp_locale';
 const DEFAULT_LOCALE = 'es';
@@ -167,6 +167,15 @@ export const educationService = {
   updateLom: (lomId: string, payload: Record<string, any>) =>
     api.patch(`/lom/${lomId}/`, payload),
   createLom: (payload: Record<string, any>) => api.post('/lom/', payload),
+};
+
+export const lessonPlanService = {
+  list: (params?: Record<string, any>) => api.get('/lesson-plans/', { params }),
+  get: (id: string) => api.get(`/lesson-plans/${id}/`),
+  create: (payload: LessonPlanWriteData) => api.post('/lesson-plans/', payload),
+  update: (id: string, payload: LessonPlanWriteData) => api.patch(`/lesson-plans/${id}/`, payload),
+  delete: (id: string) => api.delete(`/lesson-plans/${id}/`),
+  duplicate: (id: string) => api.post(`/lesson-plans/${id}/duplicate/`),
 };
 
 export const aiSuggestionService = {
