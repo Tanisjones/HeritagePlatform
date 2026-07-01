@@ -5,6 +5,7 @@ from .models import (
     LOMRelation, AssessmentQuestion,
     EducationalResource, ResourceType, ResourceCategory
 )
+from .sanitize import sanitize_html
 
 
 def _sync_ordered_children(manager, entries):
@@ -233,7 +234,12 @@ class ResourceCategorySerializer(serializers.ModelSerializer):
 class EducationalResourceSerializer(serializers.ModelSerializer):
     resource_type = ResourceTypeSerializer(read_only=True)
     category = ResourceCategorySerializer(read_only=True)
-    
+
     class Meta:
         model = EducationalResource
         fields = '__all__'
+
+    def validate_content(self, value):
+        # `content` is rendered as raw HTML (v-html) in the SPA; sanitize on
+        # write so a stored payload can't XSS every reader. See sanitize.py.
+        return sanitize_html(value)

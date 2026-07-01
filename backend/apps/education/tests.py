@@ -16,7 +16,7 @@ from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, P
 from apps.heritage.models import MediaFile
 from apps.education.models import (
     LOMGeneral, LOMLifeCycle, LOMEducational, LOMRights, LOMClassification,
-    LOMRelation, AssessmentQuestion,
+    LOMRelation, AssessmentQuestion, EducationalResource,
 )
 from apps.education.scorm import (
     build_ieee_lom_xml, build_scorm_2004_pif_zip, build_cmi5_zip,
@@ -990,3 +990,48 @@ class EducationContributionEducationalTest(TestCase):
         payload['educational'] = {'typical_learning_time': '30 minutos'}  # not ISO-8601
         resp = self.client.post('/api/v1/contributions/', payload, format='json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.content)
+
+
+class EducationalResourceContentSanitizeTest(TestCase):
+    """EducationalResource.content is rendered with v-html in the SPA, so the
+    serializer must strip script/handler payloads on write (stored-XSS guard).
+    The write endpoint is only IsAuthenticatedOrReadOnly, so a plain tourist is
+    the threat model here."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email='tourist@example.com', password='password')
+
+    def test_sanitize_html_helper_strips_scripts_keeps_formatting(self):
+        from apps.education.sanitize import sanitize_html
+        dirty = (
+            '<h2>Lesson</h2><p>Safe <strong>bold</strong> and '
+            '<a href="https://x.test">link</a>.</p>'
+            '<script>alert(1)</script>'
+            '<img src="x" onerror="alert(2)">'
+            '<a href="javascript:alert(3)">bad</a>'
+        )
+        clean = sanitize_html(dirty)
+        # Legitimate rich formatting survives.
+        self.assertIn('<h2>Lesson</h2>', clean)
+        self.assertIn('<strong>bold</strong>', clean)
+        self.assertIn('href="https://x.test"', clean)
+        # Dangerous constructs are gone.
+        self.assertNotIn('<script', clean)
+        self.assertNotIn('alert(1)', clean)
+        self.assertNotIn('onerror', clean)
+        self.assertNotIn('javascript:', clean)
+
+    def test_create_resource_sanitizes_content(self):
+        self.client.force_authenticate(user=self.user)
+        payload = {
+            'title': 'Evil',
+            'description': 'x',
+            'content': '<p>ok</p><script>document.cookie</script>',
+        }
+        resp = self.client.post('/api/v1/educational-resources/', payload, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        res = EducationalResource.objects.get(id=resp.data['id'])
+        self.assertIn('<p>ok</p>', res.content)
+        self.assertNotIn('<script', res.content)
+        self.assertNotIn('document.cookie', res.content)
