@@ -622,3 +622,147 @@ class AIUsageRecordingTest(TestCase):
         self.assertEqual(rec.status, AIUsageRecord.STATUS_OK)
         self.assertIsNone(rec.input_tokens)
         self.assertIsNone(rec.total_tokens)
+
+
+class AIUsageAggregationTest(TestCase):
+    """G.4 — /ai/usage/{summary,timeseries,recent} aggregation endpoints.
+
+    Records are created directly (not via the AI pipeline) so we control tokens,
+    cost, provider, operation and timestamp precisely. `created_at` is auto_now_add,
+    so we backdate rows with an explicit .update() after create.
+    """
+
+    def setUp(self):
+        from decimal import Decimal
+        from datetime import timedelta
+        from django.utils import timezone
+
+        self.client = APIClient()
+        self.staff = User.objects.create_user(
+            username="mod2", email="mod2@example.com", password="pw", is_staff=True
+        )
+        self.tourist = User.objects.create_user(
+            username="tour", email="tour@example.com", password="pw"
+        )
+
+        today = timezone.localdate()
+        now = timezone.now()
+
+        def mk(*, operation, provider, model, inp, out, cost, status_, when, user=None):
+            rec = AIUsageRecord.objects.create(
+                user=user,
+                operation=operation,
+                provider=provider,
+                model=model,
+                input_tokens=inp,
+                output_tokens=out,
+                total_tokens=(None if inp is None else inp + out),
+                estimated_cost_usd=(None if cost is None else Decimal(cost)),
+                duration_ms=120,
+                status=status_,
+            )
+            AIUsageRecord.objects.filter(pk=rec.pk).update(created_at=when)
+            return rec
+
+        # Two ops, two providers, three days, one error row, one old (out-of-window) row.
+        mk(operation="translate", provider="gemini", model="gemini-2.0-flash",
+           inp=100, out=50, cost="0.0000225", status_="ok", when=now, user=self.staff)
+        mk(operation="translate", provider="gemini", model="gemini-2.0-flash",
+           inp=200, out=100, cost="0.0000450", status_="ok", when=now - timedelta(days=1))
+        mk(operation="route_metadata", provider="ollama", model="llama3",
+           inp=None, out=None, cost=None, status_="ok", when=now - timedelta(days=2))
+        mk(operation="translate", provider="gemini", model="gemini-2.0-flash",
+           inp=None, out=None, cost=None, status_="error", when=now - timedelta(days=1))
+        # Far outside the default 30-day window — must be excluded by default.
+        mk(operation="translate", provider="gemini", model="gemini-2.0-flash",
+           inp=999, out=999, cost="1.0", status_="ok", when=now - timedelta(days=200))
+
+        self.today = today
+
+    # ---- permissions -------------------------------------------------------
+
+    def test_summary_requires_staff_or_curator(self):
+        # Anonymous
+        resp = self.client.get("/api/v1/ai/usage/summary/")
+        self.assertIn(resp.status_code, (401, 403))
+        # Authenticated tourist
+        self.client.force_authenticate(user=self.tourist)
+        resp = self.client.get("/api/v1/ai/usage/summary/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_curator_role_can_access(self):
+        from apps.users.models import UserRole, UserProfile
+        role, _ = UserRole.objects.get_or_create(name="Curator", slug="curator")
+        curator = User.objects.create_user(username="cur2", email="cur2@example.com", password="pw")
+        UserProfile.objects.create(user=curator, role=role)
+        self.client.force_authenticate(user=curator)
+        resp = self.client.get("/api/v1/ai/usage/summary/")
+        self.assertEqual(resp.status_code, 200)
+
+    # ---- summary -----------------------------------------------------------
+
+    def test_summary_by_operation_excludes_old_and_sums(self):
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.get("/api/v1/ai/usage/summary/?group_by=operation")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        body = resp.data
+        self.assertEqual(body["group_by"], "operation")
+        rows = {r["key"]: r for r in body["rows"]}
+        # translate: 3 in-window rows (2 ok + 1 error); the 200-day-old row excluded.
+        self.assertEqual(rows["translate"]["calls"], 3)
+        self.assertEqual(rows["translate"]["total_tokens"], 450)  # 150 + 300 + 0(error)
+        self.assertEqual(rows["route_metadata"]["calls"], 1)
+        # Totals across all in-window rows = 4 calls (old one excluded).
+        self.assertEqual(body["totals"]["calls"], 4)
+        # Cost sums the priced rows. NB: estimated_cost_usd is DecimalField(…,6), so
+        # each row is already quantised to 6dp on write: 0.0000225→0.000023,
+        # 0.0000450→0.000045; their sum is 0.000068. (Sub-µdollar per-call rounding
+        # is acceptable for a spend dashboard.)
+        self.assertEqual(body["totals"]["estimated_cost_usd"], "0.000068")
+
+    def test_summary_group_by_provider_and_model(self):
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.get("/api/v1/ai/usage/summary/?group_by=model")
+        self.assertEqual(resp.status_code, 200)
+        rows = {r["key"]: r for r in resp.data["rows"]}
+        self.assertIn("gemini/gemini-2.0-flash", rows)
+        self.assertIn("ollama/llama3", rows)
+
+    def test_summary_rejects_bad_group_by(self):
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.get("/api/v1/ai/usage/summary/?group_by=bogus")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_summary_rejects_inverted_range(self):
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.get("/api/v1/ai/usage/summary/?since=2026-02-01&until=2026-01-01")
+        self.assertEqual(resp.status_code, 400)
+
+    # ---- timeseries --------------------------------------------------------
+
+    def test_timeseries_buckets_by_day(self):
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.get("/api/v1/ai/usage/timeseries/")
+        self.assertEqual(resp.status_code, 200)
+        points = resp.data["points"]
+        # 3 distinct in-window days had activity (today, -1d, -2d).
+        self.assertEqual(len(points), 3)
+        for p in points:
+            self.assertIn("date", p)
+            self.assertIn("total_tokens", p)
+            self.assertIn("estimated_cost_usd", p)
+
+    # ---- recent ------------------------------------------------------------
+
+    def test_recent_returns_rows_newest_first_with_limit(self):
+        self.client.force_authenticate(user=self.staff)
+        resp = self.client.get("/api/v1/ai/usage/recent/?limit=2")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 2)
+        results = resp.data["results"]
+        # Newest first.
+        self.assertGreaterEqual(results[0]["created_at"], results[1]["created_at"])
+        # Audit rows never leak prompts/responses — only metrics + who/what.
+        self.assertIn("operation", results[0])
+        self.assertIn("estimated_cost_usd", results[0])
+        self.assertNotIn("prompt", results[0])

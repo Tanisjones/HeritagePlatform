@@ -33,6 +33,11 @@ from apps.ai_services.assist_views import (
     TranslateAssistView,
 )
 from apps.ai_services.status_views import AIStatusView
+from apps.ai_services.usage_views import (
+    AIUsageSummaryView,
+    AIUsageTimeseriesView,
+    AIUsageRecentView,
+)
 from apps.notifications.views import NotificationTemplateViewSet, UserNotificationViewSet
 from apps.contributions.views import MyContributionsViewSet
 
@@ -120,4 +125,9 @@ urlpatterns = [
     ),
     path('ai/assist/route-metadata/', RouteMetadataAssistView.as_view(), name='ai-route-metadata'),
     path('ai/assist/translate/', TranslateAssistView.as_view(), name='ai-translate'),
+
+    # AI-economy dashboard aggregation endpoints (staff/curator only)
+    path('ai/usage/summary/', AIUsageSummaryView.as_view(), name='ai-usage-summary'),
+    path('ai/usage/timeseries/', AIUsageTimeseriesView.as_view(), name='ai-usage-timeseries'),
+    path('ai/usage/recent/', AIUsageRecentView.as_view(), name='ai-usage-recent'),
 ]
