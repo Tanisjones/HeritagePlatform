@@ -8,6 +8,8 @@ import RouteFilters from '@/components/routes/RouteFilters.vue'
 import RouteCard from '@/components/routes/RouteCard.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const { t } = useI18n()
 const routesStore = useRoutesStore()
@@ -27,7 +29,13 @@ const displayedRoutes = computed(() =>
 )
 
 async function load() {
-  await routesStore.fetchRoutes(filters.value)
+  // The store re-throws so other callers can react; here the error surfaces via
+  // routesStore.error in the template, so swallow to avoid an unhandled rejection.
+  try {
+    await routesStore.fetchRoutes(filters.value)
+  } catch {
+    /* shown via routesStore.error */
+  }
 }
 
 function findNearby() {
@@ -83,9 +91,8 @@ onMounted(load)
       </div>
     </div>
 
-    <p v-if="nearbyError" class="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-      {{ nearbyError }}
-    </p>
+    <ErrorBanner :message="nearbyError" dense :retryable="false" />
+    <ErrorBanner :message="mode === 'all' ? routesStore.error : null" dense @retry="load" />
 
     <!-- Nearby mode banner -->
     <div
@@ -116,10 +123,9 @@ onMounted(load)
       <RouteCard v-for="r in displayedRoutes" :key="r.id" :route="r" />
     </div>
 
-    <div v-else class="text-center py-12">
-      <p class="text-gray-600">
-        {{ mode === 'nearby' ? t('routesUi.nearby.noneNear') : t('routes.noRoutes') }}
-      </p>
-    </div>
+    <EmptyState
+      v-else
+      :title="mode === 'nearby' ? t('routesUi.nearby.noneNear') : t('routes.noRoutes')"
+    />
   </div>
 </template>

@@ -4,7 +4,15 @@
     <div class="controls">
       <input type="text" v-model="search" placeholder="Search..." @input="applyFilters">
     </div>
-    <div class="item-list">
+
+    <ErrorBanner :message="error" @retry="fetchItems" />
+
+    <EmptyState
+      v-if="!error && items.length === 0"
+      :title="t('common.noResults')"
+    />
+
+    <div v-else-if="!error" class="item-list">
       <div v-for="item in items" :key="item.id" class="item-card">
         <router-link :to="{ name: 'heritage-detail', params: { id: item.id } }">
           <img :src="item.images[0]?.file" v-if="item.images.length > 0">
@@ -18,23 +26,30 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import type { HeritageItem } from '@/types/heritage';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
+import EmptyState from '@/components/common/EmptyState.vue';
 
+const { t } = useI18n();
 const route = useRoute();
 const items = ref<HeritageItem[]>([]);
+const error = ref<string | null>(null);
 const search = ref(route.query.search || '');
 
 const fetchItems = async () => {
   try {
+    error.value = null;
     const params = new URLSearchParams();
     if (search.value) {
       params.append('search', search.value as string);
     }
     const response = await api.get(`/heritage-items/?${params.toString()}`);
     items.value = response.data.results;
-  } catch (error) {
-    console.error('Error fetching heritage items:', error);
+  } catch (e) {
+    console.error('Error fetching heritage items:', e);
+    error.value = t('common.errorLoading');
   }
 };
 

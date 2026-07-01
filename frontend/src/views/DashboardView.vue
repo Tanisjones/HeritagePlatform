@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
 import { useI18n } from 'vue-i18n';
 
 interface DashboardData {
@@ -41,14 +42,17 @@ const router = useRouter();
 const { t, locale } = useI18n();
 const dashboardData = ref<DashboardData | null>(null);
 const loading = ref(true);
+const error = ref<string | null>(null);
 
 const fetchDashboard = async () => {
   try {
     loading.value = true;
+    error.value = null;
     const response = await api.get('/users/dashboard/');
     dashboardData.value = response.data;
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
+  } catch (e) {
+    console.error('Error fetching dashboard data:', e);
+    error.value = t('common.errorLoading');
   } finally {
     loading.value = false;
   }
@@ -80,6 +84,8 @@ onMounted(() => {
     <div v-if="loading" class="flex justify-center items-center py-12">
       <BaseSpinner class="h-12 w-12 text-primary-600" />
     </div>
+
+    <ErrorBanner v-else-if="error" :message="error" @retry="fetchDashboard" />
 
     <div v-else-if="dashboardData" class="space-y-6">
       <!-- User Info Card -->

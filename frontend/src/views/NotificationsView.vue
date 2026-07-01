@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
 
 interface Notification {
   id: string;
@@ -19,6 +20,7 @@ const authStore = useAuthStore();
 const router = useRouter();
 const notifications = ref<Notification[]>([]);
 const loading = ref(true);
+const error = ref<string | null>(null);
 const filter = ref<'all' | 'unread'>('all');
 
 const filteredNotifications = ref<Notification[]>([]);
@@ -26,12 +28,14 @@ const filteredNotifications = ref<Notification[]>([]);
 const fetchNotifications = async () => {
   try {
     loading.value = true;
+    error.value = null;
     const params = filter.value === 'unread' ? { is_read: false } : {};
     const response = await api.get('/notifications/', { params });
     notifications.value = response.data.results || response.data;
     applyFilter();
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
+  } catch (e) {
+    console.error('Error fetching notifications:', e);
+    error.value = 'Error loading notifications.';
   } finally {
     loading.value = false;
   }
@@ -135,6 +139,8 @@ onMounted(() => {
       <div v-if="loading" class="flex justify-center items-center py-12">
         <BaseSpinner class="h-12 w-12 text-primary-600" />
       </div>
+
+      <ErrorBanner v-else-if="error" :message="error" @retry="fetchNotifications" />
 
       <div v-else-if="filteredNotifications.length === 0" class="text-center py-12 bg-gray-50 rounded-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

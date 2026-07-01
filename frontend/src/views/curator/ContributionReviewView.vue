@@ -6,6 +6,8 @@ import { aiService, curatorService } from '@/services/api'
 import { useAIAvailability } from '@/services/aiAvailability'
 import { useAiError } from '@/composables/useAiError'
 import { parsePoint } from '@/utils/geo'
+import { extractApiError } from '@/utils/apiError'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MapContainer from '@/components/map/MapContainer.vue'
 import type {
   CuratorReviewDetail,
@@ -91,8 +93,8 @@ async function load() {
         notes: '',
       }))
     }
-  } catch (e: any) {
-    error.value = e?.message ?? t('curatorReview.failedToLoad')
+  } catch (e) {
+    error.value = extractApiError(e, t('curatorReview.failedToLoad'))
   } finally {
     loading.value = false
   }
@@ -193,9 +195,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="error" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-      {{ error }}
-    </div>
+    <ErrorBanner :message="error" @retry="load" />
     <div v-if="loading" class="text-gray-600">{{ t('curatorReview.loading') }}</div>
 
     <div v-if="detail" class="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -12,6 +12,8 @@ import { routeService, teacherService } from '@/services/api';
 import type { HeritageRoute } from '@/types/heritage';
 import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
+import EmptyState from '@/components/common/EmptyState.vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -86,9 +88,9 @@ onMounted(fetchRoutes);
         <BaseSpinner class="h-8 w-8 text-primary-600" />
       </div>
 
-      <div v-else-if="errorMessage" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{{ errorMessage }}</div>
+      <ErrorBanner v-else-if="errorMessage" :message="errorMessage" @retry="fetchRoutes" />
 
-      <div v-else-if="routes.length === 0" class="text-center py-12 text-gray-600">{{ t('teach.noRoutes') }}</div>
+      <EmptyState v-else-if="routes.length === 0" :title="t('teach.noRoutes')" />
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <article v-for="route in routes" :key="route.id" class="bg-white border border-gray-200 rounded-xl shadow-sm p-5 flex flex-col justify-between">

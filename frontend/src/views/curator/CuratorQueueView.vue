@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import CuratorQueueFilters from '@/components/moderation/CuratorQueueFilters.vue'
 import CuratorQueueTable from '@/components/moderation/CuratorQueueTable.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import { useModerationStore } from '@/stores/moderation'
 
 const router = useRouter()
@@ -35,11 +37,15 @@ onMounted(async () => {
 
     <CuratorQueueFilters v-model="localFilters" @apply="apply" />
 
-    <div v-if="moderationStore.error" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-      {{ moderationStore.error }}
-    </div>
+    <ErrorBanner :message="moderationStore.error" @retry="moderationStore.fetchQueue()" />
+
+    <EmptyState
+      v-if="!moderationStore.error && moderationStore.isEmpty"
+      :title="t('curatorQueue.empty')"
+    />
 
     <CuratorQueueTable
+      v-else
       :items="moderationStore.queue"
       :loading="moderationStore.loading"
       @select="(id) => router.push(`/moderation/queue/${id}`)"

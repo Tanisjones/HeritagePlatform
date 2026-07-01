@@ -1052,6 +1052,7 @@
     "curatorQueue": {
         "title": "Cola del curador",
         "refresh": "Actualizar",
+        "empty": "No hay contribuciones en la cola",
         "filters": {
             "search": "Buscar",
             "searchPlaceholder": "Título, descripción…",

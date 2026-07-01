@@ -1052,6 +1052,7 @@
     "curatorQueue": {
         "title": "Curator Queue",
         "refresh": "Refresh",
+        "empty": "No contributions in the queue",
         "filters": {
             "search": "Search",
             "searchPlaceholder": "Title, description…",

@@ -5,6 +5,8 @@ import { apiBaseUrl } from '@/utils/apiUrl';
 import { iso8601ToMinutes } from '@/utils/duration';
 import type { LOMResource } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
+import EmptyState from '@/components/common/EmptyState.vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@/composables/useDialogs';
 import { useLomLabels } from '@/composables/useLomLabels';
@@ -353,13 +355,12 @@ onMounted(fetchLom);
         <BaseSpinner class="h-8 w-8 text-primary-600" />
       </div>
 
-      <div v-else-if="errorMessage" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-        {{ errorMessage }}
-      </div>
+      <ErrorBanner v-else-if="errorMessage" :message="errorMessage" @retry="fetchLom" />
 
-      <div v-else-if="filteredResources.length === 0" class="text-center py-12 text-gray-600">
-        {{ t('learn.filters.noResults') }}
-      </div>
+      <EmptyState
+        v-else-if="filteredResources.length === 0"
+        :title="t('learn.filters.noResults')"
+      />
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <article

@@ -14,6 +14,8 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import type { HeritageCategory, HeritageItem, HeritageType, Parish } from '@/types/heritage'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, te } = useI18n()
@@ -22,6 +24,7 @@ const router = useRouter()
 
 const items = ref<HeritageItem[]>([])
 const loading = ref(false)
+const error = ref<string | null>(null)
 
 const types = ref<HeritageType[]>([])
 const categories = ref<HeritageCategory[]>([])
@@ -77,12 +80,14 @@ const hasOfflineBundleForCurrentQuery = computed(() => {
 const fetchItems = async () => {
   try {
     loading.value = true
+    error.value = null
     const params: Record<string, any> = { ...currentQuerySnapshot.value }
 
     const response = await api.get('/heritage-items/', { params })
     items.value = response.data.results
-  } catch (error) {
-    console.error('Error fetching heritage items:', error)
+  } catch (e) {
+    console.error('Error fetching heritage items:', e)
+    error.value = t('common.errorLoading')
   } finally {
     loading.value = false
   }
@@ -338,11 +343,18 @@ const getResourceType = (item: HeritageItem): string | null => {
       </p>
     </div>
 
+    <ErrorBanner :message="error" @retry="fetchItems" />
+
     <div v-if="loading" class="flex justify-center items-center py-12">
       <BaseSpinner class="h-8 w-8 text-primary-600" />
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    <EmptyState
+      v-else-if="!error && items.length === 0"
+      :title="t('common.noResults')"
+    />
+
+    <div v-else-if="!error" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
       <div v-for="item in items" :key="item.id" class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
         <router-link :to="{ name: 'heritage-detail', params: { id: item.id } }">
           <div

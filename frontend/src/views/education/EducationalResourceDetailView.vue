@@ -4,19 +4,23 @@ import { useRoute } from 'vue-router';
 import api from '@/services/api';
 import type { EducationalResource } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
 
 const route = useRoute();
 const resource = ref<EducationalResource | null>(null);
 const loading = ref(true);
+const error = ref<string | null>(null);
 
 const fetchResource = async () => {
   const id = route.params.id;
   try {
     loading.value = true;
+    error.value = null;
     const response = await api.get(`/educational-resources/${id}/`);
     resource.value = response.data;
-  } catch (error) {
-    console.error('Error fetching educational resource:', error);
+  } catch (e) {
+    console.error('Error fetching educational resource:', e);
+    error.value = 'Error loading educational resource.';
   } finally {
     loading.value = false;
   }
@@ -30,6 +34,8 @@ onMounted(fetchResource);
     <div v-if="loading" class="flex justify-center items-center py-12">
       <BaseSpinner class="h-8 w-8 text-primary-600" />
     </div>
+
+    <ErrorBanner v-else-if="error" :message="error" @retry="fetchResource" />
 
     <div v-else-if="resource" class="bg-white">
       <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ resource.title }}</h1>
