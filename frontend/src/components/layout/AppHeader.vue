@@ -33,8 +33,14 @@ const accountNav: NavLink[] = [
   { to: '/routes/active', labelKey: 'nav.activeRoutes' },
   { to: '/my-contributions', labelKey: 'nav.myContributions' },
   { to: '/notifications', labelKey: 'nav.notifications' },
+  {
+    to: '/admin/ai-usage',
+    labelKey: 'nav.aiUsage',
+    visible: () => !!(authStore.isCurator || authStore.user?.is_staff),
+  },
 ]
 const visiblePrimaryNav = computed(() => primaryNav.filter((l) => !l.visible || l.visible()))
+const visibleAccountNav = computed(() => accountNav.filter((l) => !l.visible || l.visible()))
 
 const LOCALE_STORAGE_KEY = 'hp_locale'
 
@@ -177,6 +183,18 @@ onUnmounted(() => {
                   {{ t('nav.myContributions') }}
                 </RouterLink>
 
+                <!-- AI-economy dashboard (staff/curator only) -->
+                <template v-if="authStore.isCurator || authStore.user?.is_staff">
+                  <div class="border-t border-gray-100 my-1"></div>
+                  <RouterLink
+                    to="/admin/ai-usage"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+                    @click="userDropdownOpen = false"
+                  >
+                    {{ t('nav.aiUsage') }}
+                  </RouterLink>
+                </template>
+
                 <div class="border-t border-gray-100 my-1"></div>
 
                 <!-- Logout -->
@@ -262,7 +280,7 @@ onUnmounted(() => {
                  {{ t('nav.myAccount') }}
              </div>
              <RouterLink
-              v-for="link in accountNav"
+              v-for="link in visibleAccountNav"
               :key="link.to"
               :to="link.to"
               class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium pl-2"

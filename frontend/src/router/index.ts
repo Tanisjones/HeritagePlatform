@@ -147,6 +147,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresCurator: true },
     },
     {
+      path: '/admin/ai-usage',
+      name: 'admin-ai-usage',
+      component: () => import('../views/admin/AiUsageDashboardView.vue'),
+      meta: { requiresAuth: true, requiresCurator: true },
+    },
+    {
       path: '/heritage/:id',
       name: 'heritage-detail',
       component: () => import('../views/heritage/HeritageDetailView.vue'),

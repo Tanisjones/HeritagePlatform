@@ -58,7 +58,8 @@
         "logout": "Cerrar Sesión",
         "notifications": "Notificaciones",
         "myAccount": "Mi cuenta",
-        "teach": "Enseñar"
+        "teach": "Enseñar",
+        "aiUsage": "Uso de IA"
     },
     "footer": {
         "description": "Preservando y compartiendo el patrimonio cultural a través de innovación digital colaborativa.",
@@ -1189,6 +1190,61 @@
             "activityTitle": "Título de la actividad",
             "instructions": "Instrucciones para el aula",
             "minutes": "minutos"
+        }
+    },
+    "aiUsage": {
+        "title": "Uso y coste de IA",
+        "subtitle": "Consumo de tokens y coste estimado de las operaciones de IA.",
+        "lastNDays": "{n} días",
+        "kpi": {
+            "calls": "Llamadas",
+            "tokens": "Tokens",
+            "cost": "Coste estimado",
+            "errorRate": "% de errores"
+        },
+        "chart": {
+            "title": "Evolución"
+        },
+        "metric": {
+            "cost": "Coste",
+            "tokens": "Tokens",
+            "calls": "Llamadas"
+        },
+        "byOperation": "Por operación",
+        "byModel": "Por proveedor / modelo",
+        "byUser": "Por usuario",
+        "recent": {
+            "title": "Actividad reciente"
+        },
+        "col": {
+            "key": "Clave",
+            "user": "Usuario",
+            "operation": "Operación",
+            "model": "Modelo",
+            "calls": "Llamadas",
+            "tokens": "Tokens",
+            "cost": "Coste",
+            "status": "Estado",
+            "when": "Fecha"
+        },
+        "op": {
+            "contribution_draft": "Borrador de contribución",
+            "contribution_metadata": "Metadatos de contribución",
+            "curator_review_assist": "Asistencia de revisión",
+            "educational_metadata": "Metadatos educativos",
+            "route_metadata": "Metadatos de ruta",
+            "translate": "Traducción",
+            "lesson_plan_draft": "Borrador de plan de lección"
+        },
+        "status": {
+            "ok": "OK",
+            "error": "Error",
+            "rate_limited": "Límite excedido"
+        },
+        "anonymous": "Anónimo",
+        "empty": {
+            "title": "Sin actividad de IA",
+            "message": "No se han registrado llamadas de IA en el periodo seleccionado."
         }
     }
 }

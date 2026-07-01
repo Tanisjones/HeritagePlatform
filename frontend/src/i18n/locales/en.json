@@ -58,7 +58,8 @@
         "logout": "Logout",
         "notifications": "Notifications",
         "myAccount": "My account",
-        "teach": "Teach"
+        "teach": "Teach",
+        "aiUsage": "AI usage"
     },
     "footer": {
         "description": "Preserving and sharing cultural heritage through collaborative digital innovation.",
@@ -1189,6 +1190,61 @@
             "activityTitle": "Activity title",
             "instructions": "Classroom instructions",
             "minutes": "minutes"
+        }
+    },
+    "aiUsage": {
+        "title": "AI usage & cost",
+        "subtitle": "Token consumption and estimated cost of AI operations.",
+        "lastNDays": "{n} days",
+        "kpi": {
+            "calls": "Calls",
+            "tokens": "Tokens",
+            "cost": "Estimated cost",
+            "errorRate": "Error rate"
+        },
+        "chart": {
+            "title": "Trend"
+        },
+        "metric": {
+            "cost": "Cost",
+            "tokens": "Tokens",
+            "calls": "Calls"
+        },
+        "byOperation": "By operation",
+        "byModel": "By provider / model",
+        "byUser": "By user",
+        "recent": {
+            "title": "Recent activity"
+        },
+        "col": {
+            "key": "Key",
+            "user": "User",
+            "operation": "Operation",
+            "model": "Model",
+            "calls": "Calls",
+            "tokens": "Tokens",
+            "cost": "Cost",
+            "status": "Status",
+            "when": "Date"
+        },
+        "op": {
+            "contribution_draft": "Contribution draft",
+            "contribution_metadata": "Contribution metadata",
+            "curator_review_assist": "Review assist",
+            "educational_metadata": "Educational metadata",
+            "route_metadata": "Route metadata",
+            "translate": "Translation",
+            "lesson_plan_draft": "Lesson-plan draft"
+        },
+        "status": {
+            "ok": "OK",
+            "error": "Error",
+            "rate_limited": "Rate limited"
+        },
+        "anonymous": "Anonymous",
+        "empty": {
+            "title": "No AI activity",
+            "message": "No AI calls were recorded in the selected period."
         }
     }
 }

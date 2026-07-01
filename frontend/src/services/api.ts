@@ -1,5 +1,11 @@
 import axios, { AxiosHeaders } from 'axios';
 import type { RouteCreateData, LessonPlanWriteData } from '@/types/heritage';
+import type {
+  AiUsageSummaryResponse,
+  AiUsageTimeseriesResponse,
+  AiUsageRecentResponse,
+  AiUsageQuery,
+} from '@/types/aiUsage';
 
 const LOCALE_STORAGE_KEY = 'hp_locale';
 const DEFAULT_LOCALE = 'es';
@@ -369,6 +375,25 @@ export const aiService = {
   },
   routeMetadata: async (payload: AIAssistRouteMetadataRequest) => {
     const response = await api.post<AIAssistRouteMetadataResponse>('/ai/assist/route-metadata/', payload)
+    return response.data
+  },
+}
+
+/**
+ * AI-economy dashboard (staff/curator). Reads the aggregation endpoints added in
+ * G.4; all three share the ?since=&until= window (ISO dates, 30-day default).
+ */
+export const aiUsageService = {
+  summary: async (params: AiUsageQuery = {}) => {
+    const response = await api.get<AiUsageSummaryResponse>('/ai/usage/summary/', { params })
+    return response.data
+  },
+  timeseries: async (params: AiUsageQuery = {}) => {
+    const response = await api.get<AiUsageTimeseriesResponse>('/ai/usage/timeseries/', { params })
+    return response.data
+  },
+  recent: async (params: AiUsageQuery = {}) => {
+    const response = await api.get<AiUsageRecentResponse>('/ai/usage/recent/', { params })
     return response.data
   },
 }
