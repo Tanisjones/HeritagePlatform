@@ -14,7 +14,10 @@ from apps.education.views import (
     EducationalResourceViewSet, ResourceTypeViewSet, ResourceCategoryViewSet,
     LOMPackageViewSet,
     LOMRelationViewSet,
+    AssessmentQuestionViewSet,
     SCORMPackageViewSet,
+    RoutePackageViewSet,
+    CollectionPackageViewSet,
 )
 from apps.moderation.views import ModerationViewSet, ReviewChecklistViewSet, ContributionFlagViewSet
 from apps.routes.views import RouteViewSet, UserRouteProgressViewSet
@@ -56,11 +59,14 @@ router.register(r'lom-educational', LOMEducationalViewSet, basename='lom-educati
 router.register(r'lom-rights', LOMRightsViewSet, basename='lom-rights')
 router.register(r'lom-classifications', LOMClassificationViewSet, basename='lom-classification')
 router.register(r'lom-relations', LOMRelationViewSet, basename='lom-relation')
+router.register(r'lom-questions', AssessmentQuestionViewSet, basename='lom-question')
 router.register(r'educational-resources', EducationalResourceViewSet, basename='educational-resource')
 router.register(r'resource-types', ResourceTypeViewSet, basename='resource-type')
 router.register(r'resource-categories', ResourceCategoryViewSet, basename='resource-category')
 router.register(r'education/lom-packages', LOMPackageViewSet, basename='lom-packages')
 router.register(r'education/scorm-packages', SCORMPackageViewSet, basename='scorm-packages')
+router.register(r'education/route-packages', RoutePackageViewSet, basename='route-packages')
+router.register(r'education/collection-packages', CollectionPackageViewSet, basename='collection-packages')
 
 # Moderation endpoints
 # router.register(r'moderation', ModerationViewSet, basename='moderation')

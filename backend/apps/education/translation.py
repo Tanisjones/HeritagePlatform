@@ -6,7 +6,8 @@ Registers fields for multilingual support (Spanish, English, Quechua).
 from modeltranslation.translator import translator, TranslationOptions
 from .models import (
     LOMGeneral, LOMEducational, LOMClassification,
-    EducationalResource, ResourceType, ResourceCategory
+    EducationalResource, ResourceType, ResourceCategory,
+    AssessmentQuestion
 )
 
 
@@ -17,7 +18,7 @@ class LOMGeneralTranslationOptions(TranslationOptions):
 
 class LOMEducationalTranslationOptions(TranslationOptions):
     """Translation options for LOMEducational model."""
-    fields = ('description',)
+    fields = ('description', 'prerequisites', 'competencies', 'suggested_activities')
 
 
 class LOMClassificationTranslationOptions(TranslationOptions):
@@ -40,6 +41,11 @@ class EducationalResourceTranslationOptions(TranslationOptions):
     fields = ('title', 'description', 'content')
 
 
+class AssessmentQuestionTranslationOptions(TranslationOptions):
+    """Translation options for AssessmentQuestion model."""
+    fields = ('prompt', 'feedback')
+
+
 # Register models for translation
 translator.register(LOMGeneral, LOMGeneralTranslationOptions)
 translator.register(LOMEducational, LOMEducationalTranslationOptions)
@@ -47,3 +53,4 @@ translator.register(LOMClassification, LOMClassificationTranslationOptions)
 translator.register(ResourceType, ResourceTypeTranslationOptions)
 translator.register(ResourceCategory, ResourceCategoryTranslationOptions)
 translator.register(EducationalResource, EducationalResourceTranslationOptions)
+translator.register(AssessmentQuestion, AssessmentQuestionTranslationOptions)

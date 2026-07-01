@@ -5,12 +5,31 @@ This module implements the IEEE 1484.12.1 Learning Object Metadata standard
 to support educational use of heritage items.
 """
 
+import re
 import uuid
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
+
+
+# ISO-8601 duration, e.g. "PT30M", "PT1H30M", "P1DT2H". Must contain at least
+# one component. Blank is allowed by the field (blank=True), so we only validate
+# non-empty values.
+_ISO8601_DURATION_RE = re.compile(
+    r'^P(?!$)(\d+Y)?(\d+M)?(\d+W)?(\d+D)?(T(?!$)(\d+H)?(\d+M)?(\d+S)?)?$'
+)
+
+
+def validate_iso8601_duration(value):
+    if value in (None, ''):
+        return
+    if not _ISO8601_DURATION_RE.match(value):
+        raise ValidationError(
+            _('%(value)s is not a valid ISO-8601 duration (e.g. "PT30M").'),
+            params={'value': value},
+        )
 
 
 class LOMGeneral(models.Model):
@@ -343,12 +362,13 @@ class LOMEducational(models.Model):
         help_text=_('How hard it is to work through this learning object')
     )
 
-    # 5.9 Typical Learning Time
+    # 5.9 Typical Learning Time (ISO-8601 duration, e.g. "PT30M")
     typical_learning_time = models.CharField(
         _('typical learning time'),
         max_length=50,
         blank=True,
-        help_text=_('Approximate time it takes to work with this learning object (e.g., "PT30M" for 30 minutes)')
+        validators=[validate_iso8601_duration],
+        help_text=_('Approximate time it takes to work with this learning object (ISO-8601, e.g. "PT30M")')
     )
 
     # 5.10 Description
@@ -356,6 +376,57 @@ class LOMEducational(models.Model):
         _('description'),
         blank=True,
         help_text=_('Comments on how this learning object is to be used')
+    )
+
+    # --- First-class pedagogical fields (Riobamba extension to LOM §5) ---
+    # These make the "how to reuse this for teaching" intent editable in the UI
+    # rather than buried in free-text classification taxons.
+
+    learning_objectives = models.JSONField(
+        _('learning objectives'),
+        default=list,
+        blank=True,
+        help_text=_('List of learning objectives (what a learner should achieve)')
+    )
+
+    prerequisites = models.TextField(
+        _('prerequisites'),
+        blank=True,
+        help_text=_('Prior knowledge or resources needed before using this object')
+    )
+
+    competencies = models.TextField(
+        _('competencies'),
+        blank=True,
+        help_text=_('Competencies or skills this resource helps develop')
+    )
+
+    pedagogical_approach = models.CharField(
+        _('pedagogical approach'),
+        max_length=30,
+        blank=True,
+        choices=[
+            ('expository', _('Expository')),
+            ('inquiry', _('Inquiry-based')),
+            ('constructivist', _('Constructivist')),
+            ('project_based', _('Project-based')),
+            ('collaborative', _('Collaborative')),
+            ('gamified', _('Gamified')),
+        ],
+        help_text=_('Suggested teaching strategy for this resource')
+    )
+
+    curriculum_alignment = models.CharField(
+        _('curriculum alignment'),
+        max_length=300,
+        blank=True,
+        help_text=_('National-curriculum alignment (level / grade / subject)')
+    )
+
+    suggested_activities = models.TextField(
+        _('suggested activities'),
+        blank=True,
+        help_text=_('Suggested classroom activities / reuse guidance for educators')
     )
 
     # 5.11 Language (languages the learner is expected to understand)
@@ -597,6 +668,82 @@ class LOMRelation(models.Model):
             or '—'
         )
         return f"{self.lom_general.title} {self.get_kind_display()} {target}"
+
+
+class AssessmentQuestion(models.Model):
+    """
+    A single assessment/quiz question attached to a learning object.
+
+    The LOM schema advertises quiz/exam/self_assessment/questionnaire resource
+    types (see LOMEducational.learning_resource_type) but has no place to author
+    the actual questions. This model fills that gap and feeds the QTI 2.1 export.
+    Maps loosely to an IMS QTI ``assessmentItem``.
+    """
+    QUESTION_TYPE_CHOICES = [
+        ('single_choice', _('Single choice')),
+        ('multiple_choice', _('Multiple choice')),
+        ('true_false', _('True/False')),
+        ('short_answer', _('Short answer')),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lom_general = models.ForeignKey(
+        LOMGeneral,
+        on_delete=models.CASCADE,
+        related_name='questions',
+        verbose_name=_('LOM general')
+    )
+
+    order = models.IntegerField(
+        _('order'),
+        default=0,
+        help_text=_('Display order of this question within the assessment')
+    )
+
+    question_type = models.CharField(
+        _('question type'),
+        max_length=20,
+        default='single_choice',
+        choices=QUESTION_TYPE_CHOICES,
+        help_text=_('Kind of question / interaction')
+    )
+
+    prompt = models.TextField(
+        _('prompt'),
+        help_text=_('The question text presented to the learner')
+    )
+
+    # For choice questions: list of {"id": str, "text": str, "correct": bool}.
+    choices = models.JSONField(
+        _('choices'),
+        default=list,
+        blank=True,
+        help_text=_('Answer options for choice questions (list of {id, text, correct})')
+    )
+
+    # For short_answer / true_false: the expected answer.
+    correct_response = models.TextField(
+        _('correct response'),
+        blank=True,
+        help_text=_('Expected answer for short-answer / true-false questions')
+    )
+
+    feedback = models.TextField(
+        _('feedback'),
+        blank=True,
+        help_text=_('Feedback shown to the learner after answering')
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Assessment Question')
+        verbose_name_plural = _('Assessment Questions')
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.get_question_type_display()}: {self.prompt[:60]}"
 
 
 class ResourceType(models.Model):

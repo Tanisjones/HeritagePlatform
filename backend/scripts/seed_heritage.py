@@ -30,6 +30,57 @@ def ensure_django(settings_module: str = "config.settings.development") -> None:
 
     django.setup()
 
+
+# --- Pedagogical seeding helpers -------------------------------------------
+# Give seeded LOM a realistic, *varied* educational layer so that /learn's
+# difficulty / context / age filters return meaningful buckets rather than a
+# uniform "medium / other". Everything is derived deterministically from the
+# item title so re-seeding is reproducible (no random import needed).
+
+_SEED_DIFFICULTIES = ["very_easy", "easy", "medium", "difficult", "very_difficult"]
+_SEED_CONTEXTS = ["school", "higher_education", "training", "school", "higher_education"]
+_SEED_AGE_RANGES = ["7-9", "10-12", "12-14", "15-17", "18+"]
+_SEED_TIMES = ["PT20M", "PT30M", "PT45M", "PT1H", "PT1H30M"]
+_SEED_APPROACHES = ["expository", "inquiry", "constructivist", "project_based", "collaborative"]
+
+
+def _pedagogical_profile(item):
+    """Return a dict of pedagogical LOM fields varied by the item's title.
+
+    Deterministic: the same title always yields the same profile.
+    """
+    bucket = sum(ord(c) for c in (item.title or "")) % 5
+
+    category = getattr(getattr(item, "heritage_category", None), "name", None) or "Patrimonio"
+    period = getattr(item, "historical_period", "") or ""
+
+    return {
+        "difficulty": _SEED_DIFFICULTIES[bucket],
+        "context": _SEED_CONTEXTS[bucket],
+        "typical_age_range": _SEED_AGE_RANGES[bucket],
+        "typical_learning_time": _SEED_TIMES[bucket],
+        "pedagogical_approach": _SEED_APPROACHES[bucket],
+        "learning_objectives": [
+            f"Identificar los rasgos principales de «{item.title}».",
+            f"Situar «{item.title}» en su contexto histórico y cultural en Riobamba.",
+            f"Valorar la importancia de {category.lower()} en el patrimonio local.",
+        ],
+        "prerequisites": "Nociones básicas de historia local de Riobamba y del Ecuador.",
+        "competencies": (
+            "Análisis del patrimonio cultural; contextualización histórica; "
+            "pensamiento crítico sobre la memoria colectiva."
+        ),
+        "curriculum_alignment": (
+            f"Estudios Sociales — Patrimonio y cultura ({category}"
+            + (f", {period}" if period else "")
+            + ")"
+        ),
+        "suggested_activities": (
+            f"Visita guiada o virtual a «{item.title}»; debate en aula sobre su "
+            "conservación; elaboración de una ficha patrimonial por el estudiantado."
+        ),
+    }
+
 def clean_database():
     ensure_django()
     from apps.education.models import (
@@ -915,6 +966,12 @@ def create_initial_data(*, download_remote_media: bool = True):
             LOMContributor.objects.create(lifecycle=lifecycle, role="author", entity=user.username, date=date.today())
             LOMRights.objects.create(lom_general=lom_general, cost=False, copyright_and_other_restrictions=True, description="CC BY 4.0")
 
+            # Derive varied, realistic pedagogical metadata so /learn filters
+            # (difficulty, context, age, objectives) have something to bite on
+            # instead of everything being "medium/other". Deterministic by title
+            # so reseeding is reproducible.
+            ped = _pedagogical_profile(item)
+
             edu_data = item_data["lom"].get("educational")
             if edu_data:
                 LOMEducational.objects.create(
@@ -924,9 +981,15 @@ def create_initial_data(*, download_remote_media: bool = True):
                     intended_end_user_role=edu_data["intended_end_user_role"],
                     context=edu_data["context"], typical_age_range=edu_data["typical_age_range"],
                     difficulty=edu_data["difficulty"], typical_learning_time=edu_data.get("typical_learning_time", "PT1H"),
-                    description=f"Recurso educativo para {item.title}", language="es"
+                    description=f"Recurso educativo para {item.title}", language="es",
+                    learning_objectives=ped["learning_objectives"],
+                    prerequisites=ped["prerequisites"],
+                    competencies=ped["competencies"],
+                    pedagogical_approach=ped["pedagogical_approach"],
+                    curriculum_alignment=ped["curriculum_alignment"],
+                    suggested_activities=ped["suggested_activities"],
                 )
-            
+
             class_data = item_data["lom"].get("classification")
             if class_data:
                 LOMClassification.objects.create(
@@ -938,10 +1001,18 @@ def create_initial_data(*, download_remote_media: bool = True):
                 heritage_item=item, title=item.title, description=item.description, language='es',
                 coverage="Riobamba, Ecuador", structure="atomic", aggregation_level=1
             )
+             ped = _pedagogical_profile(item)
              LOMEducational.objects.create(
                 lom_general=lom_general, learning_resource_type="narrative_text",
-                intended_end_user_role="learner", context="other", typical_age_range="all",
-                difficulty="medium", typical_learning_time="PT1H", description="Información General", language="es"
+                intended_end_user_role="learner", context=ped["context"], typical_age_range=ped["typical_age_range"],
+                difficulty=ped["difficulty"], typical_learning_time=ped["typical_learning_time"],
+                description="Información General", language="es",
+                learning_objectives=ped["learning_objectives"],
+                prerequisites=ped["prerequisites"],
+                competencies=ped["competencies"],
+                pedagogical_approach=ped["pedagogical_approach"],
+                curriculum_alignment=ped["curriculum_alignment"],
+                suggested_activities=ped["suggested_activities"],
              )
 
     print(f"Created {len(items_data)} Heritage Items with LOM metadata.")
