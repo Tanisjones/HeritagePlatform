@@ -52,7 +52,8 @@
         "signup": "Sign Up",
         "logout": "Logout",
         "notifications": "Notifications",
-        "myAccount": "My account"
+        "myAccount": "My account",
+        "teach": "Teach"
     },
     "footer": {
         "description": "Preserving and sharing cultural heritage through collaborative digital innovation.",
@@ -159,7 +160,10 @@
             "refresh": "Refresh",
             "clear": "Clear filters",
             "showing": "Showing {count} of {total} resources",
-            "noResults": "No resources match the selected filters."
+            "noResults": "No resources match the selected filters.",
+            "age": "Age",
+            "time": "Duration",
+            "withObjectives": "With objectives only"
         },
         "options": {
             "all": "All",
@@ -178,7 +182,8 @@
             "download": "Download SCORM Package",
             "downloading": "Downloading...",
             "downloadError": "Download failed.",
-            "loadError": "Unable to load learning resources right now."
+            "loadError": "Unable to load learning resources right now.",
+            "objectives": "Objectives"
         },
         "resourceTypes": {
             "exercise": "Exercise",
@@ -214,6 +219,16 @@
             "higher_education": "Higher Education",
             "training": "Professional Training",
             "other": "Other"
+        },
+        "ageBands": {
+            "children": "Children (<12)",
+            "teens": "Teens (12-17)",
+            "adults": "Adults (18+)"
+        },
+        "timeBands": {
+            "short": "Short (<30 min)",
+            "medium": "Medium (30-90 min)",
+            "long": "Long (>90 min)"
         }
     },
     "ai": {
@@ -226,7 +241,10 @@
         "generating": "Generating…",
         "unavailable": "AI unavailable.",
         "rateLimited": "Too many AI requests. Please try again shortly.",
-        "genericError": "AI request failed."
+        "genericError": "AI request failed.",
+        "educationalButton": "Generate educational metadata with AI",
+        "educationalGenerating": "Generating educational metadata…",
+        "educationalApplied": "Suggested educational metadata applied. Review and edit it."
     },
     "myContributions": {
         "title": "My Contributions",
@@ -311,7 +329,9 @@
             "downloadScorm": "Download SCORM Package",
             "downloadingScorm": "Downloading SCORM...",
             "downloadScormError": "Could not download SCORM package.",
-            "backToExplore": "Back to Explore"
+            "backToExplore": "Back to Explore",
+            "editEducational": "Edit educational metadata",
+            "noEducationalYet": "No educational metadata yet. Use “Edit” to add it."
         },
         "annotations": {
             "title": "Community Annotations",
@@ -453,7 +473,8 @@
             "2": "General Information",
             "3": "Location & Map",
             "4": "Historical Details",
-            "5": "Review & Submit"
+            "5": "Educational Layer",
+            "6": "Review & Submit"
         },
         "step1": {
             "uploading": "Uploading…",
@@ -483,7 +504,6 @@
                 "uploadFailed": "Failed to upload. Please try again.",
                 "uploadFailedStatus": "Failed to upload ({status})."
             },
-            "uploading": "Uploading…",
             "uploadingWait": "Please wait, this can take a moment.",
             "cancelUpload": "Cancel upload"
         },
@@ -539,6 +559,34 @@
             "offlineQueued": "You appear to be offline. Your contribution has been saved and will automatically sync when you're back online.",
             "submitAnother": "Submit Another Contribution",
             "goHome": "Return to Home"
+        },
+        "step5edu": {
+            "instruction": "Describe the resource’s pedagogical intent so it can be reused in the classroom. Everything is optional: you can fill it with AI and edit, or complete it later.",
+            "unset": "Unspecified",
+            "fields": {
+                "resourceType": "Educational resource type",
+                "difficulty": "Difficulty",
+                "context": "Educational context",
+                "ageRange": "Typical age range",
+                "learningTime": "Learning time",
+                "interactivity": "Interactivity type",
+                "audience": "Intended audience",
+                "approach": "Pedagogical approach",
+                "objectives": "Learning objectives",
+                "prerequisites": "Prerequisites",
+                "competencies": "Competencies"
+            },
+            "placeholders": {
+                "ageRange": "e.g. \"12-14\" or \"18+\"",
+                "learningTime": "e.g. PT30M",
+                "objectives": "One objective per line…",
+                "prerequisites": "Prior knowledge needed…",
+                "competencies": "Competencies or skills developed…"
+            },
+            "help": {
+                "learningTime": "ISO-8601 duration format (PT30M = 30 minutes, PT1H30M = 1 h 30 min).",
+                "objectives": "Write one objective per line."
+            }
         }
     },
     "contributePage": {
@@ -588,6 +636,43 @@
             "higher_education": "Higher Education",
             "training": "Training",
             "other": "Other"
+        },
+        "interactivity": {
+            "active": "Active (learning by doing)",
+            "expositive": "Expositive (reading/watching)",
+            "mixed": "Mixed"
+        },
+        "approach": {
+            "expository": "Expository",
+            "inquiry": "Inquiry-based",
+            "constructivist": "Constructivist",
+            "project_based": "Project-based",
+            "collaborative": "Collaborative",
+            "gamified": "Gamified"
+        },
+        "level": {
+            "very_low": "Very low",
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "very_high": "Very high"
+        },
+        "status": {
+            "draft": "Draft",
+            "final": "Final",
+            "revised": "Revised",
+            "unavailable": "Unavailable"
+        },
+        "purpose": {
+            "discipline": "Discipline",
+            "idea": "Idea",
+            "prerequisite": "Prerequisite",
+            "educational_objective": "Educational objective",
+            "accessibility_restrictions": "Accessibility restrictions",
+            "educational_level": "Educational level",
+            "skill_level": "Skill level",
+            "security_level": "Security level",
+            "competency": "Competency"
         }
     },
     "auth": {
@@ -879,5 +964,65 @@
         "republican": "Republican",
         "contemporary": "Contemporary",
         "unknown": "Unknown"
+    },
+    "lomEditor": {
+        "title": "Educational metadata editor (LOM)",
+        "saved": "Saved.",
+        "noClassifications": "No classifications yet. Add objectives, competencies or curriculum alignment.",
+        "sections": {
+            "educational": "Pedagogy",
+            "rights": "Rights & license",
+            "lifecycle": "Life cycle & structure",
+            "classifications": "Classifications (objectives / competencies / curriculum)"
+        },
+        "fields": {
+            "interactivityLevel": "Interactivity level",
+            "curriculum": "Curriculum alignment",
+            "activities": "Suggested activities",
+            "cost": "Requires payment",
+            "copyright": "Copyright-restricted",
+            "rightsDescription": "License / usage conditions",
+            "version": "Version",
+            "status": "Status",
+            "aggregationLevel": "Aggregation level (1-4)",
+            "coverage": "Coverage",
+            "purpose": "Purpose",
+            "taxonSource": "System",
+            "taxonEntry": "Entry"
+        },
+        "placeholders": {
+            "curriculum": "e.g. Social Studies — 8th grade",
+            "license": "e.g. CC BY 4.0"
+        },
+        "actions": {
+            "save": "Save metadata",
+            "cancel": "Cancel",
+            "addClassification": "Add classification",
+            "remove": "Remove"
+        },
+        "errors": {
+            "duration": "Invalid ISO-8601 duration (e.g. PT30M)."
+        }
+    },
+    "teach": {
+        "subtitle": "For teachers",
+        "title": "Classroom resources",
+        "description": "Package whole cultural routes as interoperable learning packages (SCORM / cmi5) ready for your LMS.",
+        "browseCatalogue": "Browse the educational catalogue",
+        "format": "Package format",
+        "formatHelp": "SCORM 1.2 is the most compatible; SCORM 2004 adds sequencing; cmi5 uses xAPI (requires an LRS).",
+        "formats": {
+            "scorm12": "SCORM 1.2",
+            "scorm2004": "SCORM 2004 4th ed.",
+            "cmi5": "cmi5 (xAPI)"
+        },
+        "routesTitle": "Published routes",
+        "noRoutes": "No published routes yet.",
+        "exportRoute": "Export route as package",
+        "exporting": "Building package…",
+        "errors": {
+            "load": "Could not load routes.",
+            "package": "Could not build the package."
+        }
     }
 }

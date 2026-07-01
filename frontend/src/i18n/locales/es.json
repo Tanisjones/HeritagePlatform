@@ -52,7 +52,8 @@
         "signup": "Registrarse",
         "logout": "Cerrar Sesión",
         "notifications": "Notificaciones",
-        "myAccount": "Mi cuenta"
+        "myAccount": "Mi cuenta",
+        "teach": "Enseñar"
     },
     "footer": {
         "description": "Preservando y compartiendo el patrimonio cultural a través de innovación digital colaborativa.",
@@ -159,7 +160,10 @@
             "refresh": "Actualizar",
             "clear": "Limpiar filtros",
             "showing": "Mostrando {count} de {total} recursos",
-            "noResults": "No hay recursos que coincidan con los filtros seleccionados."
+            "noResults": "No hay recursos que coincidan con los filtros seleccionados.",
+            "age": "Edad",
+            "time": "Duración",
+            "withObjectives": "Solo con objetivos"
         },
         "options": {
             "all": "Todos",
@@ -178,7 +182,8 @@
             "download": "Descargar Paquete SCORM",
             "downloading": "Descargando...",
             "downloadError": "Error en la descarga.",
-            "loadError": "No se pueden cargar los recursos de aprendizaje en este momento."
+            "loadError": "No se pueden cargar los recursos de aprendizaje en este momento.",
+            "objectives": "Objetivos"
         },
         "resourceTypes": {
             "exercise": "Ejercicio",
@@ -214,6 +219,16 @@
             "higher_education": "Educación Superior",
             "training": "Formación Profesional",
             "other": "Otro"
+        },
+        "ageBands": {
+            "children": "Niñez (<12)",
+            "teens": "Adolescencia (12-17)",
+            "adults": "Adultos (18+)"
+        },
+        "timeBands": {
+            "short": "Corta (<30 min)",
+            "medium": "Media (30-90 min)",
+            "long": "Larga (>90 min)"
         }
     },
     "ai": {
@@ -226,7 +241,10 @@
         "generating": "Generando…",
         "unavailable": "IA no disponible.",
         "rateLimited": "Demasiadas solicitudes de IA. Inténtelo de nuevo en breve.",
-        "genericError": "Falló la solicitud de IA."
+        "genericError": "Falló la solicitud de IA.",
+        "educationalButton": "Generar metadatos educativos con IA",
+        "educationalGenerating": "Generando metadatos educativos…",
+        "educationalApplied": "Se aplicaron los metadatos educativos sugeridos. Revísalos y edítalos."
     },
     "myContributions": {
         "title": "Mis contribuciones",
@@ -311,7 +329,9 @@
             "downloadScorm": "Descargar Paquete SCORM",
             "downloadingScorm": "Descargando SCORM...",
             "downloadScormError": "No se pudo descargar el paquete SCORM.",
-            "backToExplore": "Volver a Explorar"
+            "backToExplore": "Volver a Explorar",
+            "editEducational": "Editar metadatos educativos",
+            "noEducationalYet": "Aún no hay metadatos educativos. Usa «Editar» para añadirlos."
         },
         "annotations": {
             "title": "Anotaciones de la Comunidad",
@@ -453,7 +473,8 @@
             "2": "Información General",
             "3": "Ubicación y Mapa",
             "4": "Detalles Históricos",
-            "5": "Revisar y Enviar"
+            "5": "Capa Educativa",
+            "6": "Revisar y Enviar"
         },
         "step1": {
             "uploading": "Subiendo…",
@@ -483,7 +504,6 @@
                 "uploadFailed": "Error al subir. Por favor intente de nuevo.",
                 "uploadFailedStatus": "Error al subir ({status})."
             },
-            "uploading": "Subiendo…",
             "uploadingWait": "Espere, esto puede tardar un momento.",
             "cancelUpload": "Cancelar subida"
         },
@@ -539,6 +559,34 @@
             "offlineQueued": "Parece que no tiene conexión. Su contribución se guardó y se sincronizará automáticamente cuando vuelva a estar en línea.",
             "submitAnother": "Enviar Otra Contribución",
             "goHome": "Volver al Inicio"
+        },
+        "step5edu": {
+            "instruction": "Describe la intención pedagógica del recurso para que pueda reutilizarse en aula. Todo es opcional: puedes rellenarlo con IA y editarlo, o completarlo más tarde.",
+            "unset": "Sin especificar",
+            "fields": {
+                "resourceType": "Tipo de recurso educativo",
+                "difficulty": "Dificultad",
+                "context": "Contexto educativo",
+                "ageRange": "Rango de edad típico",
+                "learningTime": "Tiempo de aprendizaje",
+                "interactivity": "Tipo de interactividad",
+                "audience": "Audiencia destinataria",
+                "approach": "Enfoque pedagógico",
+                "objectives": "Objetivos de aprendizaje",
+                "prerequisites": "Prerrequisitos",
+                "competencies": "Competencias"
+            },
+            "placeholders": {
+                "ageRange": "p. ej. \"12-14\" o \"18+\"",
+                "learningTime": "p. ej. PT30M",
+                "objectives": "Un objetivo por línea…",
+                "prerequisites": "Conocimientos previos necesarios…",
+                "competencies": "Competencias o destrezas que desarrolla…"
+            },
+            "help": {
+                "learningTime": "Formato ISO-8601 de duración (PT30M = 30 minutos, PT1H30M = 1 h 30 min).",
+                "objectives": "Escribe un objetivo por línea."
+            }
         }
     },
     "contributePage": {
@@ -588,6 +636,43 @@
             "higher_education": "Educación superior",
             "training": "Formación",
             "other": "Otro"
+        },
+        "interactivity": {
+            "active": "Activa (aprender haciendo)",
+            "expositive": "Expositiva (leer/observar)",
+            "mixed": "Mixta"
+        },
+        "approach": {
+            "expository": "Expositivo",
+            "inquiry": "Basado en indagación",
+            "constructivist": "Constructivista",
+            "project_based": "Basado en proyectos",
+            "collaborative": "Colaborativo",
+            "gamified": "Gamificado"
+        },
+        "level": {
+            "very_low": "Muy baja",
+            "low": "Baja",
+            "medium": "Media",
+            "high": "Alta",
+            "very_high": "Muy alta"
+        },
+        "status": {
+            "draft": "Borrador",
+            "final": "Final",
+            "revised": "Revisado",
+            "unavailable": "No disponible"
+        },
+        "purpose": {
+            "discipline": "Disciplina",
+            "idea": "Idea",
+            "prerequisite": "Prerrequisito",
+            "educational_objective": "Objetivo educativo",
+            "accessibility_restrictions": "Restricciones de accesibilidad",
+            "educational_level": "Nivel educativo",
+            "skill_level": "Nivel de destreza",
+            "security_level": "Nivel de seguridad",
+            "competency": "Competencia"
         }
     },
     "auth": {
@@ -879,5 +964,65 @@
         "republican": "Republicano",
         "contemporary": "Contemporáneo",
         "unknown": "Desconocido"
+    },
+    "lomEditor": {
+        "title": "Editor de metadatos educativos (LOM)",
+        "saved": "Guardado.",
+        "noClassifications": "Sin clasificaciones. Añade objetivos, competencias o alineación curricular.",
+        "sections": {
+            "educational": "Pedagogía",
+            "rights": "Derechos y licencia",
+            "lifecycle": "Ciclo de vida y estructura",
+            "classifications": "Clasificaciones (objetivos / competencias / currículo)"
+        },
+        "fields": {
+            "interactivityLevel": "Nivel de interactividad",
+            "curriculum": "Alineación curricular",
+            "activities": "Actividades sugeridas",
+            "cost": "Requiere pago",
+            "copyright": "Sujeto a derechos de autor",
+            "rightsDescription": "Licencia / condiciones de uso",
+            "version": "Versión",
+            "status": "Estado",
+            "aggregationLevel": "Nivel de agregación (1-4)",
+            "coverage": "Cobertura",
+            "purpose": "Propósito",
+            "taxonSource": "Sistema",
+            "taxonEntry": "Entrada"
+        },
+        "placeholders": {
+            "curriculum": "p. ej. Estudios Sociales — 8.º EGB",
+            "license": "p. ej. CC BY 4.0"
+        },
+        "actions": {
+            "save": "Guardar metadatos",
+            "cancel": "Cancelar",
+            "addClassification": "Añadir clasificación",
+            "remove": "Quitar"
+        },
+        "errors": {
+            "duration": "Duración ISO-8601 no válida (p. ej. PT30M)."
+        }
+    },
+    "teach": {
+        "subtitle": "Para docentes",
+        "title": "Recursos para el aula",
+        "description": "Empaqueta rutas culturales completas como paquetes de aprendizaje interoperables (SCORM / cmi5) listos para tu LMS.",
+        "browseCatalogue": "Explorar el catálogo educativo",
+        "format": "Formato de paquete",
+        "formatHelp": "SCORM 1.2 es el más compatible; SCORM 2004 añade secuenciación; cmi5 usa xAPI (requiere un LRS).",
+        "formats": {
+            "scorm12": "SCORM 1.2",
+            "scorm2004": "SCORM 2004 4.ª ed.",
+            "cmi5": "cmi5 (xAPI)"
+        },
+        "routesTitle": "Rutas publicadas",
+        "noRoutes": "No hay rutas publicadas todavía.",
+        "exportRoute": "Exportar ruta como paquete",
+        "exporting": "Generando paquete…",
+        "errors": {
+            "load": "No se pudieron cargar las rutas.",
+            "package": "No se pudo generar el paquete."
+        }
     }
 }

@@ -32,6 +32,19 @@ vi.mock('@/services/api', () => ({
   default: {
     get: (...args: any[]) => apiGetMock(...args),
   },
+  // educationService is imported by the LOM editor (stubbed below) but keep it defined.
+  educationService: {},
+  aiService: {},
+}))
+
+// The detail view now reads the auth store to gate LOM editing; stub a
+// non-privileged, unauthenticated user so the media-viewer test stays focused.
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => ({
+    isCurator: false,
+    isTeacher: false,
+    user: null,
+  }),
 }))
 
 import HeritageDetailView from '@/views/heritage/HeritageDetailView.vue'
@@ -78,6 +91,7 @@ describe('HeritageDetailView media viewers', () => {
       global: {
         stubs: {
           AnnotationList: true,
+          LomEditor: true,
           'router-link': true,
         },
       },

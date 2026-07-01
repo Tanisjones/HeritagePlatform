@@ -119,8 +119,42 @@ export const teacherService = {
   lomPackages: (params?: Record<string, any>) => api.get('/education/lom-packages/', { params }),
   downloadLomPackage: (id: string) =>
     api.get(`/education/lom-packages/${id}/download/`, { responseType: 'blob' }),
-  downloadScormPackage: (heritageItemId: string) =>
-    api.get(`/education/scorm-packages/${heritageItemId}/download/`, { responseType: 'blob' }),
+  downloadScormPackage: (heritageItemId: string, format: string = 'scorm12') =>
+    api.get(`/education/scorm-packages/${heritageItemId}/download/`, {
+      params: { format },
+      responseType: 'blob',
+    }),
+  // F2.c: export a whole route as one learning package (scorm12 | scorm2004 | cmi5).
+  downloadRoutePackage: (routeId: string, format: string = 'scorm12') =>
+    api.get(`/education/route-packages/${routeId}/download/`, {
+      params: { format },
+      responseType: 'blob',
+    }),
+  // F2.c: export an arbitrary curated set of heritage items as one package.
+  downloadCollectionPackage: (ids: string[], format: string = 'scorm12') =>
+    api.get('/education/collection-packages/download/', {
+      params: { ids: ids.join(','), format },
+      responseType: 'blob',
+    }),
+};
+
+/**
+ * Read/write access to the IEEE-LOM educational layer of a heritage item.
+ *
+ * The whole layer (general + nested educational / rights / lifecycle /
+ * classifications) is authored in a single PATCH /lom/{id}/ against the backend
+ * nested write serializer (LOMGeneralWriteSerializer). `getByHeritageItem`
+ * resolves the LOMGeneral id for a heritage item so callers can then patch it.
+ */
+export const educationService = {
+  // Resolve the LOM record for a heritage item (LOMGeneral, with nested children).
+  getByHeritageItem: (heritageItemId: string) =>
+    api.get('/lom/by_heritage_item/', { params: { heritage_item_id: heritageItemId } }),
+  getLom: (lomId: string) => api.get(`/lom/${lomId}/`),
+  // Nested partial update of the whole educational layer in one call.
+  updateLom: (lomId: string, payload: Record<string, any>) =>
+    api.patch(`/lom/${lomId}/`, payload),
+  createLom: (payload: Record<string, any>) => api.post('/lom/', payload),
 };
 
 export const aiSuggestionService = {

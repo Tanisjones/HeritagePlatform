@@ -5,12 +5,21 @@ import api from '@/services/api';
 import { apiBaseUrl, resolveMediaUrl } from '@/utils/apiUrl';
 import type { HeritageItem } from '@/types/heritage';
 import AnnotationList from '@/components/annotations/AnnotationList.vue';
+import LomEditor from '@/components/education/LomEditor.vue';
+import { useAuthStore } from '@/stores/auth';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useI18n } from 'vue-i18n';
 
 const { t, te, locale } = useI18n();
 const route = useRoute();
+const authStore = useAuthStore();
+
+// Curators, teachers and staff can author the educational (LOM) layer inline.
+const canEditLom = computed(() =>
+  authStore.isCurator || authStore.isTeacher || !!authStore.user?.is_staff
+);
+const lomEditing = ref(false);
 
 interface ViewableResource {
     type: 'video' | 'audio' | 'image' | 'document';
@@ -261,6 +270,11 @@ const fetchHeritageItem = async () => {
   }
 };
 
+const onLomSaved = async () => {
+  lomEditing.value = false;
+  await fetchHeritageItem();
+};
+
 onMounted(fetchHeritageItem);
 </script>
 
@@ -423,15 +437,39 @@ onMounted(fetchHeritageItem);
           </div>
 
           <!-- Educational Characteristics (Glassy Grid) -->
-          <div v-if="educationalEntries.length > 0" class="bg-gradient-to-br from-white to-neutral-50 rounded-2xl shadow-xl p-8 border border-neutral-100">
-             <h2 class="font-display text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <span class="bg-secondary-100 text-secondary-600 p-2 rounded-lg mr-3">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-              </span>
-              {{ t('heritage.detail.educationalContext') }}
-            </h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" v-for="(edu, idx) in educationalEntries" :key="idx">
+          <div v-if="educationalEntries.length > 0 || (canEditLom && item.lom_metadata?.id)" class="bg-gradient-to-br from-white to-neutral-50 rounded-2xl shadow-xl p-8 border border-neutral-100">
+             <div class="flex items-center justify-between mb-6">
+               <h2 class="font-display text-2xl font-bold text-gray-900 flex items-center">
+                <span class="bg-secondary-100 text-secondary-600 p-2 rounded-lg mr-3">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </span>
+                {{ t('heritage.detail.educationalContext') }}
+              </h2>
+              <button
+                v-if="canEditLom && item.lom_metadata?.id && !lomEditing"
+                type="button"
+                @click="lomEditing = true"
+                class="px-4 py-2 text-sm font-medium rounded-lg border border-secondary-300 text-secondary-700 hover:bg-secondary-50 transition"
+              >
+                {{ t('heritage.detail.editEducational') }}
+              </button>
+            </div>
+
+            <!-- Inline LOM editor (curator/teacher) -->
+            <LomEditor
+              v-if="lomEditing && item.lom_metadata?.id"
+              :lom-id="item.lom_metadata.id"
+              :metadata="item.lom_metadata"
+              :language="item.lom_metadata?.language"
+              @saved="onLomSaved"
+              @cancel="lomEditing = false"
+            />
+
+            <div v-else-if="educationalEntries.length === 0" class="text-sm text-gray-500">
+              {{ t('heritage.detail.noEducationalYet') }}
+            </div>
+
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6" v-for="(edu, idx) in educationalEntries" :key="idx">
                <!-- Card Item -->
               <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <span class="text-xs font-bold text-secondary-600 uppercase tracking-wider mb-1 block">{{ t('heritage.detail.resourceType') }}</span>

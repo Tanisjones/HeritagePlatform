@@ -8,7 +8,8 @@
  * 2. General Information (Title, Description, Classification) - includes AI drafting
  * 3. Location (Point selection on map)
  * 4. Details (Historical period, external links)
- * 5. Review & Submit
+ * 5. Educational layer (IEEE-LOM pedagogy) - includes AI metadata generation
+ * 6. Review & Submit
  */
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import type { HeritageItemContribution, Parish, HeritageType, HeritageCategory } from '@/types/heritage';
@@ -34,7 +35,7 @@ watch(currentStep, (newStep) => {
   emit('step-change', newStep);
 });
 
-const totalSteps = 5;
+const totalSteps = 6;
 const submittedSuccess = ref(false);
 const queuedOffline = ref(false);
 
@@ -56,6 +57,55 @@ const contribution = reactive<Partial<HeritageItemContribution>>({
   video: [],
   documents: [],
 });
+
+// --- Educational (IEEE-LOM §5) layer captured in step 5 ---
+// Sent to the backend under `educational` on the contribution POST; the API
+// validates it through LOMEducationalSerializer and attaches it to the item's
+// LOM. All fields are optional — blanks are stripped before submit.
+interface EducationalDraft {
+  learning_resource_type: string;
+  difficulty: string;
+  typical_age_range: string;
+  typical_learning_time: string;
+  context: string;
+  interactivity_type: string;
+  intended_end_user_role: string;
+  pedagogical_approach: string;
+  learning_objectives: string[];
+  prerequisites: string;
+  competencies: string;
+}
+const createEducationalDraft = (): EducationalDraft => ({
+  learning_resource_type: '',
+  difficulty: '',
+  typical_age_range: '',
+  typical_learning_time: '',
+  context: '',
+  interactivity_type: '',
+  intended_end_user_role: '',
+  pedagogical_approach: '',
+  learning_objectives: [],
+  prerequisites: '',
+  competencies: '',
+});
+const educational = reactive<EducationalDraft>(createEducationalDraft());
+// Single-line editing buffer for the learning-objectives list (one per line).
+const objectivesText = ref('');
+
+// Vocabularies mirror the backend LOMEducational choices; labels come from i18n
+// (reuse the existing `lom.*` and `learn.*` keys where possible).
+const resourceTypeOptions = [
+  'narrative_text', 'image', 'audio', 'video', 'document', 'diagram', 'figure',
+  'graph', 'slide', 'table', 'exercise', 'simulation', 'questionnaire', 'exam',
+  'experiment', 'problem_statement', 'self_assessment', 'lecture',
+];
+const difficultyOptions = ['very_easy', 'easy', 'medium', 'difficult', 'very_difficult'];
+const contextOptions = ['school', 'higher_education', 'training', 'other'];
+const interactivityOptions = ['active', 'expositive', 'mixed'];
+const endUserRoleOptions = ['learner', 'teacher', 'author', 'manager'];
+const pedagogicalApproachOptions = [
+  'expository', 'inquiry', 'constructivist', 'project_based', 'collaborative', 'gamified',
+];
 
 const formLocation = ref({ lat: -1.67, lng: -78.65 }); // Helper for map binding
 
@@ -95,6 +145,9 @@ const aiMetaLoading = ref(false);
 const aiMetaError = ref('');
 const aiMetaNote = ref('');
 const aiSuggestedKeywords = ref<string[]>([]);
+const aiEduLoading = ref(false);
+const aiEduError = ref('');
+const aiEduNote = ref('');
 const { isAvailable: aiAvailable, refresh: refreshAIAvailability, markUnavailable: markAIUnavailable } = useAIAvailability()
 
 // Map settings
@@ -395,11 +448,32 @@ const canServiceWorkerQueueContribution = (): boolean => {
   }
 };
 
+// Build the educational sub-payload, dropping empty values so the backend only
+// receives fields the contributor actually set (avoids failing enum validation
+// on blank strings and keeps the LOM "to be completed" where left empty).
+const buildEducationalPayload = (): Record<string, any> | null => {
+  syncObjectivesFromText();
+  const out: Record<string, any> = {};
+  (Object.keys(educational) as (keyof EducationalDraft)[]).forEach((key) => {
+    const value = educational[key];
+    if (Array.isArray(value)) {
+      if (value.length) out[key] = value;
+    } else if (typeof value === 'string' && value.trim()) {
+      out[key] = value;
+    }
+  });
+  return Object.keys(out).length ? out : null;
+};
+
 const submitContribution = async () => {
   submitting.value = true;
   try {
-    // Submit data (resource is uploaded in step 1 if provided)
-    await api.post('/contributions/', contribution);
+    // Submit data (resource is uploaded in step 1 if provided). The educational
+    // layer, when filled, rides along under `educational`.
+    const payload: Record<string, any> = { ...contribution };
+    const edu = buildEducationalPayload();
+    if (edu) payload.educational = edu;
+    await api.post('/contributions/', payload);
 
     queuedOffline.value = false;
     submittedSuccess.value = true;
@@ -504,6 +578,62 @@ const generateAIMetadata = async () => {
   }
 };
 
+// Keep the objectives text buffer and the structured list in sync (one per line).
+const syncObjectivesFromText = () => {
+  educational.learning_objectives = objectivesText.value
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+};
+
+// Best-effort resource type derived from the chosen upload, so the AI has a hint.
+const inferredResourceType = (): string => {
+  if (resourceType.value === 'image') return 'image';
+  if (resourceType.value === 'audio') return 'audio';
+  if (resourceType.value === 'video') return 'video';
+  if (resourceType.value === 'document') return 'document';
+  return 'narrative_text';
+};
+
+const generateAIEducational = async () => {
+  if (aiEduLoading.value || submitting.value) return;
+  aiEduError.value = '';
+  aiEduNote.value = '';
+  try {
+    aiEduLoading.value = true;
+    const res = await aiService.educationalMetadata({
+      language: String(locale.value || 'es'),
+      title: String(contribution.title || ''),
+      description: String(contribution.description || ''),
+      resource_type: educational.learning_resource_type || inferredResourceType(),
+    });
+
+    // Only apply values that match a known vocabulary option; free-text/age/time
+    // pass through as-is. Objectives replace the current list.
+    const applyEnum = (key: keyof EducationalDraft, value: string | null | undefined, allowed: string[]) => {
+      if (value && allowed.includes(value)) (educational as any)[key] = value;
+    };
+    applyEnum('learning_resource_type', res.learning_resource_type, resourceTypeOptions);
+    applyEnum('difficulty', res.difficulty, difficultyOptions);
+    applyEnum('context', res.context, contextOptions);
+    if (res.typical_age_range) educational.typical_age_range = res.typical_age_range;
+    if (res.typical_learning_time) educational.typical_learning_time = res.typical_learning_time;
+    if (Array.isArray(res.learning_objectives) && res.learning_objectives.length) {
+      educational.learning_objectives = res.learning_objectives;
+      objectivesText.value = res.learning_objectives.join('\n');
+    }
+    if (Array.isArray(res.keywords) && res.keywords.length) {
+      // Surface keywords as a suggestion for the general layer.
+      aiSuggestedKeywords.value = res.keywords;
+    }
+    aiEduNote.value = t('ai.educationalApplied');
+  } catch (err: any) {
+    applyAIError(err, aiEduError);
+  } finally {
+    aiEduLoading.value = false;
+  }
+};
+
 const resetForm = () => {
   submittedSuccess.value = false;
   queuedOffline.value = false;
@@ -529,6 +659,13 @@ const resetForm = () => {
   aiDraftLoading.value = false;
   aiDraftError.value = '';
   narrativeText.value = '';
+
+  Object.assign(educational, createEducationalDraft());
+  objectivesText.value = '';
+  aiEduLoading.value = false;
+  aiEduError.value = '';
+  aiEduNote.value = '';
+  aiSuggestedKeywords.value = [];
 };
 
 // --- Computed ---
@@ -550,7 +687,9 @@ const isStepValid = computed(() => {
       return contribution.parish; // Location is defaulted, address optional
     case 4: // Details
       return true; // Optional mostly
-    case 5: // Review
+    case 5: // Educational layer
+      return true; // Entirely optional; can be completed later or via the LOM editor
+    case 6: // Review
       return true;
     default:
       return false;
@@ -608,6 +747,7 @@ const isStepValid = computed(() => {
         <span v-if="currentStep === 3">{{ t('contribution.steps.3') }}</span>
         <span v-if="currentStep === 4">{{ t('contribution.steps.4') }}</span>
         <span v-if="currentStep === 5">{{ t('contribution.steps.5') }}</span>
+        <span v-if="currentStep === 6">{{ t('contribution.steps.6') }}</span>
       </h2>
     </div>
 
@@ -869,8 +1009,99 @@ const isStepValid = computed(() => {
           </div>
         </div>
 
-        <!-- Step 5: Review -->
+        <!-- Step 5: Educational layer (IEEE-LOM) -->
         <div v-if="currentStep === 5" class="space-y-6">
+          <div class="bg-blue-50 p-4 rounded-lg text-blue-800 text-sm">
+            {{ t('contribution.step5edu.instruction') }}
+          </div>
+
+          <AiActionButton
+            :label="t('ai.educationalButton')"
+            :loading-label="t('ai.educationalGenerating')"
+            :loading="aiEduLoading"
+            :available="aiAvailable"
+            :disabled="submitting"
+            :error="aiEduError"
+            @click="generateAIEducational"
+          />
+
+          <p v-if="aiEduNote" class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
+            {{ aiEduNote }}
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.resourceType') }}</label>
+              <select v-model="educational.learning_resource_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">{{ t('contribution.step5edu.unset') }}</option>
+                <option v-for="opt in resourceTypeOptions" :key="opt" :value="opt">{{ t(`lom.resource_type.${opt}`, opt) }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.difficulty') }}</label>
+              <select v-model="educational.difficulty" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">{{ t('contribution.step5edu.unset') }}</option>
+                <option v-for="opt in difficultyOptions" :key="opt" :value="opt">{{ t(`lom.difficulty.${opt}`, opt) }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.context') }}</label>
+              <select v-model="educational.context" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">{{ t('contribution.step5edu.unset') }}</option>
+                <option v-for="opt in contextOptions" :key="opt" :value="opt">{{ t(`lom.context.${opt}`, opt) }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.ageRange') }}</label>
+              <input v-model="educational.typical_age_range" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.ageRange')" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.learningTime') }}</label>
+              <input v-model="educational.typical_learning_time" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.learningTime')" />
+              <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step5edu.help.learningTime') }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.interactivity') }}</label>
+              <select v-model="educational.interactivity_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">{{ t('contribution.step5edu.unset') }}</option>
+                <option v-for="opt in interactivityOptions" :key="opt" :value="opt">{{ t(`lom.interactivity.${opt}`, opt) }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.audience') }}</label>
+              <select v-model="educational.intended_end_user_role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">{{ t('contribution.step5edu.unset') }}</option>
+                <option v-for="opt in endUserRoleOptions" :key="opt" :value="opt">{{ t(`lom.audience.${opt}`, opt) }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.approach') }}</label>
+              <select v-model="educational.pedagogical_approach" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">{{ t('contribution.step5edu.unset') }}</option>
+                <option v-for="opt in pedagogicalApproachOptions" :key="opt" :value="opt">{{ t(`lom.approach.${opt}`, opt) }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.objectives') }}</label>
+            <textarea v-model="objectivesText" @blur="syncObjectivesFromText" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.objectives')"></textarea>
+            <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step5edu.help.objectives') }}</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.prerequisites') }}</label>
+            <textarea v-model="educational.prerequisites" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.prerequisites')"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.competencies') }}</label>
+            <textarea v-model="educational.competencies" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.competencies')"></textarea>
+          </div>
+        </div>
+
+        <!-- Step 6: Review -->
+        <div v-if="currentStep === 6" class="space-y-6">
           <div class="bg-gray-50 p-6 rounded-lg">
             <h3 class="text-lg font-bold text-gray-900 mb-4">{{ t('contribution.step5.summary') }}</h3>
             <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">

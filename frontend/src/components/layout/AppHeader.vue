@@ -94,6 +94,13 @@ onUnmounted(() => {
           >
             {{ t('nav.moderation') }}
           </RouterLink>
+          <RouterLink
+            v-if="authStore.isTeacher || authStore.user?.is_staff"
+            to="/teach"
+            class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
+          >
+            {{ t('nav.teach') }}
+          </RouterLink>
         </div>
 
         <!-- Auth Buttons / User Menu -->
@@ -293,7 +300,15 @@ onUnmounted(() => {
         >
           {{ t('nav.moderation') }}
         </RouterLink>
-        
+        <RouterLink
+          v-if="authStore.isTeacher || authStore.user?.is_staff"
+          to="/teach"
+          class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
+          @click="mobileMenuOpen = false"
+        >
+          {{ t('nav.teach') }}
+        </RouterLink>
+
         <div class="pt-3 border-t border-gray-200 space-y-2" v-if="authStore.isAuthenticated">
              <div class="px-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                  {{ t('nav.myAccount') }}

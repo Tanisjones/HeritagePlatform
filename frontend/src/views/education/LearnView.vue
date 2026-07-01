@@ -24,7 +24,27 @@ const filters = ref({
   context: '',
   difficulty: '',
   language: '',
+  ageBand: '',      // '', 'children' (<12), 'teens' (12-17), 'adults' (18+)
+  timeBand: '',     // '', 'short' (<30m), 'medium' (30-90m), 'long' (>90m)
+  withObjectives: false,
 });
+
+// Parse an ISO-8601 duration (e.g. "PT1H30M") into minutes; null if unparseable.
+const iso8601ToMinutes = (value?: string): number | null => {
+  if (!value) return null;
+  const m = value.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/);
+  if (!m) return null;
+  const [, d, h, min, s] = m.map((x) => (x ? Number(x) : 0));
+  const total = (d || 0) * 1440 + (h || 0) * 60 + (min || 0) + (s || 0) / 60;
+  return total > 0 ? total : null;
+};
+
+// Lowest age mentioned in a free-text range like "12-14" or "18+"; null if none.
+const ageLowerBound = (range?: string): number | null => {
+  if (!range) return null;
+  const m = range.match(/\d+/);
+  return m ? Number(m[0]) : null;
+};
 
 const tabs = [
     { value: '', label: 'learn.tabs.all' },
@@ -149,6 +169,27 @@ const filteredResources = computed(() => {
       return false;
     }
 
+    if (filters.value.ageBand) {
+      const age = ageLowerBound(edu.typical_age_range);
+      if (age === null) return false;
+      if (filters.value.ageBand === 'children' && age >= 12) return false;
+      if (filters.value.ageBand === 'teens' && (age < 12 || age >= 18)) return false;
+      if (filters.value.ageBand === 'adults' && age < 18) return false;
+    }
+
+    if (filters.value.timeBand) {
+      const minutes = iso8601ToMinutes(edu.typical_learning_time);
+      if (minutes === null) return false;
+      if (filters.value.timeBand === 'short' && minutes >= 30) return false;
+      if (filters.value.timeBand === 'medium' && (minutes < 30 || minutes > 90)) return false;
+      if (filters.value.timeBand === 'long' && minutes <= 90) return false;
+    }
+
+    if (filters.value.withObjectives) {
+      const objectives = edu.learning_objectives;
+      if (!Array.isArray(objectives) || objectives.length === 0) return false;
+    }
+
     return true;
   });
 });
@@ -161,6 +202,9 @@ const clearFilters = () => {
     context: '',
     difficulty: '',
     language: '',
+    ageBand: '',
+    timeBand: '',
+    withObjectives: false,
   };
 };
 
@@ -259,6 +303,32 @@ onMounted(fetchLom);
             </option>
           </select>
         </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('learn.filters.age') }}</label>
+          <select
+            v-model="filters.ageBand"
+            class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500"
+          >
+            <option value="">{{ t('learn.options.any') }}</option>
+            <option value="children">{{ t('learn.ageBands.children') }}</option>
+            <option value="teens">{{ t('learn.ageBands.teens') }}</option>
+            <option value="adults">{{ t('learn.ageBands.adults') }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('learn.filters.time') }}</label>
+          <select
+            v-model="filters.timeBand"
+            class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500"
+          >
+            <option value="">{{ t('learn.options.any') }}</option>
+            <option value="short">{{ t('learn.timeBands.short') }}</option>
+            <option value="medium">{{ t('learn.timeBands.medium') }}</option>
+            <option value="long">{{ t('learn.timeBands.long') }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-3">
@@ -276,6 +346,10 @@ onMounted(fetchLom);
         >
           {{ t('learn.filters.clear') }}
         </button>
+        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+          <input v-model="filters.withObjectives" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          {{ t('learn.filters.withObjectives') }}
+        </label>
         <span class="text-sm text-gray-500">{{ t('learn.filters.showing', { count: filteredResources.length, total: lomResources.length }) }}</span>
       </div>
     </section>
@@ -356,6 +430,12 @@ onMounted(fetchLom);
                 <p v-if="resource.keywords?.length" class="text-xs text-gray-500">
                     <span class="font-medium text-gray-700">{{ t('learn.labels.keywords') }}:</span> {{ resource.keywords.slice(0, 5).join(', ') }}
                 </p>
+                <div v-if="resource.educational?.learning_objectives?.length" class="text-xs text-gray-600">
+                    <span class="font-medium text-gray-700">{{ t('learn.labels.objectives') }}:</span>
+                    <ul class="list-disc list-inside mt-0.5 space-y-0.5">
+                      <li v-for="(obj, i) in resource.educational.learning_objectives.slice(0, 3)" :key="i" class="line-clamp-1">{{ obj }}</li>
+                    </ul>
+                </div>
             </div>
           </div>
           

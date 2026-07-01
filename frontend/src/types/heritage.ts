@@ -42,16 +42,19 @@ export interface LOMRelation {
 
 export interface LOMGeneral {
   id?: string;
+  heritage_item_id?: string;
   title?: string;
   language?: string;
   description?: string;
   keywords: string[];
   coverage: string;
+  structure?: string;
+  aggregation_level?: number;
   relations?: LOMRelation[];
 }
 
 export interface LOMEducational {
-  id: string;
+  id?: string;
   interactivity_type?: string;
   learning_resource_type: string;
   interactivity_level?: string;
@@ -61,7 +64,15 @@ export interface LOMEducational {
   difficulty: string;
   typical_age_range: string;
   typical_learning_time: string;
+  description?: string;
   language?: string;
+  // Pedagogical (Riobamba LOM §5 extension)
+  learning_objectives?: string[];
+  prerequisites?: string;
+  competencies?: string;
+  pedagogical_approach?: string;
+  curriculum_alignment?: string;
+  suggested_activities?: string;
 }
 
 export interface LOMRights {
@@ -80,13 +91,30 @@ export interface LOMLifeCycle {
 export interface LOMClassification {
   id?: string;
   purpose?: string;
+  taxon_source?: string;
+  taxon_id?: string;
+  taxon_entry?: string;
+  description?: string;
+  keywords?: string;
+}
+
+export interface AssessmentQuestion {
+  id?: string;
+  order?: number;
+  question_type?: 'single_choice' | 'multiple_choice' | 'true_false' | 'short_answer';
+  prompt?: string;
+  choices?: Array<{ id?: string; text?: string; correct?: boolean }>;
+  correct_response?: string;
+  feedback?: string;
 }
 
 export interface LOMMetadata extends LOMGeneral {
+  // Matches the backend LOMGeneralSerializer nested read shape.
   educational?: LOMEducational | LOMEducational[];
   rights?: LOMRights;
-  life_cycle?: LOMLifeCycle;
-  classification?: LOMClassification;
+  lifecycle?: LOMLifeCycle;
+  classifications?: LOMClassification[];
+  questions?: AssessmentQuestion[];
 }
 
 export interface LOMResource {
