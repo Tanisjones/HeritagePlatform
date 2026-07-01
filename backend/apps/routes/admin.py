@@ -4,7 +4,15 @@ Admin configuration for routes app models.
 
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
-from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating
+from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating, RouteTheme
+
+
+@admin.register(RouteTheme)
+class RouteThemeAdmin(admin.ModelAdmin):
+    """Admin for the curated route-theme vocabulary (H.2)."""
+    list_display = ['name', 'slug', 'color', 'order']
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ['order', 'name']
 
 
 class RouteStopInline(admin.TabularInline):

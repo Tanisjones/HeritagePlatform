@@ -201,6 +201,8 @@ export const aiSuggestionService = {
 
 export const routeService = {
   list: (params?: Record<string, any>) => api.get('/routes/', { params }),
+  // H.2: curated route-theme vocabulary for the builder selector.
+  themes: () => api.get('/route-themes/'),
   get: (id: string) => api.get(`/routes/${id}/`),
   create: (payload: RouteCreateData) => api.post('/routes/', payload),
   update: (id: string, payload: Partial<RouteCreateData>) => api.patch(`/routes/${id}/`, payload),

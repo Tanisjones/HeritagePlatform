@@ -21,7 +21,7 @@ from apps.education.views import (
     LessonPlanViewSet,
 )
 from apps.moderation.views import ModerationViewSet, ReviewChecklistViewSet, ContributionFlagViewSet
-from apps.routes.views import RouteViewSet, UserRouteProgressViewSet
+from apps.routes.views import RouteViewSet, UserRouteProgressViewSet, RouteThemeViewSet
 from apps.gamification import views as gamification_views
 from apps.ai_services import views as ai_services_views
 from apps.ai_services.assist_views import (
@@ -88,6 +88,7 @@ router.register(r'my-contributions', MyContributionsViewSet, basename='my-contri
 
 # Route endpoints
 router.register(r'routes', RouteViewSet, basename='route')
+router.register(r'route-themes', RouteThemeViewSet, basename='route-theme')
 router.register(r'route-progress', UserRouteProgressViewSet, basename='route-progress')
 
 # Gamification endpoints

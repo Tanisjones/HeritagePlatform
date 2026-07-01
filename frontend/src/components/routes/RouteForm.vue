@@ -9,7 +9,9 @@ import AppInput from '@/components/common/AppInput.vue'
 import AppCard from '@/components/common/AppCard.vue'
 import AiActionButton from '@/components/common/AiActionButton.vue'
 import RouteBuilderMap from '@/components/routes/RouteBuilderMap.vue'
-import type { HeritageItem, Point, RouteCreateData } from '@/types/heritage'
+import { routeService } from '@/services/api'
+import { unwrapResults } from '@/utils/pagination'
+import type { HeritageItem, Point, RouteCreateData, RouteTheme } from '@/types/heritage'
 
 const { t } = useI18n()
 
@@ -38,6 +40,8 @@ const AVAILABLE_LANGUAGES = ['es', 'en'] as const
 const title = ref(props.initial?.title || '')
 const description = ref(props.initial?.description || '')
 const theme = ref(props.initial?.theme || '')
+const themeCategory = ref<string>(props.initial?.theme_category || '')
+const themes = ref<RouteTheme[]>([])
 const difficulty = ref<RouteCreateData['difficulty']>(props.initial?.difficulty || 'medium')
 const distanceKm = ref<string>(
   typeof props.initial?.distance === 'number' && Number.isFinite(props.initial.distance)
@@ -79,8 +83,13 @@ const { applyAIError } = useAiError()
 const aiLoading = ref(false)
 const aiError = ref('')
 
-onMounted(() => {
+onMounted(async () => {
   refreshAIAvailability()
+  try {
+    themes.value = unwrapResults<RouteTheme>((await routeService.themes()).data)
+  } catch {
+    themes.value = []
+  }
 })
 
 const canSubmit = computed(() => title.value.trim().length > 0 && description.value.trim().length > 0)
@@ -188,6 +197,7 @@ function submit() {
     title: title.value.trim(),
     description: description.value.trim(),
     theme: theme.value.trim() || undefined,
+    theme_category: themeCategory.value || null,
     difficulty: difficulty.value || 'medium',
     distance: Number.isFinite(parsedDistance as any) ? (parsedDistance as number) : undefined,
     estimated_duration: estimatedDuration.value.trim() || undefined,
@@ -219,6 +229,13 @@ function submit() {
       <h2 class="text-xl font-semibold text-gray-900 mb-4">{{ t('routesUi.form.routeDetailsTitle') }}</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <AppInput v-model="title" :label="t('routesUi.form.titleLabel')" :placeholder="t('routesUi.form.titlePlaceholder')" />
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('routesUi.form.themeCategoryLabel') }}</label>
+          <select v-model="themeCategory" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option value="">{{ t('routesUi.form.themeCategoryNone') }}</option>
+            <option v-for="th in themes" :key="th.id" :value="th.id">{{ th.name }}</option>
+          </select>
+        </div>
         <AppInput v-model="theme" :label="t('routesUi.form.themeLabel')" :placeholder="t('routesUi.form.themePlaceholder')" />
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('routesUi.form.descriptionLabel') }}</label>

@@ -6,9 +6,17 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeometryField
 
-from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating
+from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating, RouteTheme
 from .routing import build_path_for_stops
 from apps.heritage.serializers import HeritageItemListSerializer
+
+
+class RouteThemeSerializer(serializers.ModelSerializer):
+    """Curated route theme (H.2). Read shape for the picker + nested route reads."""
+
+    class Meta:
+        model = RouteTheme
+        fields = ['id', 'name', 'slug', 'description', 'color']
 
 
 class UserPublicSerializer(serializers.Serializer):
@@ -61,11 +69,13 @@ class RouteListSerializer(serializers.ModelSerializer):
     creator = UserPublicSerializer(read_only=True)
     stop_count = serializers.SerializerMethodField()
     is_active = serializers.SerializerMethodField()
+    theme_category_detail = RouteThemeSerializer(source='theme_category', read_only=True)
 
     class Meta:
         model = HeritageRoute
         fields = [
-            'id', 'title', 'description', 'theme', 'difficulty',
+            'id', 'title', 'description', 'theme', 'theme_category', 'theme_category_detail',
+            'difficulty',
             'estimated_duration', 'distance', 'is_official', 'status',
             'creator', 'stop_count', 'view_count', 'completion_count',
             'average_rating', 'wheelchair_accessible', 'best_season',
@@ -130,6 +140,7 @@ class RouteDetailSerializer(serializers.ModelSerializer):
     path = GeometryField(read_only=True)
     user_progress = serializers.SerializerMethodField()
     user_rating = serializers.SerializerMethodField()
+    theme_category_detail = RouteThemeSerializer(source='theme_category', read_only=True)
 
     class Meta:
         model = HeritageRoute
@@ -166,7 +177,7 @@ class RouteCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeritageRoute
         fields = [
-            'title', 'description', 'theme', 'difficulty',
+            'title', 'description', 'theme', 'theme_category', 'difficulty',
             'estimated_duration', 'distance', 'path',
             'wheelchair_accessible', 'public_transit_accessible',
             'accessibility_notes', 'best_season', 'estimated_cost',
@@ -313,12 +324,22 @@ class RouteCreateSerializer(serializers.ModelSerializer):
             if validated_data.get(name) is not None
         }
 
+    @staticmethod
+    def _denormalize_theme(route):
+        """Keep the legacy `theme` string in sync with the curated category, so
+        thematic search and theme-based gamification (which key off the string) keep
+        working when the client sets `theme_category` instead of free text."""
+        if route.theme_category_id and not (route.theme or '').strip():
+            route.theme = route.theme_category.name
+            route.save(update_fields=['theme'])
+
     def create(self, validated_data):
         """Create a route with nested stops, then auto-generate geometry."""
         stops_data = validated_data.pop('stops', [])
         client_supplied = self._client_geometry_fields(validated_data)
         with transaction.atomic():
             route = HeritageRoute.objects.create(**validated_data)
+            self._denormalize_theme(route)
             if stops_data:
                 self._diff_stops(route, stops_data)
         # Routing (possible HTTP call) runs after the transaction commits.
@@ -334,6 +355,7 @@ class RouteCreateSerializer(serializers.ModelSerializer):
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
             instance.save()
+            self._denormalize_theme(instance)
 
             if stops_data is not None:
                 self._diff_stops(instance, stops_data)

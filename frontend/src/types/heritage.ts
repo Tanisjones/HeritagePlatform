@@ -231,6 +231,8 @@ export interface HeritageRoute {
   title: string;
   description: string;
   theme?: string;
+  theme_category?: string | null;
+  theme_category_detail?: RouteTheme | null;
   difficulty?: 'easy' | 'medium' | 'hard';
   estimated_duration?: string | null;
   distance?: number | null;
@@ -285,10 +287,20 @@ export interface RouteStopCreateData {
   title?: string;
 }
 
+export interface RouteTheme {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  color?: string;
+}
+
 export interface RouteCreateData {
   title: string;
   description: string;
   theme?: string;
+  /** FK to a curated RouteTheme (H.2); the `theme` string is denormalized server-side. */
+  theme_category?: string | null;
   difficulty?: 'easy' | 'medium' | 'hard';
   estimated_duration?: string | null;
   distance?: number | null;

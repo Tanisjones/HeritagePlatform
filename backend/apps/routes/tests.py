@@ -537,3 +537,44 @@ class RouteProgressViewSetTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
         self.assertEqual(response.data['results'][0]['route'], self.route.id)
+
+
+class RouteThemeTaxonomyTest(TestCase):
+    """H.2 — curated RouteTheme vocabulary + FK on routes."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+
+    def test_themes_seeded_and_public(self):
+        from apps.routes.models import RouteTheme
+        # The data migration seeds the curated set.
+        self.assertGreaterEqual(RouteTheme.objects.count(), 6)
+        resp = self.client.get('/api/v1/route-themes/')
+        self.assertEqual(resp.status_code, 200)
+        slugs = {t['slug'] for t in resp.data}
+        self.assertIn('colonial-architecture', slugs)
+        # Read shape carries a color + localized name.
+        colonial = next(t for t in resp.data if t['slug'] == 'colonial-architecture')
+        self.assertTrue(colonial['color'])
+        self.assertTrue(colonial['name'])
+
+    def test_route_can_reference_theme_and_denormalizes_string(self):
+        from apps.routes.models import RouteTheme
+        from django.contrib.auth import get_user_model
+        from rest_framework.test import APIClient
+        User = get_user_model()
+        theme = RouteTheme.objects.get(slug='religious-heritage')
+        user = User.objects.create_user(email='rt_theme@example.com', password='pw')
+        c = APIClient()
+        c.force_authenticate(user=user)
+        resp = c.post('/api/v1/routes/', {
+            'title': 'Ruta de iglesias', 'description': 'd',
+            'theme_category': str(theme.id),
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        from apps.routes.models import HeritageRoute
+        route = HeritageRoute.objects.get(title='Ruta de iglesias')
+        self.assertEqual(route.theme_category_id, theme.id)
+        # legacy `theme` string is denormalized from the category name.
+        self.assertEqual(route.theme, theme.name)

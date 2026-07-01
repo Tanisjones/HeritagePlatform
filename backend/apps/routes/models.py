@@ -5,6 +5,31 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import F
 import uuid
 
+
+class RouteTheme(models.Model):
+    """Curated thematic category for routes (H.2).
+
+    Replaces the free-text ``HeritageRoute.theme`` string with a governed vocabulary
+    so thematic discovery and theme-based gamification key off a stable slug/color
+    instead of arbitrary text. ``name``/``description`` are translatable (es-first).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(_('name'), max_length=100)
+    slug = models.SlugField(_('slug'), max_length=120, unique=True)
+    description = models.TextField(_('description'), blank=True)
+    # Hex color for map/badge chips (e.g. "#c76b4a"). Free-form; UI validates.
+    color = models.CharField(_('color'), max_length=20, blank=True)
+    order = models.IntegerField(_('order'), default=0)
+
+    class Meta:
+        verbose_name = _('route theme')
+        verbose_name_plural = _('route themes')
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
 class HeritageRoute(models.Model):
     """
     Tourist or educational route attempting to visit multiple heritage items.
@@ -35,7 +60,18 @@ class HeritageRoute(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(_('title'), max_length=200)
     description = models.TextField(_('description'))
+    # Legacy free-text theme, kept for backward-compat + as a denormalized display/
+    # gamification key. New authoring sets `theme_category` (curated); the string is
+    # backfilled from it. See H.2.
     theme = models.CharField(_('theme'), max_length=100, blank=True)
+    theme_category = models.ForeignKey(
+        'RouteTheme',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='routes',
+        verbose_name=_('theme category'),
+    )
     difficulty = models.CharField(_('difficulty'), max_length=20, choices=DIFFICULTY_CHOICES, default='medium')
     estimated_duration = models.DurationField(_('estimated duration'), null=True, blank=True)
     distance = models.FloatField(_('distance (km)'), null=True, blank=True)

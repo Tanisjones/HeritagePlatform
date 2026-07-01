@@ -11,14 +11,15 @@ from django.utils.http import content_disposition_header
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .exports import build_gpx, build_kml, slugify_filename, GPX_CONTENT_TYPE, KML_CONTENT_TYPE
-from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating
+from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating, RouteTheme
 from .routing import haversine_m
 from .serializers import (
     RouteListSerializer,
     RouteDetailSerializer,
     RouteCreateSerializer,
     UserRouteProgressSerializer,
-    RouteRatingSerializer
+    RouteRatingSerializer,
+    RouteThemeSerializer,
 )
 
 
@@ -490,7 +491,11 @@ class RouteViewSet(viewsets.ModelViewSet):
             )
 
         selector = Q()
-        if route.theme:
+        # Prefer the curated theme category (robust); fall back to the legacy
+        # free-text theme for routes not yet categorized.
+        if route.theme_category_id:
+            selector |= Q(theme_category_id=route.theme_category_id)
+        elif route.theme:
             selector |= Q(theme__iexact=route.theme)
         if overlap_ids:
             selector |= Q(pk__in=overlap_ids)
@@ -632,3 +637,15 @@ class UserRouteProgressViewSet(viewsets.ReadOnlyModelViewSet):
             )
             .order_by('-started_at')
         )
+
+
+class RouteThemeViewSet(viewsets.ReadOnlyModelViewSet):
+    """Curated route themes (H.2) for the route-builder selector and discovery.
+
+    Read-only + public: the vocabulary is seeded/managed in the admin, not authored
+    through the API.
+    """
+    queryset = RouteTheme.objects.all()
+    serializer_class = RouteThemeSerializer
+    permission_classes = [permissions.AllowAny]
+    pagination_class = None

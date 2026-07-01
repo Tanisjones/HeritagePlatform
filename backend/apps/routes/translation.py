@@ -6,7 +6,7 @@ after changing this file.
 """
 
 from modeltranslation.translator import translator, TranslationOptions
-from .models import HeritageRoute, RouteStop
+from .models import HeritageRoute, RouteStop, RouteTheme
 
 
 class HeritageRouteTranslationOptions(TranslationOptions):
@@ -19,5 +19,11 @@ class RouteStopTranslationOptions(TranslationOptions):
     fields = ('arrival_instructions',)
 
 
+class RouteThemeTranslationOptions(TranslationOptions):
+    """Curated theme labels are user-facing (es-first)."""
+    fields = ('name', 'description')
+
+
 translator.register(HeritageRoute, HeritageRouteTranslationOptions)
 translator.register(RouteStop, RouteStopTranslationOptions)
+translator.register(RouteTheme, RouteThemeTranslationOptions)

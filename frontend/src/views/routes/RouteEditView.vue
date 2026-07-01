@@ -44,6 +44,7 @@ onMounted(async () => {
     title: loaded.title,
     description: loaded.description,
     theme: loaded.theme,
+    theme_category: loaded.theme_category ?? undefined,
     difficulty: loaded.difficulty,
     estimated_duration: loaded.estimated_duration ?? undefined,
     distance: loaded.distance ?? undefined,
