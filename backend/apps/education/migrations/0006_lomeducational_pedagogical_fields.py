@@ -4,9 +4,10 @@
 # extension) plus their modeltranslation language columns, and tightens
 # typical_learning_time to an ISO-8601 validated value.
 #
-# NOTE: the *_es / *_en / *_qu language columns below mirror exactly what
-# `makemigrations` emits for django-modeltranslation-registered fields
-# (prerequisites, competencies, suggested_activities). If you regenerate this
+# NOTE: the *_es / *_en language columns below mirror what `makemigrations`
+# emits for django-modeltranslation-registered fields (prerequisites,
+# competencies, suggested_activities). The project configures only es/en
+# (settings LANGUAGES), so there are no *_qu columns. If you regenerate this
 # migration in Docker it should be a no-op.
 
 import apps.education.models
@@ -107,16 +108,6 @@ class Migration(migrations.Migration):
                 verbose_name="competencies",
             ),
         ),
-        migrations.AddField(
-            model_name="lomeducational",
-            name="competencies_qu",
-            field=models.TextField(
-                blank=True,
-                help_text="Competencies or skills this resource helps develop",
-                null=True,
-                verbose_name="competencies",
-            ),
-        ),
         # --- modeltranslation language columns (prerequisites) ---
         migrations.AddField(
             model_name="lomeducational",
@@ -138,16 +129,6 @@ class Migration(migrations.Migration):
                 verbose_name="prerequisites",
             ),
         ),
-        migrations.AddField(
-            model_name="lomeducational",
-            name="prerequisites_qu",
-            field=models.TextField(
-                blank=True,
-                help_text="Prior knowledge or resources needed before using this object",
-                null=True,
-                verbose_name="prerequisites",
-            ),
-        ),
         # --- modeltranslation language columns (suggested_activities) ---
         migrations.AddField(
             model_name="lomeducational",
@@ -162,16 +143,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="lomeducational",
             name="suggested_activities_es",
-            field=models.TextField(
-                blank=True,
-                help_text="Suggested classroom activities / reuse guidance for educators",
-                null=True,
-                verbose_name="suggested activities",
-            ),
-        ),
-        migrations.AddField(
-            model_name="lomeducational",
-            name="suggested_activities_qu",
             field=models.TextField(
                 blank=True,
                 help_text="Suggested classroom activities / reuse guidance for educators",

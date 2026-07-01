@@ -6,6 +6,30 @@ from .models import (
     EducationalResource, ResourceType, ResourceCategory
 )
 
+
+def _sync_ordered_children(manager, model, parent, entries):
+    """Reconcile a FK-many relation with a desired list of child dicts.
+
+    Updates existing rows in positional order (preserving their primary keys —
+    so UUIDs and any references survive an edit), creates rows for extra
+    payloads, and deletes any surplus existing rows. This replaces the naive
+    delete-then-recreate, which churned every child's UUID on every save.
+    """
+    existing = list(manager.all())
+    field_name = manager.field.name
+    for idx, data in enumerate(entries):
+        if idx < len(existing):
+            obj = existing[idx]
+            for attr, value in data.items():
+                setattr(obj, attr, value)
+            obj.save()
+        else:
+            model.objects.create(**{field_name: parent}, **data)
+    # Remove rows beyond the new set's length.
+    for obj in existing[len(entries):]:
+        obj.delete()
+
+
 class LOMContributorSerializer(serializers.ModelSerializer):
     class Meta:
         model = LOMContributor
@@ -46,16 +70,31 @@ class LOMRelationCreateSerializer(serializers.ModelSerializer):
         exclude = ['created_at', 'updated_at']
 
 class AssessmentQuestionSerializer(serializers.ModelSerializer):
-    """Full assessment-question serializer.
-
-    NOTE: this exposes ``choices[].correct`` and ``correct_response`` — fine for
-    authoring/curator views, but a public "quiz-taking" endpoint should strip
-    those answer keys (e.g. via a separate read serializer) so learners can't
-    read the answers off the wire.
+    """Full assessment-question serializer including the answer key
+    (``choices[].correct``, ``correct_response``). Use ONLY for authenticated
+    authoring/curator/QTI-export paths — never for anonymous reads. Public reads
+    go through AssessmentQuestionPublicSerializer, which strips the answers.
     """
     class Meta:
         model = AssessmentQuestion
         exclude = ['lom_general', 'created_at', 'updated_at']
+
+
+class AssessmentQuestionPublicSerializer(serializers.ModelSerializer):
+    """Answer-key-free view of a question for unauthenticated learners: choices
+    keep only their id/text, and correct_response is dropped entirely."""
+    choices = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AssessmentQuestion
+        fields = ['id', 'order', 'question_type', 'prompt', 'choices', 'feedback']
+
+    def get_choices(self, obj):
+        result = []
+        for c in (obj.choices or []):
+            if isinstance(c, dict):
+                result.append({k: c.get(k) for k in ('id', 'text') if k in c})
+        return result
 
 
 class AssessmentQuestionNestedSerializer(serializers.ModelSerializer):
@@ -124,17 +163,17 @@ class LOMGeneralWriteSerializer(serializers.ModelSerializer):
                 lom_general=instance, defaults=lifecycle
             )
 
-        # Classifications (FK many): replace the set.
+        # FK-many children: sync in place rather than delete-and-recreate, so
+        # existing rows keep their UUIDs when a client edits (not reorders) the
+        # set. Surplus rows are removed; new payloads create new rows.
         if classifications is not None:
-            instance.classifications.all().delete()
-            for entry in classifications:
-                LOMClassification.objects.create(lom_general=instance, **entry)
-
-        # Questions (FK many): replace the set (same semantics as classifications).
+            _sync_ordered_children(
+                instance.classifications, LOMClassification, instance, classifications
+            )
         if questions is not None:
-            instance.questions.all().delete()
-            for entry in questions:
-                AssessmentQuestion.objects.create(lom_general=instance, **entry)
+            _sync_ordered_children(
+                instance.questions, AssessmentQuestion, instance, questions
+            )
 
         instance.refresh_from_db()
         return instance

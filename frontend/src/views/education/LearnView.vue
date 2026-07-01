@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import api from '@/services/api';
 import { apiBaseUrl } from '@/utils/apiUrl';
+import { iso8601ToMinutes } from '@/utils/duration';
 import type { LOMResource } from '@/types/heritage';
 import { useI18n } from 'vue-i18n';
 
@@ -28,16 +29,6 @@ const filters = ref({
   timeBand: '',     // '', 'short' (<30m), 'medium' (30-90m), 'long' (>90m)
   withObjectives: false,
 });
-
-// Parse an ISO-8601 duration (e.g. "PT1H30M") into minutes; null if unparseable.
-const iso8601ToMinutes = (value?: string): number | null => {
-  if (!value) return null;
-  const m = value.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/);
-  if (!m) return null;
-  const [, d, h, min, s] = m.map((x) => (x ? Number(x) : 0));
-  const total = (d || 0) * 1440 + (h || 0) * 60 + (min || 0) + (s || 0) / 60;
-  return total > 0 ? total : null;
-};
 
 // Lowest age mentioned in a free-text range like "12-14" or "18+"; null if none.
 const ageLowerBound = (range?: string): number | null => {

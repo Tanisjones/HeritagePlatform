@@ -19,12 +19,12 @@ const loading = ref(false);
 const errorMessage = ref('');
 const packagingId = ref<string | null>(null);
 const packagingError = ref<string | null>(null);
-const selectedFormat = ref<'scorm12' | 'scorm2004' | 'cmi5'>('scorm12');
+// Route packages support SCORM 1.2 / 2004 only (cmi5 collections aren't modelled).
+const selectedFormat = ref<'scorm12' | 'scorm2004'>('scorm12');
 
 const formats = [
   { value: 'scorm12', labelKey: 'teach.formats.scorm12' },
   { value: 'scorm2004', labelKey: 'teach.formats.scorm2004' },
-  { value: 'cmi5', labelKey: 'teach.formats.cmi5' },
 ];
 
 const fetchRoutes = async () => {
@@ -59,8 +59,7 @@ const exportRoute = async (route: HeritageRoute) => {
   try {
     const res = await teacherService.downloadRoutePackage(route.id, selectedFormat.value);
     const slug = (route.title || 'route').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
-    const ext = selectedFormat.value === 'cmi5' ? 'zip' : 'zip';
-    saveBlob(res.data as Blob, `${slug}-${selectedFormat.value}.${ext}`);
+    saveBlob(res.data as Blob, `${slug}-${selectedFormat.value}.zip`);
   } catch (e: any) {
     // Blob error bodies need to be read back as text.
     let msg = t('teach.errors.package');

@@ -15,6 +15,12 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import type { HeritageItemContribution, Parish, HeritageType, HeritageCategory } from '@/types/heritage';
 import api, { aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability'
+import { useAiError } from '@/composables/useAiError';
+import { isValidIso8601Duration, looksLikeMonthsNotMinutes } from '@/utils/duration';
+import {
+  LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS, LOM_INTERACTIVITY_TYPES,
+  LOM_END_USER_ROLES, LOM_PEDAGOGICAL_APPROACHES,
+} from '@/constants/lomVocab';
 import AiActionButton from '@/components/common/AiActionButton.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
@@ -92,20 +98,27 @@ const educational = reactive<EducationalDraft>(createEducationalDraft());
 // Single-line editing buffer for the learning-objectives list (one per line).
 const objectivesText = ref('');
 
-// Vocabularies mirror the backend LOMEducational choices; labels come from i18n
+// Client-side ISO-8601 guard for learning time (mirrors the backend validator),
+// so a bad value is caught here instead of failing the whole submit server-side.
+const eduTimeError = ref('');
+watch(() => educational.typical_learning_time, (value) => {
+  if (value && !isValidIso8601Duration(value)) {
+    eduTimeError.value = t('contribution.step5edu.errors.duration');
+  } else if (looksLikeMonthsNotMinutes(value)) {
+    eduTimeError.value = t('contribution.step5edu.errors.months');
+  } else {
+    eduTimeError.value = '';
+  }
+});
+
+// Vocabularies shared with the LOM editor and /learn; labels come from i18n
 // (reuse the existing `lom.*` and `learn.*` keys where possible).
-const resourceTypeOptions = [
-  'narrative_text', 'image', 'audio', 'video', 'document', 'diagram', 'figure',
-  'graph', 'slide', 'table', 'exercise', 'simulation', 'questionnaire', 'exam',
-  'experiment', 'problem_statement', 'self_assessment', 'lecture',
-];
-const difficultyOptions = ['very_easy', 'easy', 'medium', 'difficult', 'very_difficult'];
-const contextOptions = ['school', 'higher_education', 'training', 'other'];
-const interactivityOptions = ['active', 'expositive', 'mixed'];
-const endUserRoleOptions = ['learner', 'teacher', 'author', 'manager'];
-const pedagogicalApproachOptions = [
-  'expository', 'inquiry', 'constructivist', 'project_based', 'collaborative', 'gamified',
-];
+const resourceTypeOptions = LOM_RESOURCE_TYPES;
+const difficultyOptions = LOM_DIFFICULTIES;
+const contextOptions = LOM_CONTEXTS;
+const interactivityOptions = LOM_INTERACTIVITY_TYPES;
+const endUserRoleOptions = LOM_END_USER_ROLES;
+const pedagogicalApproachOptions = LOM_PEDAGOGICAL_APPROACHES;
 
 const formLocation = ref({ lat: -1.67, lng: -78.65 }); // Helper for map binding
 
@@ -148,7 +161,7 @@ const aiSuggestedKeywords = ref<string[]>([]);
 const aiEduLoading = ref(false);
 const aiEduError = ref('');
 const aiEduNote = ref('');
-const { isAvailable: aiAvailable, refresh: refreshAIAvailability, markUnavailable: markAIUnavailable } = useAIAvailability()
+const { isAvailable: aiAvailable, refresh: refreshAIAvailability } = useAIAvailability()
 
 // Map settings
 const zoom = ref(13);
@@ -500,19 +513,8 @@ const submitContribution = async () => {
   }
 };
 
-// Map an AI request error to a localized message in the given ref (503 →
-// unavailable + mark the service down, 429 → rate-limited, else → generic).
-const applyAIError = (err: any, target: { value: string }) => {
-  const status = err?.response?.status;
-  if (status === 503) {
-    target.value = t('ai.unavailable');
-    markAIUnavailable();
-  } else if (status === 429) {
-    target.value = t('ai.rateLimited');
-  } else {
-    target.value = t('ai.genericError');
-  }
-};
+// Shared 503/429/generic → localized-message mapping (also marks AI down on 503).
+const { applyAIError } = useAiError();
 
 const generateAIDraft = async () => {
   if (aiDraftLoading.value || submitting.value) return;
@@ -610,7 +612,7 @@ const generateAIEducational = async () => {
 
     // Only apply values that match a known vocabulary option; free-text/age/time
     // pass through as-is. Objectives replace the current list.
-    const applyEnum = (key: keyof EducationalDraft, value: string | null | undefined, allowed: string[]) => {
+    const applyEnum = (key: keyof EducationalDraft, value: string | null | undefined, allowed: readonly string[]) => {
       if (value && allowed.includes(value)) (educational as any)[key] = value;
     };
     applyEnum('learning_resource_type', res.learning_resource_type, resourceTypeOptions);
@@ -688,7 +690,9 @@ const isStepValid = computed(() => {
     case 4: // Details
       return true; // Optional mostly
     case 5: // Educational layer
-      return true; // Entirely optional; can be completed later or via the LOM editor
+      // Entirely optional, but a malformed learning-time value must be fixed
+      // before continuing (otherwise the backend would 400 on submit).
+      return !eduTimeError.value;
     case 6: // Review
       return true;
     default:
@@ -1057,8 +1061,9 @@ const isStepValid = computed(() => {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.learningTime') }}</label>
-              <input v-model="educational.typical_learning_time" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('contribution.step5edu.placeholders.learningTime')" />
-              <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step5edu.help.learningTime') }}</p>
+              <input v-model="educational.typical_learning_time" type="text" class="w-full px-4 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500" :class="eduTimeError ? 'border-red-400' : 'border-gray-300'" :placeholder="t('contribution.step5edu.placeholders.learningTime')" />
+              <p v-if="eduTimeError" class="text-xs text-red-600 mt-1">{{ eduTimeError }}</p>
+              <p v-else class="text-xs text-gray-500 mt-1">{{ t('contribution.step5edu.help.learningTime') }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.interactivity') }}</label>

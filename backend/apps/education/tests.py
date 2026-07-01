@@ -271,6 +271,8 @@ class EducationSCORMExportAPITest(TestCase):
             self.item.documents.add(pdf)
             self.item.documents.add(txt)
 
+            # SCORM download now requires authentication.
+            self.client.force_authenticate(user=self.user)
             resp = self.client.get(f'/api/v1/education/scorm-packages/{self.item.id}/download/')
             self.assertEqual(resp.status_code, status.HTTP_200_OK)
             self.assertEqual(resp['Content-Type'], 'application/zip')
@@ -732,3 +734,143 @@ class EducationCollectionPackageAPITest(TestCase):
         too_many = ','.join(str(i) for i in range(51))
         resp = self.client.get(f'/api/v1/education/collection-packages/download/?ids={too_many}')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class EducationReviewFixesTest(TestCase):
+    """Regression tests for the F2 code-review fixes."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email='rev_user@example.com', password='password')
+        self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
+        self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
+        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.item = HeritageItem.objects.create(
+            title='Rev Item', description='Desc',
+            heritage_type=self.type, heritage_category=self.category,
+            parish=self.parish, location='POINT(0 0)', status='published',
+        )
+        self.lom = LOMGeneral.objects.create(
+            heritage_item=self.item, title='LO', language='es', description='d',
+        )
+
+    def test_anonymous_question_read_hides_answer_key(self):
+        AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=1, question_type='single_choice',
+            prompt='¿Cuál?', choices=[
+                {'id': 'a', 'text': 'Sí', 'correct': True},
+                {'id': 'b', 'text': 'No', 'correct': False},
+            ],
+            correct_response='a',
+        )
+        # Anonymous read: answer key must be stripped.
+        resp = self.client.get(f'/api/v1/lom-questions/?lom_general={self.lom.id}')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        results = resp.data.get('results', resp.data)
+        q = results[0]
+        self.assertNotIn('correct_response', q)
+        for choice in q['choices']:
+            self.assertNotIn('correct', choice)
+        # Authenticated read: full serializer includes the answer key.
+        self.client.force_authenticate(user=self.user)
+        resp2 = self.client.get(f'/api/v1/lom-questions/?lom_general={self.lom.id}')
+        results2 = resp2.data.get('results', resp2.data)
+        self.assertIn('correct_response', results2[0])
+
+    def test_export_qti_requires_authentication(self):
+        AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=1, question_type='true_false',
+            prompt='¿V o F?', correct_response='true',
+        )
+        resp = self.client.get(f'/api/v1/lom-questions/export-qti/?lom_general={self.lom.id}')
+        self.assertIn(resp.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+    def test_question_update_preserves_uuid_in_place(self):
+        q = AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=1, question_type='single_choice',
+            prompt='Original', choices=[{'id': 'a', 'text': 'A', 'correct': True}],
+        )
+        original_id = q.id
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.patch(
+            f'/api/v1/lom/{self.lom.id}/',
+            {'questions': [{'order': 1, 'question_type': 'single_choice', 'prompt': 'Edited',
+                            'choices': [{'id': 'a', 'text': 'A', 'correct': True}]}]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
+        self.assertEqual(self.lom.questions.count(), 1)
+        survivor = self.lom.questions.first()
+        # Row was updated in place, not delete-and-recreated → same UUID.
+        self.assertEqual(survivor.id, original_id)
+        self.assertEqual(survivor.prompt, 'Edited')
+
+    def test_classification_update_preserves_untouched_rows(self):
+        c = LOMClassification.objects.create(
+            lom_general=self.lom, purpose='discipline',
+            taxon_source='Local', taxon_entry='Arquitectura',
+        )
+        original_id = c.id
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.patch(
+            f'/api/v1/lom/{self.lom.id}/',
+            {'classifications': [{'purpose': 'discipline', 'taxon_source': 'Local',
+                                  'taxon_entry': 'Arquitectura colonial'}]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
+        self.assertEqual(self.lom.classifications.count(), 1)
+        survivor = self.lom.classifications.first()
+        self.assertEqual(survivor.id, original_id)
+        self.assertEqual(survivor.taxon_entry, 'Arquitectura colonial')
+
+    def test_route_package_rejects_cmi5(self):
+        route = HeritageRoute.objects.create(title='R', description='d', status='published')
+        RouteStop.objects.create(route=route, heritage_item=self.item, order=1)
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.get(f'/api/v1/education/route-packages/{route.id}/download/?format=cmi5')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class EducationContributionEducationalTest(TestCase):
+    """The contribution wizard's educational payload flows into LOM, and invalid
+    values surface as a 400 instead of being silently dropped."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email='contrib@example.com', password='password')
+        self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
+        self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
+        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+
+    def _base_payload(self):
+        return {
+            'title': 'Nuevo', 'description': 'Una descripción',
+            'location': {'type': 'Point', 'coordinates': [-78.65, -1.67]},
+            'address': '', 'parish': self.parish.id,
+            'heritage_type': self.type.id, 'heritage_category': self.category.id,
+            'historical_period': 'colonial',
+        }
+
+    def test_valid_educational_payload_is_stored(self):
+        self.client.force_authenticate(user=self.user)
+        payload = self._base_payload()
+        payload['educational'] = {
+            'difficulty': 'easy', 'context': 'school',
+            'typical_learning_time': 'PT30M',
+            'learning_objectives': ['Objetivo 1'],
+        }
+        resp = self.client.post('/api/v1/contributions/', payload, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        item = HeritageItem.objects.get(title='Nuevo')
+        edu = item.lom_general.educational
+        self.assertEqual(edu.difficulty, 'easy')
+        self.assertEqual(edu.context, 'school')
+        self.assertEqual(edu.typical_learning_time, 'PT30M')
+
+    def test_invalid_educational_payload_returns_400(self):
+        self.client.force_authenticate(user=self.user)
+        payload = self._base_payload()
+        payload['educational'] = {'typical_learning_time': '30 minutos'}  # not ISO-8601
+        resp = self.client.post('/api/v1/contributions/', payload, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.content)

@@ -14,6 +14,13 @@ import { reactive, ref, watch } from 'vue';
 import type { LOMMetadata, LOMEducational, LOMClassification } from '@/types/heritage';
 import { educationService, aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability';
+import { useAiError } from '@/composables/useAiError';
+import { isValidIso8601Duration, looksLikeMonthsNotMinutes } from '@/utils/duration';
+import {
+  LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS, LOM_INTERACTIVITY_TYPES,
+  LOM_INTERACTIVITY_LEVELS, LOM_END_USER_ROLES, LOM_PEDAGOGICAL_APPROACHES,
+  LOM_LIFECYCLE_STATUSES, LOM_CLASSIFICATION_PURPOSES,
+} from '@/constants/lomVocab';
 import AiActionButton from '@/components/common/AiActionButton.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
@@ -28,27 +35,19 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'saved', metadata: any): void; (e: 'cancel'): void }>();
 
 const { t, locale } = useI18n();
-const { isAvailable: aiAvailable, refresh: refreshAI, markUnavailable: markAIUnavailable } = useAIAvailability();
+const { isAvailable: aiAvailable, refresh: refreshAI } = useAIAvailability();
+const { applyAIError } = useAiError();
 
-// --- Vocabularies (mirror backend LOMEducational / LOMGeneral / LOMClassification choices) ---
-const resourceTypeOptions = [
-  'narrative_text', 'image', 'audio', 'video', 'document', 'diagram', 'figure',
-  'graph', 'slide', 'table', 'exercise', 'simulation', 'questionnaire', 'exam',
-  'experiment', 'problem_statement', 'self_assessment', 'lecture',
-];
-const difficultyOptions = ['very_easy', 'easy', 'medium', 'difficult', 'very_difficult'];
-const contextOptions = ['school', 'higher_education', 'training', 'other'];
-const interactivityOptions = ['active', 'expositive', 'mixed'];
-const interactivityLevelOptions = ['very_low', 'low', 'medium', 'high', 'very_high'];
-const endUserRoleOptions = ['learner', 'teacher', 'author', 'manager'];
-const pedagogicalApproachOptions = [
-  'expository', 'inquiry', 'constructivist', 'project_based', 'collaborative', 'gamified',
-];
-const lifecycleStatusOptions = ['draft', 'final', 'revised', 'unavailable'];
-const classificationPurposeOptions = [
-  'discipline', 'idea', 'prerequisite', 'educational_objective', 'accessibility_restrictions',
-  'educational_level', 'skill_level', 'security_level', 'competency',
-];
+// --- Vocabularies (shared with the wizard and /learn; mirror backend choices) ---
+const resourceTypeOptions = LOM_RESOURCE_TYPES;
+const difficultyOptions = LOM_DIFFICULTIES;
+const contextOptions = LOM_CONTEXTS;
+const interactivityOptions = LOM_INTERACTIVITY_TYPES;
+const interactivityLevelOptions = LOM_INTERACTIVITY_LEVELS;
+const endUserRoleOptions = LOM_END_USER_ROLES;
+const pedagogicalApproachOptions = LOM_PEDAGOGICAL_APPROACHES;
+const lifecycleStatusOptions = LOM_LIFECYCLE_STATUSES;
+const classificationPurposeOptions = LOM_CLASSIFICATION_PURPOSES;
 
 // --- Editable form state ---
 const general = reactive({
@@ -92,11 +91,17 @@ const aiLoading = ref(false);
 const aiError = ref('');
 const aiNote = ref('');
 
-// ISO-8601 duration client-side guard (mirrors backend validate_iso8601_duration).
-const ISO_DURATION_RE = /^P(?!$)(\d+Y)?(\d+M)?(\d+W)?(\d+D)?(T(?!$)(\d+H)?(\d+M)?(\d+S)?)?$/;
+// ISO-8601 duration client-side guard (shared with /learn; mirrors the backend
+// validator). Also warns on the "P30M means 30 months, not minutes" footgun.
 const learningTimeError = ref('');
 watch(() => educational.typical_learning_time, (value) => {
-  learningTimeError.value = value && !ISO_DURATION_RE.test(value) ? t('lomEditor.errors.duration') : '';
+  if (value && !isValidIso8601Duration(value)) {
+    learningTimeError.value = t('lomEditor.errors.duration');
+  } else if (looksLikeMonthsNotMinutes(value)) {
+    learningTimeError.value = t('lomEditor.errors.months');
+  } else {
+    learningTimeError.value = '';
+  }
 });
 
 // --- Hydrate from the current metadata ---
@@ -153,13 +158,6 @@ const removeClassification = (idx: number) => {
   classifications.value.splice(idx, 1);
 };
 
-const applyAIError = (err: any) => {
-  const status = err?.response?.status;
-  if (status === 503) { aiError.value = t('ai.unavailable'); markAIUnavailable(); }
-  else if (status === 429) aiError.value = t('ai.rateLimited');
-  else aiError.value = t('ai.genericError');
-};
-
 const generateWithAI = async () => {
   if (aiLoading.value || saving.value) return;
   aiError.value = '';
@@ -172,7 +170,7 @@ const generateWithAI = async () => {
       description: String(props.metadata?.description || ''),
       resource_type: educational.learning_resource_type || '',
     });
-    const applyEnum = (key: string, value: string | null | undefined, allowed: string[]) => {
+    const applyEnum = (key: string, value: string | null | undefined, allowed: readonly string[]) => {
       if (value && allowed.includes(value)) educational[key] = value;
     };
     applyEnum('learning_resource_type', res.learning_resource_type, resourceTypeOptions);
@@ -186,7 +184,7 @@ const generateWithAI = async () => {
     }
     aiNote.value = t('ai.educationalApplied');
   } catch (err: any) {
-    applyAIError(err);
+    applyAIError(err, aiError);
   } finally {
     aiLoading.value = false;
   }
@@ -199,26 +197,40 @@ const save = async () => {
   saveError.value = null;
   saveOk.value = false;
 
-  // Only send classifications that have the required taxon fields the backend needs.
-  const cleanClassifications = classifications.value
-    .filter((c) => c.purpose && c.taxon_source && c.taxon_entry)
-    .map((c) => ({
-      purpose: c.purpose,
-      taxon_source: c.taxon_source,
-      taxon_id: c.taxon_id || '',
-      taxon_entry: c.taxon_entry,
-      description: c.description || '',
-      keywords: c.keywords || '',
-    }));
+  // Classifications are sent as a full replace-all set, so we must send EVERY
+  // current row (dropping incomplete ones would let the backend delete them).
+  // A row missing its required taxon fields would fail backend validation, so
+  // block the save and tell the user rather than silently discarding data.
+  const incomplete = classifications.value.some(
+    (c) => !(c.purpose && c.taxon_source && c.taxon_entry)
+  );
+  if (incomplete) {
+    saveError.value = t('lomEditor.errors.incompleteClassification');
+    return;
+  }
+  const allClassifications = classifications.value.map((c) => ({
+    purpose: c.purpose,
+    taxon_source: c.taxon_source,
+    taxon_id: c.taxon_id || '',
+    taxon_entry: c.taxon_entry,
+    description: c.description || '',
+    keywords: c.keywords || '',
+  }));
+
+  // Coerce aggregation_level: a cleared number input yields '' / NaN, which the
+  // backend IntegerField would 400 on — fall back to 1.
+  const aggregationLevel = Number.isFinite(general.aggregation_level)
+    ? general.aggregation_level
+    : 1;
 
   const payload = {
     coverage: general.coverage,
     structure: general.structure,
-    aggregation_level: general.aggregation_level,
+    aggregation_level: aggregationLevel,
     educational: { ...educational },
     rights: { ...rights },
     lifecycle: { ...lifecycle },
-    classifications: cleanClassifications,
+    classifications: allClassifications,
   };
 
   try {

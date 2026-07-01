@@ -53,6 +53,26 @@ def _normalise_choices(raw) -> list:
     return choices
 
 
+def _declare_feedback_outcome(item, feedback: str) -> None:
+    """Declare the FEEDBACK outcome an always-shown modalFeedback depends on.
+
+    A modalFeedback with outcomeIdentifier="FEEDBACK" is invalid QTI 2.1 unless a
+    matching outcomeDeclaration exists. We declare it with a default value equal
+    to the feedback block's identifier ("FB"), so showHide="show" resolves and
+    the feedback is always displayed. No-op when there is no feedback.
+    Must be called after the responseDeclaration(s) and before itemBody.
+    """
+    if not feedback:
+        return
+    outcome = ET.SubElement(
+        item,
+        f"{{{QTI_NS}}}outcomeDeclaration",
+        {"identifier": "FEEDBACK", "cardinality": "single", "baseType": "identifier"},
+    )
+    default = ET.SubElement(outcome, f"{{{QTI_NS}}}defaultValue")
+    ET.SubElement(default, f"{{{QTI_NS}}}value").text = "FB"
+
+
 def build_assessment_item_xml(question, identifier: str) -> str:
     """Emit a single QTI 2.1 ``assessmentItem`` XML for one question."""
     ET.register_namespace("", QTI_NS)
@@ -92,6 +112,13 @@ def build_assessment_item_xml(question, identifier: str) -> str:
                 {"id": "false", "text": "False", "correct": correct_resp in ("false", "0", "no")},
             ]
 
+        # A choiceInteraction with zero simpleChoice children is invalid QTI 2.1
+        # (simpleChoice minOccurs=1). If an author left the choices empty, emit a
+        # single placeholder so the item stays schema-valid and visibly flags the
+        # missing content instead of producing an unusable package.
+        if not choices:
+            choices = [{"id": "CHOICE_1", "text": "(no options provided)", "correct": False}]
+
         correct_ids = [c["id"] for c in choices if c["correct"]]
 
         # responseDeclaration
@@ -108,6 +135,8 @@ def build_assessment_item_xml(question, identifier: str) -> str:
             correct = ET.SubElement(rd, _q("correctResponse"))
             for cid in correct_ids:
                 ET.SubElement(correct, _q("value")).text = cid
+
+        _declare_feedback_outcome(item, feedback)
 
         # itemBody + choiceInteraction
         body = ET.SubElement(item, _q("itemBody"))
@@ -150,6 +179,8 @@ def build_assessment_item_xml(question, identifier: str) -> str:
             correct = ET.SubElement(rd, _q("correctResponse"))
             ET.SubElement(correct, _q("value")).text = correct_resp
 
+        _declare_feedback_outcome(item, feedback)
+
         body = ET.SubElement(item, _q("itemBody"))
         interaction = ET.SubElement(
             body,
@@ -158,20 +189,24 @@ def build_assessment_item_xml(question, identifier: str) -> str:
         )
         ET.SubElement(interaction, _q("prompt")).text = prompt
 
-        # Text answers can't be auto-scored reliably; leave scoring to the LMS.
+        # Only auto-score when an expected answer was supplied; otherwise use the
+        # no-op template so the (comment-promised) LMS/manual grading applies
+        # instead of scoring every free-text answer wrong against a missing key.
+        rp_template = "match_correct" if correct_resp else "none"
         ET.SubElement(
             item,
             _q("responseProcessing"),
             {
                 "template": (
                     "http://www.imsglobal.org/question/qti_v2p1/"
-                    "rptemplates/match_correct"
+                    f"rptemplates/{rp_template}"
                 )
             },
         )
 
     if feedback:
-        # A simple always-shown modal feedback block.
+        # Always-shown modal feedback, keyed on the FEEDBACK outcome declared
+        # above (its default value equals this identifier so showHide works).
         fb = ET.SubElement(
             item,
             _q("modalFeedback"),

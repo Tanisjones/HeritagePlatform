@@ -586,6 +586,10 @@
             "help": {
                 "learningTime": "ISO-8601 duration format (PT30M = 30 minutes, PT1H30M = 1 h 30 min).",
                 "objectives": "Write one objective per line."
+            },
+            "errors": {
+                "duration": "Invalid ISO-8601 duration (e.g. PT30M).",
+                "months": "\"P30M\" means 30 months; for 30 minutes use \"PT30M\"."
             }
         }
     },
@@ -614,7 +618,11 @@
             "problem_statement": "Problem Statement",
             "self_assessment": "Self Assessment",
             "lecture": "Lecture",
-            "exercise": "Exercise"
+            "exercise": "Exercise",
+            "document": "Document",
+            "graph": "Graph",
+            "questionnaire": "Questionnaire",
+            "exam": "Exam"
         },
         "difficulty": {
             "very_easy": "Very Easy",
@@ -1001,7 +1009,9 @@
             "remove": "Remove"
         },
         "errors": {
-            "duration": "Invalid ISO-8601 duration (e.g. PT30M)."
+            "duration": "Invalid ISO-8601 duration (e.g. PT30M).",
+            "months": "\"P30M\" means 30 months; for 30 minutes use \"PT30M\".",
+            "incompleteClassification": "Fill in each classification’s system and entry, or remove it, before saving."
         }
     },
     "teach": {

@@ -469,7 +469,8 @@ onMounted(fetchHeritageItem);
               {{ t('heritage.detail.noEducationalYet') }}
             </div>
 
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6" v-for="(edu, idx) in educationalEntries" :key="idx">
+            <template v-else>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" v-for="(edu, idx) in educationalEntries" :key="idx">
                <!-- Card Item -->
               <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <span class="text-xs font-bold text-secondary-600 uppercase tracking-wider mb-1 block">{{ t('heritage.detail.resourceType') }}</span>
@@ -491,6 +492,7 @@ onMounted(fetchHeritageItem);
                 <span class="text-gray-900 font-medium">{{ edu.typical_learning_time || t('heritage.detail.selfPaced') }}</span>
               </div>
             </div>
+            </template>
           </div>
 
           <!-- Rights & Info -->

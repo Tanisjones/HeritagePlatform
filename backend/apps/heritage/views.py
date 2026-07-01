@@ -346,67 +346,70 @@ class ContributionViewSet(viewsets.ModelViewSet):
         Awards points for the contribution and generates AI suggestions.
         Creates initial LOM metadata.
         """
-        contributor = self.request.user if self.request.user.is_authenticated else None
-        contribution = serializer.save(
-            contributor=contributor,
-            status='pending'
-        )
-        
-        # Create LOM Metadata
+        from django.db import transaction
         from apps.education.models import LOMGeneral, LOMEducational, LOMLifeCycle
-        
-        # 1. Create LOM General
-        lom_general = LOMGeneral.objects.create(
-            heritage_item=contribution,
-            title=contribution.title,
-            description=contribution.description or "",
-            language='es',  # Default to Spanish
-        )
-        
-        # 2. Create LOM Life Cycle
-        LOMLifeCycle.objects.create(
-            lom_general=lom_general,
-            status='draft'  # Matches contribution pending/draft status
-        )
-        
-        # 3. Determine Learning Resource Type
-        resource_type = 'narrative_text'
-        if contribution.images.exists():
-            resource_type = 'image'
-        elif contribution.audio.exists():
-            resource_type = 'audio'
-        elif contribution.video.exists():
-            resource_type = 'video'
-        elif contribution.documents.exists():
-            # Check if it's a narrative text
-            first_doc = contribution.documents.first()
-            if first_doc.mime_type == 'text/html' or first_doc.file.name.endswith('narrative_text.html'):
-                resource_type = 'narrative_text'
-            else:
-                resource_type = 'document'
-            
-        # 4. Create LOM Educational. The resource type is inferred (from the
-        # uploaded media). The rest of the pedagogical layer comes from the
-        # wizard's "Capa educativa" step when present (validated through the LOM
-        # educational serializer so enums / ISO-8601 duration are enforced);
-        # anything not supplied is left to the model defaults / to be completed
-        # later in the UI rather than stamped with misleading "real" values.
         from apps.education.serializers import LOMEducationalSerializer
 
+        # Validate the optional wizard "Capa educativa" payload FIRST, before any
+        # rows are written, so a bad value returns 400 without leaving an orphan
+        # HeritageItem (ATOMIC_REQUESTS is off) and without silently dropping the
+        # contributor's data.
         edu_fields = {}
         edu_payload = self.request.data.get('educational') if hasattr(self.request, 'data') else None
         if isinstance(edu_payload, dict) and edu_payload:
             edu_serializer = LOMEducationalSerializer(data=edu_payload, partial=True)
-            if edu_serializer.is_valid():
-                edu_fields = edu_serializer.validated_data
-        # The inferred resource type wins over a wizard value only if the wizard
-        # left it blank, so an explicit contributor choice is respected.
-        edu_fields.setdefault('learning_resource_type', resource_type)
+            edu_serializer.is_valid(raise_exception=True)
+            edu_fields = dict(edu_serializer.validated_data)
 
-        LOMEducational.objects.create(
-            lom_general=lom_general,
-            **edu_fields,
-        )
+        contributor = self.request.user if self.request.user.is_authenticated else None
+
+        # Wrap the item + its LOM layer in one transaction so a failure part-way
+        # doesn't leave a half-built record.
+        with transaction.atomic():
+            contribution = serializer.save(
+                contributor=contributor,
+                status='pending'
+            )
+
+            # 1. Create LOM General
+            lom_general = LOMGeneral.objects.create(
+                heritage_item=contribution,
+                title=contribution.title,
+                description=contribution.description or "",
+                language='es',  # Default to Spanish
+            )
+
+            # 2. Create LOM Life Cycle
+            LOMLifeCycle.objects.create(
+                lom_general=lom_general,
+                status='draft'  # Matches contribution pending/draft status
+            )
+
+            # 3. Determine Learning Resource Type (inferred from uploaded media).
+            resource_type = 'narrative_text'
+            if contribution.images.exists():
+                resource_type = 'image'
+            elif contribution.audio.exists():
+                resource_type = 'audio'
+            elif contribution.video.exists():
+                resource_type = 'video'
+            elif contribution.documents.exists():
+                # Check if it's a narrative text
+                first_doc = contribution.documents.first()
+                if first_doc.mime_type == 'text/html' or first_doc.file.name.endswith('narrative_text.html'):
+                    resource_type = 'narrative_text'
+                else:
+                    resource_type = 'document'
+
+            # 4. Create LOM Educational. The inferred resource type only fills in
+            # when the wizard left it blank, so an explicit contributor choice is
+            # respected; everything else is the (pre-validated) wizard payload or
+            # model defaults.
+            edu_fields.setdefault('learning_resource_type', resource_type)
+            LOMEducational.objects.create(
+                lom_general=lom_general,
+                **edu_fields,
+            )
 
         handle_contribution_created(contribution)
 

@@ -24,7 +24,8 @@ from .serializers import (
     LOMLifeCycleSerializer, LOMContributorSerializer,
     LOMEducationalSerializer, LOMRightsSerializer,
     LOMClassificationSerializer, LOMRelationSerializer, LOMRelationCreateSerializer,
-    AssessmentQuestionSerializer, EducationalResourceSerializer,
+    AssessmentQuestionSerializer, AssessmentQuestionPublicSerializer,
+    EducationalResourceSerializer,
     ResourceTypeSerializer, ResourceCategorySerializer
 )
 from apps.moderation.permissions import IsTeacher
@@ -347,10 +348,12 @@ class SCORMPackageViewSet(viewsets.ViewSet):
 class AssessmentQuestionViewSet(viewsets.ModelViewSet):
     """CRUD for assessment/quiz questions attached to a learning object.
 
-    Browsing is public (so quizzes render in the ``/learn`` catalogue); writing
-    requires authentication. A QTI 2.1 export of a whole learning object's
-    question set is available at
-    ``/api/v1/lom-questions/export_qti/?lom_general=<uuid>``.
+    Browsing is public (so quizzes render in the ``/learn`` catalogue) BUT
+    anonymous readers get an answer-key-free serializer — the ``correct`` flags
+    and ``correct_response`` are only visible to authenticated users. Writing
+    requires authentication. A QTI 2.1 export (which embeds the answer key) is
+    available to authenticated users at
+    ``/api/v1/lom-questions/export-qti/?lom_general=<uuid>``.
     """
 
     queryset = AssessmentQuestion.objects.select_related('lom_general')
@@ -361,11 +364,26 @@ class AssessmentQuestionViewSet(viewsets.ModelViewSet):
     ordering_fields = ['order', 'created_at', 'updated_at']
     ordering = ['order']
 
+    def get_serializer_class(self):
+        # Anonymous reads must not leak the answer key; authenticated users
+        # (curators/teachers authoring) get the full serializer.
+        user = getattr(self.request, 'user', None)
+        if not (user and user.is_authenticated):
+            return AssessmentQuestionPublicSerializer
+        return AssessmentQuestionSerializer
+
+    def get_permissions(self):
+        # The QTI package embeds correct answers, so require auth for export.
+        if self.action == 'export_qti':
+            return [permissions.IsAuthenticated()]
+        return super().get_permissions()
+
     @action(detail=False, methods=['get'], url_path='export-qti')
     def export_qti(self, request):
         """Export a learning object's questions as an IMS QTI 2.1 package.
 
-        Query param: ``lom_general`` (UUID) — required.
+        Query param: ``lom_general`` (UUID) — required. Requires authentication
+        because the package contains the answer key.
         """
         lom_general_id = request.query_params.get('lom_general')
         if not lom_general_id:
@@ -395,8 +413,11 @@ class RoutePackageViewSet(viewsets.ViewSet):
 
     Loads the route, walks its ordered stops, and bundles each stop's heritage
     item (with its LOM + media) into ONE package titled after the route. The
-    ``?format=`` query param selects ``scorm12`` (default), ``scorm2004`` or
-    ``cmi5`` (cmi5 falls back to a scorm2004 collection package — see below).
+    ``?format=`` query param selects ``scorm12`` (default) or ``scorm2004``.
+
+    cmi5 is intentionally NOT accepted here: a cmi5 *collection* isn't modelled,
+    and silently downgrading it to SCORM 2004 would hand the user a mislabelled
+    file. Callers wanting cmi5 should export single items.
 
     Route (via router): /api/v1/education/route-packages/{route_id}/download/?format=scorm12
     """
@@ -408,14 +429,15 @@ class RoutePackageViewSet(viewsets.ViewSet):
         route = get_object_or_404(HeritageRoute, pk=pk)
 
         fmt = request.query_params.get('format', 'scorm12')
-        # Collections support SCORM 1.2 / 2004; cmi5 collection isn't modelled,
-        # so map it onto a 2004 collection package rather than 400-ing.
-        package_format = 'scorm2004' if fmt in ('scorm2004', 'cmi5') else 'scorm12'
-        if fmt not in ('scorm12', 'scorm2004', 'cmi5'):
+        if fmt not in ('scorm12', 'scorm2004'):
             return Response(
-                {'error': f"Unknown format '{fmt}'. Use one of: scorm12, scorm2004, cmi5."},
+                {'error': (
+                    f"Unsupported route package format '{fmt}'. "
+                    "Route packages support: scorm12, scorm2004."
+                )},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        package_format = fmt
 
         entries = []
         for stop in route.stops.order_by('order').select_related('heritage_item'):

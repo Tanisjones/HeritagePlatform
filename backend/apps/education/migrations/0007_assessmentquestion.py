@@ -4,10 +4,11 @@
 # LOMGeneral, feeding the QTI 2.1 export) plus its modeltranslation language
 # columns for the translated fields `prompt` and `feedback`.
 #
-# NOTE: the CreateModel + *_es / *_en / *_qu AddField columns below mirror what
+# NOTE: the CreateModel + *_es / *_en AddField columns below mirror what
 # `makemigrations` emits for a new model whose `prompt`/`feedback` fields are
-# registered with django-modeltranslation. If you regenerate this migration in
-# Docker it should be a no-op.
+# registered with django-modeltranslation. The project configures only es/en
+# (settings LANGUAGES), so there are no *_qu columns. If you regenerate this
+# migration in Docker it should be a no-op.
 
 import uuid
 
@@ -98,15 +99,6 @@ class Migration(migrations.Migration):
                 verbose_name="prompt",
             ),
         ),
-        migrations.AddField(
-            model_name="assessmentquestion",
-            name="prompt_qu",
-            field=models.TextField(
-                help_text="The question text presented to the learner",
-                null=True,
-                verbose_name="prompt",
-            ),
-        ),
         # --- modeltranslation language columns (feedback) ---
         migrations.AddField(
             model_name="assessmentquestion",
@@ -121,16 +113,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="assessmentquestion",
             name="feedback_es",
-            field=models.TextField(
-                blank=True,
-                help_text="Feedback shown to the learner after answering",
-                null=True,
-                verbose_name="feedback",
-            ),
-        ),
-        migrations.AddField(
-            model_name="assessmentquestion",
-            name="feedback_qu",
             field=models.TextField(
                 blank=True,
                 help_text="Feedback shown to the learner after answering",
