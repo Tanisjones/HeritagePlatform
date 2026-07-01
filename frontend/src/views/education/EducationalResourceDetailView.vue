@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { useAsyncAction } from '@/composables/useAsyncAction';
 import type { EducationalResource } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
@@ -10,23 +11,14 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue';
 const { t } = useI18n();
 const route = useRoute();
 const resource = ref<EducationalResource | null>(null);
-const loading = ref(true);
-const error = ref<string | null>(null);
+// H.3: unified fetch via the V1 composable.
+const { loading, error, run } = useAsyncAction();
 
-const fetchResource = async () => {
-  const id = route.params.id;
-  try {
-    loading.value = true;
-    error.value = null;
-    const response = await api.get(`/educational-resources/${id}/`);
+const fetchResource = () =>
+  run(async () => {
+    const response = await api.get(`/educational-resources/${route.params.id}/`);
     resource.value = response.data;
-  } catch (e) {
-    console.error('Error fetching educational resource:', e);
-    error.value = t('common.errorLoading');
-  } finally {
-    loading.value = false;
-  }
-};
+  });
 
 onMounted(fetchResource);
 </script>
@@ -43,7 +35,7 @@ onMounted(fetchResource);
       <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ resource.title }}</h1>
 
       <p class="text-base italic text-gray-600 mb-6">
-        By {{ resource.author?.email }} | {{ resource.resource_type?.name }} | {{ resource.category?.name }}
+        {{ t('education.by') }} {{ resource.author?.email }} | {{ resource.resource_type?.name }} | {{ resource.category?.name }}
       </p>
 
       <div class="prose prose-lg max-w-none text-gray-700 leading-relaxed" v-html="resource.content"></div>

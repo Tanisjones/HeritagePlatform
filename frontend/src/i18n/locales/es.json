@@ -1328,5 +1328,20 @@
             "title": "Sin actividad de IA",
             "message": "No se han registrado llamadas de IA en el periodo seleccionado."
         }
+    },
+    "education": {
+        "resourcesTitle": "Recursos educativos",
+        "by": "Por"
+    },
+    "notifications": {
+        "title": "Notificaciones",
+        "markAllRead": "Marcar todas como leídas",
+        "markRead": "Marcar como leída",
+        "filterAll": "Todas",
+        "filterUnread": "No leídas",
+        "new": "Nueva",
+        "emptyTitle": "Sin notificaciones",
+        "emptyUnread": "No tienes notificaciones sin leer",
+        "emptyAll": "Aún no tienes notificaciones"
     }
 }

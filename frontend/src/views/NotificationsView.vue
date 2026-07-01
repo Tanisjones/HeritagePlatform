@@ -4,6 +4,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { useAsyncAction } from '@/composables/useAsyncAction';
+import { unwrapResults } from '@/utils/pagination';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
 
@@ -19,29 +21,21 @@ interface Notification {
 
 const authStore = useAuthStore();
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const notifications = ref<Notification[]>([]);
-const loading = ref(true);
-const error = ref<string | null>(null);
 const filter = ref<'all' | 'unread'>('all');
+// H.3: unified fetch via the V1 composable.
+const { loading, error, run } = useAsyncAction();
 
 const filteredNotifications = ref<Notification[]>([]);
 
-const fetchNotifications = async () => {
-  try {
-    loading.value = true;
-    error.value = null;
+const fetchNotifications = () =>
+  run(async () => {
     const params = filter.value === 'unread' ? { is_read: false } : {};
     const response = await api.get('/notifications/', { params });
-    notifications.value = response.data.results || response.data;
+    notifications.value = unwrapResults<Notification>(response.data);
     applyFilter();
-  } catch (e) {
-    console.error('Error fetching notifications:', e);
-    error.value = t('common.errorLoading');
-  } finally {
-    loading.value = false;
-  }
-};
+  });
 
 const applyFilter = () => {
   if (filter.value === 'unread') {
@@ -111,12 +105,12 @@ onMounted(() => {
   <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
       <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Notifications</h1>
+        <h1 class="text-3xl font-bold text-gray-900">{{ t('notifications.title') }}</h1>
         <button
           @click="markAllAsRead"
           class="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-800 border border-primary-300 rounded-lg hover:bg-primary-50 transition"
         >
-          Mark All as Read
+          {{ t('notifications.markAllRead') }}
         </button>
       </div>
 
@@ -127,14 +121,14 @@ onMounted(() => {
           class="px-4 py-2 font-medium transition"
           :class="filter === 'all' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-600 hover:text-gray-900'"
         >
-          All
+          {{ t('notifications.filterAll') }}
         </button>
         <button
           @click="changeFilter('unread')"
           class="px-4 py-2 font-medium transition"
           :class="filter === 'unread' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-600 hover:text-gray-900'"
         >
-          Unread
+          {{ t('notifications.filterUnread') }}
         </button>
       </div>
 
@@ -148,9 +142,9 @@ onMounted(() => {
         <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
         </svg>
-        <p class="text-gray-600 text-lg">No notifications</p>
+        <p class="text-gray-600 text-lg">{{ t('notifications.emptyTitle') }}</p>
         <p class="text-gray-500 mt-2">
-          {{ filter === 'unread' ? 'You have no unread notifications' : 'You have no notifications yet' }}
+          {{ filter === 'unread' ? t('notifications.emptyUnread') : t('notifications.emptyAll') }}
         </p>
       </div>
 
@@ -177,7 +171,7 @@ onMounted(() => {
                       v-if="!notification.is_read"
                       class="px-2 py-1 bg-primary-600 text-white text-xs font-medium rounded"
                     >
-                      New
+                      {{ t('notifications.new') }}
                     </span>
                   </div>
                   <p class="text-sm text-gray-500">{{ notification.notification_type_display }}</p>
@@ -187,12 +181,12 @@ onMounted(() => {
                   @click="markAsRead(notification.id)"
                   class="ml-4 text-sm text-primary-600 hover:text-primary-800 font-medium whitespace-nowrap"
                 >
-                  Mark as Read
+                  {{ t('notifications.markRead') }}
                 </button>
               </div>
               <p class="text-gray-700 mb-2">{{ notification.message }}</p>
               <p class="text-sm text-gray-500">
-                {{ new Date(notification.created_at).toLocaleDateString('es-ES', {
+                {{ new Date(notification.created_at).toLocaleDateString(locale, {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',

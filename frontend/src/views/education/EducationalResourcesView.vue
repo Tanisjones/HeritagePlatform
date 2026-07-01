@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { useAsyncAction } from '@/composables/useAsyncAction';
+import { unwrapResults } from '@/utils/pagination';
 import type { EducationalResource } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
@@ -9,29 +11,21 @@ import EmptyState from '@/components/common/EmptyState.vue';
 
 const { t } = useI18n();
 const resources = ref<EducationalResource[]>([]);
-const loading = ref(true);
-const error = ref<string | null>(null);
+// H.3: unified fetch (loading/error/extractApiError) via the V1 composable.
+const { loading, error, run } = useAsyncAction();
 
-const fetchResources = async () => {
-  try {
-    loading.value = true;
-    error.value = null;
+const fetchResources = () =>
+  run(async () => {
     const response = await api.get('/educational-resources/');
-    resources.value = response.data.results;
-  } catch (e) {
-    console.error('Error fetching educational resources:', e);
-    error.value = t('common.errorLoading');
-  } finally {
-    loading.value = false;
-  }
-};
+    resources.value = unwrapResults<EducationalResource>(response.data);
+  });
 
 onMounted(fetchResources);
 </script>
 
 <template>
   <div class="max-w-6xl mx-auto p-5">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">Educational Resources</h1>
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">{{ t('education.resourcesTitle') }}</h1>
 
     <ErrorBanner :message="error" @retry="fetchResources" />
 

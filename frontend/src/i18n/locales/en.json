@@ -1328,5 +1328,20 @@
             "title": "No AI activity",
             "message": "No AI calls were recorded in the selected period."
         }
+    },
+    "education": {
+        "resourcesTitle": "Educational resources",
+        "by": "By"
+    },
+    "notifications": {
+        "title": "Notifications",
+        "markAllRead": "Mark all as read",
+        "markRead": "Mark as read",
+        "filterAll": "All",
+        "filterUnread": "Unread",
+        "new": "New",
+        "emptyTitle": "No notifications",
+        "emptyUnread": "You have no unread notifications",
+        "emptyAll": "You have no notifications yet"
     }
 }
