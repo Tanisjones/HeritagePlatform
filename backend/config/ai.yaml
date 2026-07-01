@@ -43,6 +43,18 @@ ai:
     "gemini-1.5-pro": { input: 1.25, output: 5.00 }
     "*": { input: 0.0, output: 0.0 }   # fallback — Ollama / local models
 
+  # Optional spend/usage caps for the current calendar month (G.6). Any field set
+  # to null (or omitted) disables that particular cap. Enforcement sums the
+  # month's AIUsageRecord rows (cached ~60s) and blocks with HTTP 429 BEFORE the
+  # provider is called. With Ollama (cost 0) the USD caps never trigger; set token
+  # caps to bound local usage too. All caps default to null (unlimited) so this is
+  # inert until you opt in.
+  budget:
+    monthly_usd_per_user: null      # e.g. 5.0  → each user max $5/month
+    monthly_usd_global: null        # e.g. 100.0 → whole platform max $100/month
+    monthly_tokens_per_user: null   # e.g. 2000000
+    monthly_tokens_global: null     # e.g. 50000000
+
   # Explicit allow-list of operations the UI can invoke.
   allowed_operations:
     - contribution_draft

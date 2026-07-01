@@ -766,3 +766,159 @@ class AIUsageAggregationTest(TestCase):
         self.assertIn("operation", results[0])
         self.assertIn("estimated_cost_usd", results[0])
         self.assertNotIn("prompt", results[0])
+
+
+class AIBudgetConfigTest(TestCase):
+    """G.6 — parsing of the ai.yaml `budget:` block."""
+
+    def _load(self, yaml_text: str):
+        import tempfile
+        from apps.ai_services.ai_config import _load_ai_config_cached, reload_ai_config
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_text)
+            path = f.name
+        self.addCleanup(lambda: os.path.exists(path) and os.unlink(path))
+        self.addCleanup(reload_ai_config)
+        return _load_ai_config_cached(path)
+
+    _BASE = """
+ai:
+  enabled: true
+  provider: ollama
+  base_url: http://x:1
+  model: m
+  request_timeout_seconds: 30
+  temperature: 0.2
+  max_output_tokens: 50
+  allowed_operations: [contribution_draft]
+  prompts: {contribution_draft: "x {{language}}"}
+"""
+
+    def test_no_budget_block_is_inert(self):
+        cfg = self._load(self._BASE)
+        self.assertFalse(cfg.budget.any_enabled)
+
+    def test_budget_fields_parse(self):
+        cfg = self._load(self._BASE + """
+  budget:
+    monthly_usd_per_user: 5.0
+    monthly_tokens_global: 1000000
+""")
+        self.assertTrue(cfg.budget.any_enabled)
+        self.assertEqual(cfg.budget.monthly_usd_per_user, 5.0)
+        self.assertEqual(cfg.budget.monthly_tokens_global, 1000000)
+        self.assertIsNone(cfg.budget.monthly_usd_global)
+
+    def test_negative_budget_rejected(self):
+        from apps.ai_services.ai_config import AIConfigError
+        with self.assertRaises(AIConfigError):
+            self._load(self._BASE + "\n  budget: {monthly_usd_per_user: -1}\n")
+
+
+class AIBudgetEnforcementTest(TestCase):
+    """G.6 — enforce_budget / budget_status over month-to-date AIUsageRecord."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.user = User.objects.create_user(username="bU", email="bU@example.com", password="pw")
+
+    def _config_with(self, **budget_kwargs):
+        import dataclasses
+        from apps.ai_services.ai_config import load_ai_config, BudgetConfig
+        base = load_ai_config()
+        return dataclasses.replace(base, budget=BudgetConfig(**budget_kwargs))
+
+    def _record(self, *, cost=None, tokens=None, user=None):
+        from decimal import Decimal
+        AIUsageRecord.objects.create(
+            user=user, operation="translate", provider="gemini", model="gemini-2.0-flash",
+            input_tokens=tokens, output_tokens=0, total_tokens=tokens,
+            estimated_cost_usd=(None if cost is None else Decimal(str(cost))), status="ok",
+        )
+
+    def test_no_caps_never_blocks(self):
+        from apps.ai_services.budget import enforce_budget
+        self._record(cost="99.0", user=self.user)
+        # Should not raise (no caps configured).
+        enforce_budget(user_id=self.user.id, config=self._config_with())
+
+    def test_per_user_usd_cap_blocks_when_reached(self):
+        from apps.ai_services.budget import enforce_budget, AIBudgetExceeded
+        cfg = self._config_with(monthly_usd_per_user=1.0)
+        # Under cap: OK.
+        self._record(cost="0.50", user=self.user)
+        enforce_budget(user_id=self.user.id, config=cfg)
+        # Push to/over cap: blocked.
+        self._record(cost="0.60", user=self.user)
+        from django.core.cache import cache
+        cache.clear()  # drop the 60s aggregate so the new row counts immediately
+        with self.assertRaises(AIBudgetExceeded):
+            enforce_budget(user_id=self.user.id, config=cfg)
+
+    def test_per_user_cap_isolates_users(self):
+        from apps.ai_services.budget import enforce_budget
+        other = User.objects.create_user(username="bO", email="bO@example.com", password="pw")
+        cfg = self._config_with(monthly_usd_per_user=1.0)
+        self._record(cost="5.0", user=other)  # other user way over
+        # This user has no usage → not blocked.
+        enforce_budget(user_id=self.user.id, config=cfg)
+
+    def test_global_token_cap_blocks(self):
+        from apps.ai_services.budget import enforce_budget, AIBudgetExceeded
+        cfg = self._config_with(monthly_tokens_global=100)
+        self._record(tokens=150, user=self.user)
+        with self.assertRaises(AIBudgetExceeded):
+            enforce_budget(user_id=self.user.id, config=cfg)
+
+    def test_budget_status_shape(self):
+        from apps.ai_services.budget import budget_status
+        cfg = self._config_with(monthly_usd_per_user=2.0, monthly_usd_global=10.0)
+        self._record(cost="0.50", user=self.user)
+        st = budget_status(user_id=self.user.id, config=cfg)
+        self.assertTrue(st["enabled"])
+        # cap/used/remaining are uniform 6dp strings (matching the cost column scale).
+        self.assertEqual(st["user"]["usd"]["cap"], "2.000000")
+        self.assertEqual(st["user"]["usd"]["used"], "0.500000")
+        self.assertEqual(st["user"]["usd"]["remaining"], "1.500000")
+        self.assertIn("usd", st["global"])
+
+    def test_budget_status_none_when_no_caps(self):
+        from apps.ai_services.budget import budget_status
+        self.assertIsNone(budget_status(user_id=self.user.id, config=self._config_with()))
+
+
+class AIBudgetEndpointTest(TestCase):
+    """G.6 — a budget-exceeded call returns 429 and never reaches the provider."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="beU", email="beU@example.com", password="pw")
+
+    @patch("httpx.Client.post")
+    @patch("apps.ai_services.assist_views.require_ai_available")
+    def test_over_budget_returns_429(self, cfg_mock, post_mock):
+        import dataclasses
+        from decimal import Decimal
+        from apps.ai_services.ai_config import load_ai_config, BudgetConfig
+        cfg = dataclasses.replace(load_ai_config(), budget=BudgetConfig(monthly_usd_per_user=1.0))
+        cfg_mock.return_value = cfg
+        # Seed month-to-date over the cap for this user.
+        AIUsageRecord.objects.create(
+            user=self.user, operation="contribution_draft", provider="gemini",
+            model="gemini-2.0-flash", input_tokens=10, output_tokens=10, total_tokens=20,
+            estimated_cost_usd=Decimal("2.00"), status="ok",
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post("/api/v1/ai/assist/contribution-draft/", {"language": "es"}, format="json")
+        self.assertEqual(resp.status_code, 429, resp.content)
+        post_mock.assert_not_called()
+        # The blocked attempt is recorded, tagged budget_exceeded.
+        rec = AIUsageRecord.objects.filter(operation="contribution_draft", error_type="budget_exceeded").first()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec.status, AIUsageRecord.STATUS_RATE_LIMITED)

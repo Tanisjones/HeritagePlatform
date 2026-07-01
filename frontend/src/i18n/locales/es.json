@@ -1242,6 +1242,13 @@
             "rate_limited": "Límite excedido"
         },
         "anonymous": "Anónimo",
+        "budget": {
+            "title": "Presupuesto mensual",
+            "you": "Tú",
+            "platform": "Plataforma",
+            "cost": "Coste",
+            "tokens": "Tokens"
+        },
         "empty": {
             "title": "Sin actividad de IA",
             "message": "No se han registrado llamadas de IA en el periodo seleccionado."

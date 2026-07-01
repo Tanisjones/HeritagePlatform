@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .ai_config import AIConfigError, load_ai_config
+from .budget import budget_status
 from .providers import get_provider, is_supported_provider
 
 
@@ -40,6 +41,13 @@ class AIStatusView(APIView):
         }
         if not health.available and health.reason:
             body["reason"] = health.reason
+
+        # Remaining monthly allowance (G.6), when budgets are configured. Only
+        # meaningful for an authenticated user's per-user cap; global caps always show.
+        user_id = request.user.id if request.user and request.user.is_authenticated else None
+        budgets = budget_status(user_id=user_id, config=config)
+        if budgets is not None:
+            body["budget"] = budgets
 
         return Response(body, status=status.HTTP_200_OK)
 

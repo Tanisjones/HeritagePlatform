@@ -27,6 +27,7 @@ from .assist_serializers import (
 )
 from .providers import get_provider, is_supported_provider
 from .rate_limit import AIRateLimited, enforce_user_rate_limit
+from .budget import AIBudgetExceeded, enforce_budget
 from .models import AIUsageRecord
 from .usage import record_ai_usage
 
@@ -116,6 +117,18 @@ class BaseAssistView(APIView):
             record_ai_usage(
                 user_id=user_id, operation=self.operation, config=config, usage=None,
                 duration_ms=None, status=AIUsageRecord.STATUS_RATE_LIMITED,
+            )
+            raise
+
+        # Monthly spend/usage caps (G.6). Blocks before the provider round-trip.
+        # Recorded like a rate-limit but tagged so the dashboard can tell them apart.
+        try:
+            enforce_budget(user_id=user_id, config=config)
+        except AIBudgetExceeded:
+            record_ai_usage(
+                user_id=user_id, operation=self.operation, config=config, usage=None,
+                duration_ms=None, status=AIUsageRecord.STATUS_RATE_LIMITED,
+                error_type="budget_exceeded",
             )
             raise
 

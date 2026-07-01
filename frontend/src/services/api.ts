@@ -297,11 +297,21 @@ export type AIAssistCuratorReviewResponse = {
   suggested_edits?: Record<string, string>
 }
 
+export type AIBudgetMetric = { cap: string | number; used: string | number; remaining: string | number }
+export type AIBudgetScope = { usd?: AIBudgetMetric; tokens?: AIBudgetMetric }
+export type AIBudgetStatus = {
+  enabled: boolean
+  user: AIBudgetScope | null
+  global: AIBudgetScope
+}
+
 export type AIStatusResponse = {
   available: boolean
   reason?: string
   provider?: string
   model?: string
+  /** Present only when monthly budgets are configured server-side (G.6). */
+  budget?: AIBudgetStatus
 }
 
 export type AIAssistEducationalMetadataRequest = {

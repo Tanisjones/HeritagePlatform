@@ -10,7 +10,8 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { aiUsageService } from '@/services/api'
+import { aiUsageService, aiService } from '@/services/api'
+import type { AIBudgetStatus } from '@/services/api'
 import { withLoading } from '@/composables/useAsyncAction'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -35,6 +36,7 @@ const byModel = ref<AiUsageSummaryResponse | null>(null)
 const byUser = ref<AiUsageSummaryResponse | null>(null)
 const series = ref<AiUsageTimeseriesResponse | null>(null)
 const recent = ref<AiUsageRecentResponse | null>(null)
+const budget = ref<AIBudgetStatus | null>(null)
 
 /** Which metric the line chart plots. */
 const chartMetric = ref<'estimated_cost_usd' | 'total_tokens' | 'calls'>('estimated_cost_usd')
@@ -61,6 +63,14 @@ async function loadAll() {
     series.value = ts
     recent.value = rec
   })
+  // Budget banner (only shown when caps are configured server-side). Fetched
+  // separately + best-effort so a status hiccup never blanks the whole dashboard.
+  try {
+    const status = await aiService.status()
+    budget.value = status.budget ?? null
+  } catch {
+    budget.value = null
+  }
 }
 
 function setRange(days: number) {
@@ -138,6 +148,47 @@ const chartFormat = computed(() =>
 
 const hasAnyData = computed(() => (totals.value?.calls ?? 0) > 0)
 
+/** Flatten configured budget metrics into progress bars. */
+interface BudgetBar {
+  label: string
+  used: number
+  cap: number
+  pct: number
+  display: string
+  isCost: boolean
+}
+const budgetBars = computed<BudgetBar[]>(() => {
+  const b = budget.value
+  if (!b) return []
+  const bars: BudgetBar[] = []
+  const push = (scopeLabel: string, kind: 'usd' | 'tokens', metric?: { cap: string | number; used: string | number }) => {
+    if (!metric) return
+    const cap = Number(metric.cap)
+    const used = Number(metric.used)
+    const pct = cap > 0 ? Math.min(100, (used / cap) * 100) : 0
+    const isCost = kind === 'usd'
+    bars.push({
+      label: `${scopeLabel} · ${isCost ? t('aiUsage.budget.cost') : t('aiUsage.budget.tokens')}`,
+      used,
+      cap,
+      pct,
+      display: isCost ? `${fmtCost(used)} / ${fmtCost(cap)}` : `${fmtInt(used)} / ${fmtInt(cap)}`,
+      isCost,
+    })
+  }
+  push(t('aiUsage.budget.you'), 'usd', b.user?.usd)
+  push(t('aiUsage.budget.you'), 'tokens', b.user?.tokens)
+  push(t('aiUsage.budget.platform'), 'usd', b.global?.usd)
+  push(t('aiUsage.budget.platform'), 'tokens', b.global?.tokens)
+  return bars
+})
+
+function barColor(pct: number): string {
+  if (pct >= 90) return 'bg-red-500'
+  if (pct >= 70) return 'bg-amber-500'
+  return 'bg-secondary-500'
+}
+
 function statusClass(status: string): string {
   if (status === 'ok') return 'bg-secondary-100 text-secondary-800'
   if (status === 'rate_limited') return 'bg-amber-100 text-amber-800'
@@ -191,6 +242,22 @@ function statusClass(status: string): string {
           <div class="text-sm text-gray-600">{{ t('aiUsage.kpi.errorRate') }}</div>
           <div class="text-3xl font-bold text-gray-900">
             {{ errorRate == null ? '—' : errorRate.toFixed(0) + '%' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- budget bars (only when caps configured server-side) -->
+      <div v-if="budgetBars.length" class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">{{ t('aiUsage.budget.title') }}</h2>
+        <div class="space-y-3">
+          <div v-for="bar in budgetBars" :key="bar.label">
+            <div class="flex justify-between text-sm mb-1">
+              <span class="text-gray-700">{{ bar.label }}</span>
+              <span class="text-gray-500 tabular-nums">{{ bar.display }}</span>
+            </div>
+            <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+              <div class="h-full rounded-full" :class="barColor(bar.pct)" :style="{ width: bar.pct + '%' }"></div>
+            </div>
           </div>
         </div>
       </div>

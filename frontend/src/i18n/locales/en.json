@@ -1242,6 +1242,13 @@
             "rate_limited": "Rate limited"
         },
         "anonymous": "Anonymous",
+        "budget": {
+            "title": "Monthly budget",
+            "you": "You",
+            "platform": "Platform",
+            "cost": "Cost",
+            "tokens": "Tokens"
+        },
         "empty": {
             "title": "No AI activity",
             "message": "No AI calls were recorded in the selected period."

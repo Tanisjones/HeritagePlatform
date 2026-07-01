@@ -17,6 +17,28 @@ class AIConfigError(Exception):
 
 
 @dataclass(frozen=True)
+class BudgetConfig:
+    """Optional monthly spend/usage caps. None on a field = that cap is disabled."""
+
+    monthly_usd_per_user: float | None = None
+    monthly_usd_global: float | None = None
+    monthly_tokens_per_user: int | None = None
+    monthly_tokens_global: int | None = None
+
+    @property
+    def any_enabled(self) -> bool:
+        return any(
+            v is not None
+            for v in (
+                self.monthly_usd_per_user,
+                self.monthly_usd_global,
+                self.monthly_tokens_per_user,
+                self.monthly_tokens_global,
+            )
+        )
+
+
+@dataclass(frozen=True)
 class AIConfig:
     enabled: bool
     provider: str
@@ -39,6 +61,8 @@ class AIConfig:
     # Per-model price table (USD per 1,000,000 tokens): {model: {"input": x, "output": y}}.
     # A "*" key is the fallback (covers Ollama / local models, priced at 0).
     pricing: dict[str, dict[str, float]] = field(default_factory=dict)
+    # Optional monthly spend/usage caps (G.6). Inert unless a field is set.
+    budget: BudgetConfig = field(default_factory=BudgetConfig)
 
     def estimate_cost(
         self, model: str, input_tokens: int | None, output_tokens: int | None
@@ -138,6 +162,7 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
         raise AIConfigError("AI config 'auto_suggest_on_create' must be a boolean")
 
     pricing = _parse_pricing(ai.get("pricing"))
+    budget = _parse_budget(ai.get("budget"))
 
     return AIConfig(
         enabled=enabled,
@@ -153,6 +178,7 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
         api_key=api_key,
         auto_suggest_on_create=auto_suggest,
         pricing=pricing,
+        budget=budget,
     )
 
 
@@ -176,6 +202,31 @@ def _parse_pricing(value: Any) -> dict[str, dict[str, float]]:
             parsed_rates[rate_key] = float(rate)
         table[model_key] = parsed_rates
     return table
+
+
+def _parse_budget(value: Any) -> BudgetConfig:
+    """Optional monthly caps. Missing/None fields disable that cap."""
+    if value is None:
+        return BudgetConfig()
+    if not isinstance(value, dict):
+        raise AIConfigError("AI config 'budget' must be a mapping")
+
+    def _num_or_none(key: str, *, integer: bool):
+        raw = value.get(key)
+        if raw is None:
+            return None
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            raise AIConfigError(f"AI config 'budget.{key}' must be a number or null")
+        if raw < 0:
+            raise AIConfigError(f"AI config 'budget.{key}' must be non-negative")
+        return int(raw) if integer else float(raw)
+
+    return BudgetConfig(
+        monthly_usd_per_user=_num_or_none("monthly_usd_per_user", integer=False),
+        monthly_usd_global=_num_or_none("monthly_usd_global", integer=False),
+        monthly_tokens_per_user=_num_or_none("monthly_tokens_per_user", integer=True),
+        monthly_tokens_global=_num_or_none("monthly_tokens_global", integer=True),
+    )
 
 
 def _require_str(obj: dict[str, Any], key: str) -> str:
