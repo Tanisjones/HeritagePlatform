@@ -7,19 +7,16 @@ import type { LOMResource } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@/composables/useDialogs';
+import { useLomLabels } from '@/composables/useLomLabels';
 
 const { t } = useI18n();
 const toast = useToast();
+// Shared LOM vocab translators (aliased to keep existing template calls).
+const { humanize: humanizeEnum, translate: translateEnum } = useLomLabels();
 const loading = ref(false);
 const errorMessage = ref('');
 const lomResources = ref<LOMResource[]>([]);
 const downloadingId = ref<string | null>(null);
-
-const humanizeEnum = (value: string) => value.replace(/_/g, ' ');
-const translateEnum = (key: string, fallback: string) => {
-  const translated = t(key);
-  return translated === key ? fallback : translated;
-};
 
 const filters = ref({
   search: '',

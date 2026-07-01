@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { parseLineString } from '@/utils/geo'
 import type { HeritageRoute, RouteStop } from '@/types/heritage'
 
 const props = defineProps<{
@@ -42,40 +43,10 @@ function createNumberedIcon(n: number) {
   })
 }
 
-function parseWktLineString(wkt: string): [number, number][] | null {
-  // Supports: "SRID=4326;LINESTRING (lng lat, lng lat, ...)" or "LINESTRING(lng lat, ...)"
-  const match = wkt.match(/LINESTRING\s*\(\s*([^)]+)\s*\)/i)
-  if (!match) return null
-  const raw = match[1] || ''
-  if (!raw) return null
-  const pairs = raw
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => p.split(/\s+/).filter(Boolean))
-  const points: [number, number][] = []
-  for (const [lngStr, latStr] of pairs) {
-    const lng = Number(lngStr)
-    const lat = Number(latStr)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-    points.push([lat, lng])
-  }
-  return points.length ? points : null
-}
-
 function routeLineCoords(): [number, number][] {
-  const path: any = props.route.path
-  if (path) {
-    if (typeof path === 'string') {
-      const parsed = parseWktLineString(path)
-      if (parsed) return parsed
-    }
-    if (typeof path === 'object' && Array.isArray(path.coordinates) && path.type === 'LineString') {
-      const coords = (path.coordinates as any[]).map((c) => [c?.[1], c?.[0]] as [number, number])
-      const filtered = coords.filter((c) => typeof c[0] === 'number' && typeof c[1] === 'number')
-      if (filtered.length) return filtered
-    }
-  }
+  // parseLineString handles both the WKT string and GeoJSON LineString cases.
+  const parsed = parseLineString(props.route.path as any)
+  if (parsed) return parsed
 
   const stops = (props.route.stops || []).slice().sort((a, b) => a.order - b.order)
   return stops.map(stopLatLng).filter(Boolean) as [number, number][]

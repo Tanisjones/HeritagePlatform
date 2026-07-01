@@ -8,11 +8,14 @@ import AnnotationList from '@/components/annotations/AnnotationList.vue';
 import LomEditor from '@/components/education/LomEditor.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { useAuthStore } from '@/stores/auth';
+import { useLomLabels } from '@/composables/useLomLabels';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useI18n } from 'vue-i18n';
 
 const { t, te, locale } = useI18n();
+// Shared LOM vocab translator (aliased to keep the template's translateLom calls).
+const { lom: translateLom } = useLomLabels();
 const route = useRoute();
 const authStore = useAuthStore();
 
@@ -30,12 +33,6 @@ interface ViewableResource {
   mimeType?: string;
   text_content?: string;
 }
-
-const translateLom = (category: string, value: string | undefined | null, fallbackKey = 'heritage.detail.na') => {
-  if (!value) return t(fallbackKey);
-  const key = `lom.${category}.${value}`;
-  return te(key) ? t(key) : value.replace(/_/g, ' ');
-};
 
 const item = ref<HeritageItem | null>(null);
 const loading = ref(true);

@@ -807,7 +807,9 @@
         },
         "errors": {
             "fillAllFields": "Please fill in all fields",
-            "passwordsDoNotMatch": "Passwords do not match"
+            "passwordsDoNotMatch": "Passwords do not match",
+            "loginFailed": "Could not sign in. Please check your credentials.",
+            "registerFailed": "Could not create the account. Please try again."
         }
     },
     "dashboard": {

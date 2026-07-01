@@ -1,7 +1,21 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
+import type { RouteCreateData } from '@/types/heritage';
 
 const LOCALE_STORAGE_KEY = 'hp_locale';
 const DEFAULT_LOCALE = 'es';
+
+/** Login/register request bodies (the API returns `{ tokens, user }`). */
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+export interface RegisterData {
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  [field: string]: unknown;
+}
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
@@ -11,22 +25,20 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(config => {
-  config.headers = config.headers ?? {};
+  const headers = AxiosHeaders.from(config.headers);
+  config.headers = headers;
 
   const token = localStorage.getItem('token');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   const locale = localStorage.getItem(LOCALE_STORAGE_KEY) || DEFAULT_LOCALE;
-  (config.headers as any)['Accept-Language'] = locale;
+  headers.set('Accept-Language', locale);
 
   // When sending FormData, do not force JSON content type (let the browser set the multipart boundary).
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-    if (config.headers) {
-      delete (config.headers as any)['Content-Type'];
-      delete (config.headers as any)['content-type'];
-    }
+    headers.delete('Content-Type');
   }
 
   return config;
@@ -78,8 +90,8 @@ export const heritageService = {
 };
 
 export const authService = {
-  login: (credentials: any) => api.post('/users/login/', credentials),
-  register: (data: any) => api.post('/users/register/', data),
+  login: (credentials: LoginCredentials) => api.post('/users/login/', credentials),
+  register: (data: RegisterData) => api.post('/users/register/', data),
   me: () => api.get('/users/me/'),
 };
 
@@ -92,17 +104,17 @@ export const curatorService = {
   requestChanges: (id: string, payload: { feedback?: string; curator_feedback?: string }) =>
     api.post(`/moderation/queue/${id}/request-changes/`, payload),
   getScore: (id: string) => api.get(`/moderation/queue/${id}/score/`),
-  setScore: (id: string, payload: any) => api.post(`/moderation/queue/${id}/score/`, payload),
-  flag: (id: string, payload: any) => api.post(`/moderation/queue/${id}/flag/`, payload),
+  setScore: (id: string, payload: Record<string, unknown>) => api.post(`/moderation/queue/${id}/score/`, payload),
+  flag: (id: string, payload: Record<string, unknown>) => api.post(`/moderation/queue/${id}/flag/`, payload),
   flags: (id: string) => api.get(`/moderation/queue/${id}/flags/`),
-  resolveFlag: (flagId: string, payload: any) =>
+  resolveFlag: (flagId: string, payload: Record<string, unknown>) =>
     api.patch(`/moderation/queue/flags/${flagId}/resolve/`, payload),
   checklists: () => api.get('/moderation/queue/checklists/'),
   checklist: (id: string) => api.get(`/moderation/queue/${id}/checklist/`),
-  submitChecklistResponses: (id: string, responses: any[]) =>
+  submitChecklistResponses: (id: string, responses: Record<string, unknown>[]) =>
     api.post(`/moderation/queue/${id}/checklist-response/`, { responses }),
   notes: (id: string) => api.get(`/moderation/queue/${id}/notes/`),
-  addNote: (id: string, payload: any) => api.post(`/moderation/queue/${id}/notes/`, payload),
+  addNote: (id: string, payload: Record<string, unknown>) => api.post(`/moderation/queue/${id}/notes/`, payload),
   versions: (id: string) => api.get(`/moderation/queue/${id}/versions/`),
   stats: () => api.get('/moderation/queue/stats/'),
 };
@@ -110,7 +122,7 @@ export const curatorService = {
 export const contributorService = {
   list: (params?: Record<string, any>) => api.get('/my-contributions/', { params }),
   get: (id: string) => api.get(`/my-contributions/${id}/`),
-  update: (id: string, payload: any) => api.patch(`/my-contributions/${id}/`, payload),
+  update: (id: string, payload: Record<string, unknown>) => api.patch(`/my-contributions/${id}/`, payload),
   feedback: (id: string) => api.get(`/my-contributions/${id}/feedback/`),
   resubmit: (id: string) => api.post(`/my-contributions/${id}/resubmit/`),
 };
@@ -166,8 +178,8 @@ export const aiSuggestionService = {
 export const routeService = {
   list: (params?: Record<string, any>) => api.get('/routes/', { params }),
   get: (id: string) => api.get(`/routes/${id}/`),
-  create: (payload: any) => api.post('/routes/', payload),
-  update: (id: string, payload: any) => api.patch(`/routes/${id}/`, payload),
+  create: (payload: RouteCreateData) => api.post('/routes/', payload),
+  update: (id: string, payload: Partial<RouteCreateData>) => api.patch(`/routes/${id}/`, payload),
   delete: (id: string) => api.delete(`/routes/${id}/`),
 
   submitForReview: (id: string) => api.post(`/routes/${id}/submit_for_review/`),
@@ -200,7 +212,7 @@ export const routeService = {
 export const resourceService = {
   list: (params?: Record<string, any>) => api.get('/heritage-items/', { params }),
   get: (id: string) => api.get(`/heritage-items/${id}/`),
-  update: (id: string, payload: any) => api.patch(`/heritage-items/${id}/`, payload),
+  update: (id: string, payload: Record<string, unknown>) => api.patch(`/heritage-items/${id}/`, payload),
   delete: (id: string) => api.delete(`/heritage-items/${id}/`),
 };
 
@@ -257,7 +269,7 @@ export type AIAssistContributionMetadataResponse = {
 
 export type AIAssistCuratorReviewRequest = {
   language?: string
-  item?: any
+  item?: Record<string, unknown>
   text?: string
 }
 

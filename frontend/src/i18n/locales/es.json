@@ -807,7 +807,9 @@
         },
         "errors": {
             "fillAllFields": "Por favor complete todos los campos",
-            "passwordsDoNotMatch": "Las contraseñas no coinciden"
+            "passwordsDoNotMatch": "Las contraseñas no coinciden",
+            "loginFailed": "No se pudo iniciar sesión. Verifique sus credenciales.",
+            "registerFailed": "No se pudo crear la cuenta. Inténtelo de nuevo."
         }
     },
     "dashboard": {

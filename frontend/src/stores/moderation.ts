@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { curatorService } from '@/services/api'
+import { withLoading } from '@/composables/useAsyncAction'
+import { unwrapResults } from '@/utils/pagination'
 import type { CuratorQueueItem, CuratorReviewDetail, CuratorStats } from '@/types/moderation'
 
 export const useModerationStore = defineStore('moderation', () => {
@@ -13,31 +15,22 @@ export const useModerationStore = defineStore('moderation', () => {
 
   const isEmpty = computed(() => !loading.value && queue.value.length === 0)
 
+  // Fetches swallow errors into the `error` ref (no rethrow) — views bind it.
+  const run = <T>(fn: () => Promise<T>) => withLoading(loading, error, fn)
+
   async function fetchQueue(overrides?: Record<string, any>) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const params = { ...filters.value, ...(overrides || {}) }
       const response = await curatorService.queue(params)
-      queue.value = response.data.results ?? response.data
-    } catch (e: any) {
-      error.value = e?.message ?? 'Failed to load queue'
-    } finally {
-      loading.value = false
-    }
+      queue.value = unwrapResults<CuratorQueueItem>(response.data)
+    })
   }
 
   async function fetchItem(id: string) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const response = await curatorService.getQueueItem(id)
       currentItem.value = response.data
-    } catch (e: any) {
-      error.value = e?.message ?? 'Failed to load contribution'
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function fetchStats() {

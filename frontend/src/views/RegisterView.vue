@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { authService } from '../services/api'
+import { extractApiError } from '@/utils/apiError'
 import AppButton from '../components/common/AppButton.vue'
 import AppCard from '../components/common/AppCard.vue'
 import { useI18n } from 'vue-i18n'
@@ -40,24 +41,9 @@ const handleRegister = async () => {
 
     // Auto login or redirect to login
     router.push('/login?registered=true')
-  } catch (err: any) {
+  } catch (err) {
     console.error('Registration error:', err)
-    if (err.response?.data) {
-      const data = err.response.data;
-      // Handle standard DRF error format {"field": ["Error message"]}
-      const firstError = Object.values(data)[0];
-      if (Array.isArray(firstError)) {
-        error.value = firstError[0] as string;
-      } else if (typeof firstError === 'string') {
-        error.value = firstError;
-      } else if (data.message) {
-        error.value = data.message;
-      } else {
-        error.value = 'Failed to register. Please check your inputs.';
-      }
-    } else {
-      error.value = 'Failed to register. Please try again.';
-    }
+    error.value = extractApiError(err, t('auth.errors.registerFailed'))
   } finally {
     loading.value = false
   }

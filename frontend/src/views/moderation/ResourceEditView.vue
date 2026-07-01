@@ -5,6 +5,7 @@ import { resourceService } from '@/services/api'; // Ensure this matches existin
 import api from '@/services/api';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@/composables/useDialogs';
+import { useFileUpload } from '@/composables/useFileUpload';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
@@ -12,6 +13,8 @@ import "leaflet/dist/leaflet.css";
 
 const { t } = useI18n();
 const toast = useToast();
+// Shared XHR uploader (progress + abort); `uploading` replaces the old uploadingImage flag.
+const { uploading: uploadingImage, uploadFile } = useFileUpload();
 const route = useRoute();
 const router = useRouter();
 const id = route.params.id as string;
@@ -38,7 +41,6 @@ const formLocation = ref({ lat: -1.67, lng: -78.65 });
 const zoom = ref(13);
 const center = ref<[number, number]>([-1.67, -78.65]);
 const main_image_url = ref<string | null>(null);
-const uploadingImage = ref(false);
 
 // Data sources
 const parishes = ref<any[]>([]);
@@ -109,21 +111,12 @@ const handleMapClick = (e: any) => {
   };
 };
 
-const uploadOneFile = async (file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('file_type', 'image');
-  
-  const response = await api.post('/media/', formData);
-  return response.data.id;
-};
-
 const handleImageUpload = async (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (!target.files || !target.files[0]) return;
-  
+
   const file = target.files[0];
-  
+
   // Preview
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -133,16 +126,12 @@ const handleImageUpload = async (event: Event) => {
   };
   reader.readAsDataURL(file);
 
-  // Upload
-  uploadingImage.value = true;
+  // Upload via the shared uploader (manages the `uploadingImage` flag).
   try {
-     const id = await uploadOneFile(file);
-     form.main_image = id;
+     form.main_image = await uploadFile(file, 'image');
   } catch (err) {
      console.error('Upload failed', err);
      toast.error(t('common.errorUploading'));
-  } finally {
-     uploadingImage.value = false;
   }
 };
 

@@ -1,14 +1,9 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { routeService } from '@/services/api'
+import { withLoading } from '@/composables/useAsyncAction'
+import { unwrapResults } from '@/utils/pagination'
 import type { HeritageRoute, RouteAwards, RouteCreateData, RouteRating, UserRouteProgress } from '@/types/heritage'
-
-function unwrapResults<T>(data: any): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as T[]
-  if (Array.isArray(data.results)) return data.results as T[]
-  return []
-}
 
 export const useRoutesStore = defineStore('routes', () => {
   const routes = ref<HeritageRoute[]>([])
@@ -22,56 +17,41 @@ export const useRoutesStore = defineStore('routes', () => {
   const publishedRoutes = computed(() => routes.value.filter((r) => r.status === 'published'))
   const draftRoutes = computed(() => myRoutes.value.filter((r) => r.status === 'draft'))
 
+  // Every action shares the same loading/error refs via withLoading and re-throws
+  // so views can still catch (rethrow: true). Because it re-throws, the success
+  // path always yields T (never undefined), so we assert that for callers that
+  // consume the return value. List responses go through the shared unwrapResults
+  // (handles both DRF `{results}` envelopes and bare arrays).
+  const run = <T>(fn: () => Promise<T>) =>
+    withLoading(loading, error, fn, { rethrow: true }) as Promise<T>
+
   async function fetchRoutes(params?: Record<string, any>) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const res = await routeService.list(params)
       routes.value = unwrapResults<HeritageRoute>(res.data)
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to load routes'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function fetchRoute(id: string) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.get(id)
       currentRoute.value = res.data as HeritageRoute
       return currentRoute.value
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to load route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function createRoute(payload: RouteCreateData) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.create(payload)
       const created = res.data as HeritageRoute
       currentRoute.value = created
       myRoutes.value = [created, ...myRoutes.value]
       return created
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to create route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function updateRoute(id: string, payload: Partial<RouteCreateData>) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.update(id, payload)
       const updated = res.data as HeritageRoute
       currentRoute.value = updated
@@ -79,87 +59,47 @@ export const useRoutesStore = defineStore('routes', () => {
       routes.value = routes.value.map((r) => (r.id === id ? updated : r))
       activeRoutes.value = activeRoutes.value.map((r) => (r.id === id ? updated : r))
       return updated
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to update route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function deleteRoute(id: string) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       await routeService.delete(id)
       if (currentRoute.value?.id === id) currentRoute.value = null
       routes.value = routes.value.filter((r) => r.id !== id)
       myRoutes.value = myRoutes.value.filter((r) => r.id !== id)
       activeRoutes.value = activeRoutes.value.filter((r) => r.id !== id)
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to delete route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function fetchMyRoutes(params?: Record<string, any>) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const res = await routeService.myRoutes(params)
       myRoutes.value = unwrapResults<HeritageRoute>(res.data)
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to load my routes'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function fetchActiveRoutes(params?: Record<string, any>) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const res = await routeService.activeRoutes(params)
       activeRoutes.value = unwrapResults<HeritageRoute>(res.data)
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to load active routes'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function submitForReview(id: string) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       await routeService.submitForReview(id)
       if (currentRoute.value?.id === id) currentRoute.value.status = 'pending'
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to submit route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function startRoute(id: string) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.start(id)
       const progress = res.data as UserRouteProgress
       if (currentRoute.value?.id === id) currentRoute.value.user_progress = progress
       return progress
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to start route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function checkInAtStop(
@@ -167,36 +107,24 @@ export const useRoutesStore = defineStore('routes', () => {
     stopId: string,
     coords?: { latitude: number; longitude: number },
   ) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.checkIn(routeId, { stop_id: stopId, ...(coords || {}) })
       const progress = res.data as UserRouteProgress
       if (currentRoute.value?.id === routeId) currentRoute.value.user_progress = progress
       return progress
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to check in'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function fetchNearbyRoutes(params: { latitude: number; longitude: number; radius?: number }) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.nearby(params)
       nearbyRoutes.value = unwrapResults<HeritageRoute>(res.data)
       return nearbyRoutes.value
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to load nearby routes'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
+  // Best-effort: a failed "similar routes" fetch shouldn't surface an error, so
+  // this one stays outside withLoading and swallows.
   async function fetchSimilarRoutes(routeId: string) {
     try {
       const res = await routeService.similar(routeId)
@@ -207,42 +135,26 @@ export const useRoutesStore = defineStore('routes', () => {
   }
 
   async function archiveRoute(routeId: string) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       await routeService.archive(routeId)
       if (currentRoute.value?.id === routeId) currentRoute.value.status = 'archived'
       myRoutes.value = myRoutes.value.map((r) =>
         r.id === routeId ? { ...r, status: 'archived' } : r,
       )
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to archive route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function skipStop(routeId: string, stopId: string) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.skipStop(routeId, { stop_id: stopId })
       const progress = res.data as UserRouteProgress
       if (currentRoute.value?.id === routeId) currentRoute.value.user_progress = progress
       return progress
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to skip stop'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function completeRoute(routeId: string) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.complete(routeId)
       // The response is the progress object plus an `awards` block the backend
       // computed from the points/badges it just granted (exact, not a heuristic).
@@ -254,28 +166,16 @@ export const useRoutesStore = defineStore('routes', () => {
         currentRoute.value.completion_count = (currentRoute.value.completion_count || 0) + 1
       }
       return { progress: progress as UserRouteProgress, awards: awards ?? { points: 0, badges: [] } }
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to complete route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function rateRoute(routeId: string, payload: { rating: number; comment?: string }) {
-    loading.value = true
-    error.value = null
-    try {
+    return run(async () => {
       const res = await routeService.rate(routeId, payload)
       const rating = res.data as RouteRating
       if (currentRoute.value?.id === routeId) currentRoute.value.user_rating = rating
       return rating
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to rate route'
-      throw e
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   return {
@@ -306,4 +206,3 @@ export const useRoutesStore = defineStore('routes', () => {
     rateRoute,
   }
 })
-

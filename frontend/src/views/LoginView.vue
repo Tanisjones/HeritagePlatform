@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { authService } from '../services/api'
 import { useAuthStore } from '@/stores/auth'
+import { extractApiError } from '@/utils/apiError'
 import AppButton from '../components/common/AppButton.vue'
 import AppCard from '../components/common/AppCard.vue'
 import { useI18n } from 'vue-i18n'
@@ -42,24 +43,9 @@ const handleLogin = async () => {
     
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     router.push(redirect)
-  } catch (err: any) {
+  } catch (err) {
     console.error('Login error:', err)
-    if (err.response?.data) {
-      const data = err.response.data;
-      // Handle standard DRF error format {"non_field_errors": ["Error message"]}
-      const firstError = Object.values(data)[0];
-      if (Array.isArray(firstError)) {
-        error.value = firstError[0] as string;
-      } else if (typeof firstError === 'string') {
-        error.value = firstError;
-      } else if (data.detail) {
-        error.value = data.detail;
-      } else {
-        error.value = 'Failed to login. Please check your credentials.';
-      }
-    } else {
-       error.value = 'Failed to login. Please try again.';
-    }
+    error.value = extractApiError(err, t('auth.errors.loginFailed'))
   } finally {
     loading.value = false
   }

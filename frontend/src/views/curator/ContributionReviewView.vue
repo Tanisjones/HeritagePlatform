@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { aiService, curatorService } from '@/services/api'
 import { useAIAvailability } from '@/services/aiAvailability'
 import { useAiError } from '@/composables/useAiError'
+import { parsePoint } from '@/utils/geo'
 import MapContainer from '@/components/map/MapContainer.vue'
 import type {
   CuratorReviewDetail,
@@ -24,31 +25,11 @@ const route = useRoute()
 const router = useRouter()
 const id = computed(() => route.params.id as string)
 
-const parsedLocation = computed<[number, number] | null>(() => {
-  const loc = (detail.value as any)?.heritage_item?.location
-  if (!loc) return null
-  
-  // Handle GeoJSON object if it comes that way (from some serializers)
-  if (typeof loc === 'object' && Array.isArray(loc.coordinates)) {
-    // GeoJSON is [lng, lat], Leaflet wants [lat, lng]
-    return [loc.coordinates[1], loc.coordinates[0]]
-  }
-
-  // Handle string "SRID=4326;POINT (-78.6479 -1.6735)" or "POINT (-78.6479 -1.6735)"
-  // Extract content inside parens
-  const match = loc.toString().match(/\(([^)]+)\)/)
-  if (match && match[1]) {
-    const parts = match[1].trim().split(/\s+/)
-    if (parts.length >= 2) {
-      const lng = parseFloat(parts[0])
-      const lat = parseFloat(parts[1])
-      if (!isNaN(lng) && !isNaN(lat)) {
-         return [lat, lng]
-      }
-    }
-  }
-  return null
-})
+const parsedLocation = computed<[number, number] | null>(() =>
+  // parsePoint handles both the GeoJSON object and the WKT string forms and
+  // returns Leaflet order [lat, lng].
+  parsePoint(detail.value?.heritage_item?.location),
+)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -125,7 +106,7 @@ async function runAIReview() {
     aiLoading.value = true
     const res = await aiService.curatorReview({
       language: getCurrentLocale(),
-      item: (detail.value as any).heritage_item ?? detail.value,
+      item: detail.value.heritage_item ?? detail.value,
     })
     aiReview.value = res
 
@@ -221,8 +202,8 @@ onMounted(() => {
       <section class="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5">
         <div class="flex items-start justify-between">
           <div>
-            <h2 class="text-xl font-semibold text-gray-900">{{ (detail as any).heritage_item?.title }}</h2>
-            <div class="text-sm text-gray-600 mt-1">{{ t('curatorReview.status', { status: t(`curatorReview.statusMap.${(detail as any).heritage_item?.status}`) }) }}</div>
+            <h2 class="text-xl font-semibold text-gray-900">{{ detail.heritage_item?.title }}</h2>
+            <div class="text-sm text-gray-600 mt-1">{{ t('curatorReview.status', { status: t(`curatorReview.statusMap.${detail.heritage_item?.status}`) }) }}</div>
           </div>
           <button class="px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100" @click="flagModalOpen = true">
             {{ t('curatorReview.flag') }}
@@ -230,7 +211,7 @@ onMounted(() => {
         </div>
 
         <div class="mt-4 prose max-w-none">
-          <p class="text-gray-800 whitespace-pre-wrap">{{ (detail as any).heritage_item?.description }}</p>
+          <p class="text-gray-800 whitespace-pre-wrap">{{ detail.heritage_item?.description }}</p>
         </div>
 
         <div class="mt-6 border-t pt-4">
@@ -238,28 +219,28 @@ onMounted(() => {
           <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 text-sm">
             <div>
               <dt class="text-gray-500">{{ t('curatorReview.metadataLocation.type') }}</dt>
-              <dd class="font-medium text-gray-900">{{ (detail as any).heritage_item?.heritage_type?.name || '-' }}</dd>
+              <dd class="font-medium text-gray-900">{{ detail.heritage_item?.heritage_type?.name || '-' }}</dd>
             </div>
             <div>
               <dt class="text-gray-500">{{ t('curatorReview.metadataLocation.category') }}</dt>
-              <dd class="font-medium text-gray-900">{{ (detail as any).heritage_item?.heritage_category?.name || '-' }}</dd>
+              <dd class="font-medium text-gray-900">{{ detail.heritage_item?.heritage_category?.name || '-' }}</dd>
             </div>
             <div>
               <dt class="text-gray-500">{{ t('curatorReview.metadataLocation.parish') }}</dt>
-              <dd class="font-medium text-gray-900">{{ (detail as any).heritage_item?.parish?.name || '-' }}</dd>
+              <dd class="font-medium text-gray-900">{{ detail.heritage_item?.parish?.name || '-' }}</dd>
             </div>
             <div>
               <dt class="text-gray-500">{{ t('curatorReview.metadataLocation.historicalPeriod') }}</dt>
-              <dd class="font-medium text-gray-900 capitalize">{{ (detail as any).heritage_item?.historical_period?.replace('_', ' ') || '-' }}</dd>
+              <dd class="font-medium text-gray-900 capitalize">{{ detail.heritage_item?.historical_period?.replace('_', ' ') || '-' }}</dd>
             </div>
             <div class="md:col-span-2">
               <dt class="text-gray-500">{{ t('curatorReview.metadataLocation.address') }}</dt>
-              <dd class="font-medium text-gray-900">{{ (detail as any).heritage_item?.address || t('curatorReview.metadataLocation.noAddress') }}</dd>
+              <dd class="font-medium text-gray-900">{{ detail.heritage_item?.address || t('curatorReview.metadataLocation.noAddress') }}</dd>
             </div>
-            <div class="md:col-span-2" v-if="(detail as any).heritage_item?.location">
+            <div class="md:col-span-2" v-if="detail.heritage_item?.location">
                <dt class="text-gray-500">{{ t('curatorReview.metadataLocation.coordinates') }}</dt>
                <dd class="text-sm text-gray-900 mt-1 mb-2">
-                 {{ (detail as any).heritage_item.location }}
+                 {{ detail.heritage_item.location }}
                </dd>
                <div class="h-64 w-full rounded-lg overflow-hidden border border-gray-200">
                  <MapContainer
@@ -268,12 +249,12 @@ onMounted(() => {
                    :zoom="15"
                    :details-label="t('home.map.viewDetails')"
                    :markers="[{
-                     id: (detail as any).heritage_item.id,
-                     title: (detail as any).heritage_item.title,
+                     id: detail.heritage_item.id,
+                     title: detail.heritage_item.title,
                      coordinates: parsedLocation,
-                     type: (detail as any).heritage_item.heritage_type?.name,
-                     category: (detail as any).heritage_item.heritage_category?.name,
-                     image: (detail as any).heritage_item.images?.[0]?.file
+                     type: detail.heritage_item.heritage_type?.name,
+                     category: detail.heritage_item.heritage_category?.name,
+                     image: detail.heritage_item.images?.[0]?.file
                    }]"
                    @view-details="(m) => m.id && router.push(`/heritage/${m.id}`)"
                  />
@@ -286,11 +267,11 @@ onMounted(() => {
         </div>
 
         <div class="mt-6 space-y-6">
-          <div v-if="(detail as any).heritage_item?.images?.length">
+          <div v-if="detail.heritage_item?.images?.length">
             <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t('curatorReview.media.images') }}</h3>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
               <img
-                v-for="(img, idx) in (detail as any).heritage_item.images"
+                v-for="(img, idx) in detail.heritage_item.images"
                 :key="idx"
                 :src="img.file"
                 class="w-full h-32 object-cover rounded-lg border bg-gray-50"
@@ -298,11 +279,11 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="(detail as any).heritage_item?.audio?.length">
+          <div v-if="detail.heritage_item?.audio?.length">
             <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t('curatorReview.media.audio') }}</h3>
             <div class="space-y-3">
               <div
-                v-for="(aud, idx) in (detail as any).heritage_item.audio"
+                v-for="(aud, idx) in detail.heritage_item.audio"
                 :key="idx"
                 class="bg-gray-50 rounded-lg p-3 border"
               >
@@ -315,11 +296,11 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="(detail as any).heritage_item?.video?.length">
+          <div v-if="detail.heritage_item?.video?.length">
             <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t('curatorReview.media.video') }}</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div
-                v-for="(vid, idx) in (detail as any).heritage_item.video"
+                v-for="(vid, idx) in detail.heritage_item.video"
                 :key="idx"
                 class="bg-gray-50 rounded-lg border overflow-hidden"
               >
@@ -334,11 +315,11 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="(detail as any).heritage_item?.documents?.length">
+          <div v-if="detail.heritage_item?.documents?.length">
             <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t('curatorReview.media.documents') }}</h3>
             <ul class="space-y-2">
               <li
-                v-for="(doc, idx) in (detail as any).heritage_item.documents"
+                v-for="(doc, idx) in detail.heritage_item.documents"
                 :key="idx"
                 class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition"
               >

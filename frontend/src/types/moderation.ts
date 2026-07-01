@@ -117,8 +117,37 @@ export interface CuratorQueueItem {
   images?: unknown[];
 }
 
+/** A media file attached to a heritage item, as returned in the review detail. */
+export interface CuratorReviewMedia {
+  id: string;
+  file: string;
+  [key: string]: unknown;
+}
+
+/**
+ * The heritage item under review, as embedded in CuratorReviewDetail. Modeled
+ * explicitly so the review view can drop its ~27 `(detail as any)` casts.
+ */
+export interface CuratorHeritageItem {
+  id: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  address?: string;
+  historical_period?: string | null;
+  heritage_type?: { name?: string } | null;
+  heritage_category?: { name?: string } | null;
+  parish?: { name?: string } | null;
+  location?: string | { type?: string; coordinates?: number[] } | null;
+  images?: CuratorReviewMedia[];
+  audio?: CuratorReviewMedia[];
+  video?: CuratorReviewMedia[];
+  documents?: CuratorReviewMedia[];
+  [key: string]: unknown;
+}
+
 export interface CuratorReviewDetail {
-  heritage_item: unknown;
+  heritage_item: CuratorHeritageItem;
   quality_score?: QualityScore;
   flags: ContributionFlag[];
   checklist_responses: ReviewChecklistResponse[];

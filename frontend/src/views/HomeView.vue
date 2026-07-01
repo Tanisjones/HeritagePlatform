@@ -16,6 +16,7 @@ import AppCard from '../components/common/AppCard.vue'
 import AppButton from '../components/common/AppButton.vue'
 import BaseSpinner from '../components/common/BaseSpinner.vue'
 import { heritageService, routeService } from '../services/api'
+import { parsePoint } from '../utils/geo'
 import { useI18n } from 'vue-i18n'
 
 interface HeritageMarker {
@@ -70,33 +71,17 @@ const loadHeritageItems = async () => {
     // Handle both { type: "FeatureCollection", features: [...] } and nested { features: { features: ... } }
     const features = Array.isArray(data.features) ? data.features : (data.features?.features || [])
 
-    // Convert GeoJSON to marker format
+    // Convert GeoJSON to marker format. parsePoint handles both the object and
+    // WKT-string geometry shapes and returns Leaflet order [lat, lng].
     markers.value = features.map((feature: any) => {
-      let coordinates: [number, number] = [0, 0]
-
-      if (feature.geometry && typeof feature.geometry === 'object' && feature.geometry.coordinates) {
-        // Standard GeoJSON
-        coordinates = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]]
-      } else if (typeof feature.geometry === 'string' && feature.geometry.includes('POINT')) {
-        // WKT Format: SRID=4326;POINT (-78.6575 -1.6732)
-        // Extract numbers inside parentheses
-        const matches = feature.geometry.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/)
-        if (matches && matches.length >= 3) {
-          const lon = parseFloat(matches[1])
-          const lat = parseFloat(matches[2])
-          coordinates = [lat, lon]
-        } else {
-          console.warn('Could not parse WKT point geometry:', feature.geometry)
-        }
-      } else {
-        // Unknown geometry shape — the marker will be dropped by the filter below.
+      const coordinates = parsePoint(feature.geometry)
+      if (!coordinates) {
         console.warn('Unrecognized geometry format for feature:', feature.id, feature.geometry)
       }
-
       return {
         id: feature.id,
         title: feature.properties?.title || feature.title || 'Unknown',
-        coordinates: coordinates,
+        coordinates: coordinates ?? [0, 0],
         type: feature.properties?.heritage_type || 'Unknown',
         category: feature.properties?.heritage_category || 'Unknown',
         image: feature.properties?.primary_image || undefined,

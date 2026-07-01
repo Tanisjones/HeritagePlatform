@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { contributorService } from '@/services/api'
+import { withLoading } from '@/composables/useAsyncAction'
+import { unwrapResults } from '@/utils/pagination'
 import type { ContributorFeedback } from '@/types/moderation'
 
 export const useContributionsStore = defineStore('contributions', () => {
@@ -12,43 +14,28 @@ export const useContributionsStore = defineStore('contributions', () => {
 
   const isEmpty = computed(() => !loading.value && myContributions.value.length === 0)
 
+  // These fetches swallow errors into the `error` ref (no rethrow) — views bind it.
+  const run = <T>(fn: () => Promise<T>) => withLoading(loading, error, fn)
+
   async function fetchMyContributions(params?: Record<string, any>) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const response = await contributorService.list(params)
-      myContributions.value = response.data.results ?? response.data
-    } catch (e: any) {
-      error.value = e?.message ?? 'Failed to load contributions'
-    } finally {
-      loading.value = false
-    }
+      myContributions.value = unwrapResults(response.data)
+    })
   }
 
   async function fetchContribution(id: string) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const response = await contributorService.get(id)
       currentContribution.value = response.data
-    } catch (e: any) {
-      error.value = e?.message ?? 'Failed to load contribution'
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function fetchFeedback(id: string) {
-    loading.value = true
-    error.value = null
-    try {
+    await run(async () => {
       const response = await contributorService.feedback(id)
       currentFeedback.value = response.data
-    } catch (e: any) {
-      error.value = e?.message ?? 'Failed to load feedback'
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   async function updateContribution(id: string, payload: any) {
