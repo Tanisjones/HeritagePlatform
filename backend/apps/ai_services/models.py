@@ -42,3 +42,57 @@ class AISuggestion(models.Model):
 
     def __str__(self):
         return f"{self.suggestion_type} for {self.heritage_item.title}"
+
+
+class AIUsageRecord(models.Model):
+    """
+    One row per AI operation attempt (success, error, or rate-limited), for the
+    AI-economy dashboard. Records token usage and estimated cost — but NOT the
+    prompt/response text (privacy + size).
+    """
+
+    STATUS_OK = 'ok'
+    STATUS_ERROR = 'error'
+    STATUS_RATE_LIMITED = 'rate_limited'
+    STATUS_CHOICES = [
+        (STATUS_OK, _('OK')),
+        (STATUS_ERROR, _('Error')),
+        (STATUS_RATE_LIMITED, _('Rate limited')),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_usage_records',
+        verbose_name=_('user'),
+    )
+    operation = models.CharField(_('operation'), max_length=60)
+    provider = models.CharField(_('provider'), max_length=40)
+    model = models.CharField(_('model'), max_length=120)
+    input_tokens = models.IntegerField(_('input tokens'), null=True, blank=True)
+    output_tokens = models.IntegerField(_('output tokens'), null=True, blank=True)
+    total_tokens = models.IntegerField(_('total tokens'), null=True, blank=True)
+    estimated_cost_usd = models.DecimalField(
+        _('estimated cost (USD)'), max_digits=10, decimal_places=6, null=True, blank=True
+    )
+    duration_ms = models.IntegerField(_('duration (ms)'), null=True, blank=True)
+    status = models.CharField(_('status'), max_length=20, choices=STATUS_CHOICES, default=STATUS_OK)
+    error_type = models.CharField(_('error type'), max_length=80, blank=True)
+
+    class Meta:
+        verbose_name = _('AI usage record')
+        verbose_name_plural = _('AI usage records')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['created_at']),
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['operation']),
+            models.Index(fields=['provider', 'model']),
+        ]
+
+    def __str__(self):
+        return f"{self.operation} · {self.provider}/{self.model} · {self.status}"

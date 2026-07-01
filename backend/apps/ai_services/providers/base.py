@@ -5,11 +5,25 @@ from typing import Any, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
+class TokenUsage:
+    """Token counts reported by a provider for a single completion.
+
+    All optional because not every provider/response reports them; the AI-economy
+    layer records whatever is present and prices it when possible.
+    """
+
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+@dataclass(frozen=True)
 class ChatResult:
     """Provider-agnostic result of a JSON chat completion."""
 
     raw_text: str
     parsed_json: Any
+    usage: TokenUsage | None = None
 
 
 @dataclass(frozen=True)

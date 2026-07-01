@@ -3,7 +3,7 @@ Admin configuration for AI services app models.
 """
 
 from django.contrib import admin
-from .models import AISuggestion
+from .models import AISuggestion, AIUsageRecord
 
 
 @admin.register(AISuggestion)
@@ -31,3 +31,22 @@ class AISuggestionAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(AIUsageRecord)
+class AIUsageRecordAdmin(admin.ModelAdmin):
+    """Read-only audit of AI usage/cost (the AI-economy dashboard's backing data)."""
+    list_display = [
+        'created_at', 'operation', 'provider', 'model', 'status',
+        'input_tokens', 'output_tokens', 'total_tokens', 'estimated_cost_usd', 'user',
+    ]
+    list_filter = ['status', 'operation', 'provider', 'model', 'created_at']
+    search_fields = ['operation', 'model', 'user__email']
+    readonly_fields = [f.name for f in AIUsageRecord._meta.fields]
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request):
+        return False  # records are written only by the AI pipeline
+
+    def has_change_permission(self, request, obj=None):
+        return False  # audit log — read-only

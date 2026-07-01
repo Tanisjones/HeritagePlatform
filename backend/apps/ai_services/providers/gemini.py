@@ -8,7 +8,7 @@ import httpx
 from ..ai_config import AIConfig
 from ..availability import AIServiceUnavailable
 from ..ollama_client import _parse_json_lenient
-from .base import ChatProvider, ChatResult, ProviderHealth
+from .base import ChatProvider, ChatResult, ProviderHealth, TokenUsage
 
 # Google Generative Language REST API base.
 _GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
@@ -100,7 +100,7 @@ class GeminiProvider(ChatProvider):
         if parsed is None:
             raise AIServiceUnavailable("AI returned invalid JSON.")
 
-        return ChatResult(raw_text=text, parsed_json=parsed)
+        return ChatResult(raw_text=text, parsed_json=parsed, usage=_extract_usage(data))
 
     def health(self) -> ProviderHealth:
         if not self._config.api_key:
@@ -134,6 +134,24 @@ def _block_reason(data: Any) -> str | None:
     feedback = data.get("promptFeedback")
     reason = feedback.get("blockReason") if isinstance(feedback, dict) else None
     return reason if isinstance(reason, str) and reason else None
+
+
+def _extract_usage(data: Any) -> TokenUsage | None:
+    """Read Gemini's usageMetadata{promptTokenCount, candidatesTokenCount,
+    totalTokenCount} into a provider-agnostic TokenUsage, or None if absent."""
+    meta = data.get("usageMetadata") if isinstance(data, dict) else None
+    if not isinstance(meta, dict):
+        return None
+
+    def _int(key: str) -> int | None:
+        value = meta.get(key)
+        return value if isinstance(value, int) else None
+
+    return TokenUsage(
+        input_tokens=_int("promptTokenCount"),
+        output_tokens=_int("candidatesTokenCount"),
+        total_tokens=_int("totalTokenCount"),
+    )
 
 
 def _extract_text(data: Any) -> str | None:

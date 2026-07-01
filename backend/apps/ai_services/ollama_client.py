@@ -8,12 +8,14 @@ import httpx
 
 from .ai_config import AIConfig
 from .availability import AIServiceUnavailable
+from .providers.base import TokenUsage
 
 
 @dataclass(frozen=True)
 class OllamaChatResult:
     raw_text: str
     parsed_json: Any
+    usage: TokenUsage | None = None
 
 
 class OllamaClient:
@@ -42,10 +44,10 @@ class OllamaClient:
             {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
         ]
 
-        content = self._call_chat(messages)
+        content, usage = self._call_chat(messages)
         parsed = _parse_json_lenient(content)
         if parsed is not None:
-            return OllamaChatResult(raw_text=content, parsed_json=parsed)
+            return OllamaChatResult(raw_text=content, parsed_json=parsed, usage=usage)
 
         # Retry once with a stronger correction message.
         messages.append(
@@ -54,14 +56,14 @@ class OllamaClient:
                 "content": "Your previous response was invalid. Return ONLY valid JSON for the requested schema.",
             }
         )
-        content = self._call_chat(messages)
+        content, usage = self._call_chat(messages)
         parsed = _parse_json_lenient(content)
         if parsed is None:
             raise AIServiceUnavailable("AI returned invalid JSON.")
 
-        return OllamaChatResult(raw_text=content, parsed_json=parsed)
+        return OllamaChatResult(raw_text=content, parsed_json=parsed, usage=usage)
 
-    def _call_chat(self, messages: list[dict[str, str]]) -> str:
+    def _call_chat(self, messages: list[dict[str, str]]) -> tuple[str, TokenUsage | None]:
         options: dict[str, Any] = {
             "temperature": self._config.temperature,
             "num_predict": self._config.max_output_tokens,
@@ -91,7 +93,18 @@ class OllamaClient:
         if not isinstance(content, str):
             raise AIServiceUnavailable("AI provider response missing message content.")
 
-        return content.strip()
+        # Ollama reports token counts as prompt_eval_count / eval_count (absent on
+        # some models/versions → usage stays None).
+        prompt_tokens = data.get("prompt_eval_count") if isinstance(data, dict) else None
+        output_tokens = data.get("eval_count") if isinstance(data, dict) else None
+        usage = None
+        if isinstance(prompt_tokens, int) or isinstance(output_tokens, int):
+            pt = prompt_tokens if isinstance(prompt_tokens, int) else None
+            ot = output_tokens if isinstance(output_tokens, int) else None
+            total = (pt or 0) + (ot or 0) if (pt is not None or ot is not None) else None
+            usage = TokenUsage(input_tokens=pt, output_tokens=ot, total_tokens=total)
+
+        return content.strip(), usage
 
 
 def _parse_json_lenient(text: str) -> Any | None:

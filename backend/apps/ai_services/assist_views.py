@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from rest_framework import permissions, status
@@ -25,7 +26,9 @@ from .assist_serializers import (
     TranslateAssistResponseSerializer,
 )
 from .providers import get_provider, is_supported_provider
-from .rate_limit import enforce_user_rate_limit
+from .rate_limit import AIRateLimited, enforce_user_rate_limit
+from .models import AIUsageRecord
+from .usage import record_ai_usage
 
 
 class IsStaff(permissions.BasePermission):
@@ -100,10 +103,21 @@ class BaseAssistView(APIView):
         _require_operation_allowed(config, self.operation)
         _require_supported_provider(config)
 
+        # Every attempt past this point is recorded for the AI-economy dashboard
+        # (success, provider error, or rate-limit). Recording never breaks the
+        # request — see record_ai_usage.
+        user_id = request.user.id
         rate_kwargs = {}
         if self.rate_limit_per_minute is not None:
             rate_kwargs["limit_per_minute"] = self.rate_limit_per_minute
-        enforce_user_rate_limit(user_id=request.user.id, operation=self.operation, **rate_kwargs)
+        try:
+            enforce_user_rate_limit(user_id=user_id, operation=self.operation, **rate_kwargs)
+        except AIRateLimited:
+            record_ai_usage(
+                user_id=user_id, operation=self.operation, config=config, usage=None,
+                duration_ms=None, status=AIUsageRecord.STATUS_RATE_LIMITED,
+            )
+            raise
 
         serializer = self.request_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -112,7 +126,22 @@ class BaseAssistView(APIView):
 
         prompt = _render_prompt(config.prompts[self.operation], variables=self.prompt_variables(data))
         client = get_provider(config)
-        result = client.chat_json(system_prompt=prompt, user_payload=data)
+
+        t0 = time.monotonic()
+        try:
+            result = client.chat_json(system_prompt=prompt, user_payload=data)
+        except AIServiceUnavailable as exc:
+            record_ai_usage(
+                user_id=user_id, operation=self.operation, config=config, usage=None,
+                duration_ms=int((time.monotonic() - t0) * 1000),
+                status=AIUsageRecord.STATUS_ERROR, error_type=type(exc).__name__,
+            )
+            raise
+
+        record_ai_usage(
+            user_id=user_id, operation=self.operation, config=config, usage=result.usage,
+            duration_ms=int((time.monotonic() - t0) * 1000), status=AIUsageRecord.STATUS_OK,
+        )
 
         out = self.response_serializer(data=result.parsed_json)
         out.is_valid(raise_exception=True)

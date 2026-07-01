@@ -19,7 +19,7 @@ class OllamaProvider(ChatProvider):
 
     def chat_json(self, *, system_prompt: str, user_payload: dict[str, Any]) -> ChatResult:
         result = self._client.chat_json(system_prompt=system_prompt, user_payload=user_payload)
-        return ChatResult(raw_text=result.raw_text, parsed_json=result.parsed_json)
+        return ChatResult(raw_text=result.raw_text, parsed_json=result.parsed_json, usage=result.usage)
 
     def health(self) -> ProviderHealth:
         # Probe Ollama's /api/tags — confirms the daemon is reachable. (Does not

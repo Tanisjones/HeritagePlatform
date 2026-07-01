@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
-from apps.ai_services.models import AISuggestion
+from apps.ai_services.models import AISuggestion, AIUsageRecord
 from rest_framework.test import APIClient
 
 User = get_user_model()
@@ -546,3 +546,79 @@ class GeminiProviderTest(TestCase):
         self.assertIn("key", resp.data["reason"].lower())
         # Health short-circuits on missing key without a network call.
         get_mock.assert_not_called()
+
+
+class AIUsageRecordingTest(TestCase):
+    """Every AI operation attempt (success, provider error, rate-limit) leaves
+    exactly one AIUsageRecord, with tokens/cost when the provider reports them."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="ru", email="ru@example.com", password="pw")
+
+    @patch("httpx.Client.post")
+    def test_successful_call_records_usage_with_tokens(self, post_mock):
+        # Ollama reports prompt_eval_count / eval_count on the /api/chat response.
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200,
+            json_data={
+                "message": {"content": '{"title":"T","description":"D"}'},
+                "prompt_eval_count": 120,
+                "eval_count": 45,
+            },
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/contribution-draft/",
+            {"language": "es", "notes": "x"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        records = AIUsageRecord.objects.all()
+        self.assertEqual(records.count(), 1)
+        rec = records.first()
+        self.assertEqual(rec.status, AIUsageRecord.STATUS_OK)
+        self.assertEqual(rec.operation, "contribution_draft")
+        self.assertEqual(rec.provider, "ollama")
+        self.assertEqual(rec.input_tokens, 120)
+        self.assertEqual(rec.output_tokens, 45)
+        self.assertEqual(rec.total_tokens, 165)
+        self.assertEqual(rec.user_id, self.user.id)
+        # Local Ollama model → priced at 0 via the "*" pricing fallback.
+        self.assertEqual(rec.estimated_cost_usd, 0)
+        self.assertIsNotNone(rec.duration_ms)
+
+    @patch("httpx.Client.post")
+    def test_provider_error_records_error_status(self, post_mock):
+        post_mock.return_value = _MockHTTPXResponse(status_code=500, json_data={})
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/contribution-draft/",
+            {"language": "es"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 503)
+        rec = AIUsageRecord.objects.get()
+        self.assertEqual(rec.status, AIUsageRecord.STATUS_ERROR)
+        self.assertTrue(rec.error_type)
+        self.assertIsNone(rec.total_tokens)
+
+    @patch("httpx.Client.post")
+    def test_missing_usage_fields_records_null_tokens(self, post_mock):
+        # A model/version that omits token counts → usage stays None, still recorded.
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200,
+            json_data={"message": {"content": '{"title":"T","description":"D"}'}},
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/contribution-draft/",
+            {"language": "es"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        rec = AIUsageRecord.objects.get()
+        self.assertEqual(rec.status, AIUsageRecord.STATUS_OK)
+        self.assertIsNone(rec.input_tokens)
+        self.assertIsNone(rec.total_tokens)

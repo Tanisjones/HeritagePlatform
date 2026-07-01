@@ -33,6 +33,16 @@ ai:
   temperature: 0.2
   max_output_tokens: 700
 
+  # Per-model price table for the AI-economy dashboard: USD per 1,000,000 tokens.
+  # Look-up is by model id, falling back to the "*" entry. Local/Ollama models
+  # cost nothing, so the "*" fallback of 0 covers them. Update these when a
+  # provider changes prices or you add a model — no code change needed.
+  pricing:
+    "gemini-2.0-flash": { input: 0.075, output: 0.30 }
+    "gemini-1.5-flash": { input: 0.075, output: 0.30 }
+    "gemini-1.5-pro": { input: 1.25, output: 5.00 }
+    "*": { input: 0.0, output: 0.0 }   # fallback — Ollama / local models
+
   # Explicit allow-list of operations the UI can invoke.
   allowed_operations:
     - contribution_draft

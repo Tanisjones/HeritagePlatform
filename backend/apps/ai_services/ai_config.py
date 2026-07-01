@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,29 @@ class AIConfig:
     # reviewable suggestions. Off by default so item creation stays instant and
     # never blocks on a provider round-trip; enable only with a fast provider.
     auto_suggest_on_create: bool = False
+    # Per-model price table (USD per 1,000,000 tokens): {model: {"input": x, "output": y}}.
+    # A "*" key is the fallback (covers Ollama / local models, priced at 0).
+    pricing: dict[str, dict[str, float]] = field(default_factory=dict)
+
+    def estimate_cost(
+        self, model: str, input_tokens: int | None, output_tokens: int | None
+    ) -> Decimal | None:
+        """Estimated USD cost of a call, or None if tokens/pricing are unavailable.
+
+        Looks up `model` in the price table, falling back to the "*" entry.
+        Rates are per 1,000,000 tokens. Missing token counts contribute 0.
+        """
+        rates = self.pricing.get(model) or self.pricing.get("*")
+        if not rates:
+            return None
+        if input_tokens is None and output_tokens is None:
+            return None
+        per_million = Decimal(1_000_000)
+        cost = Decimal(0)
+        cost += (Decimal(input_tokens or 0) / per_million) * Decimal(str(rates.get("input", 0)))
+        cost += (Decimal(output_tokens or 0) / per_million) * Decimal(str(rates.get("output", 0)))
+        # Quantize to the model field's 6 decimal places.
+        return cost.quantize(Decimal("0.000001"))
 
 
 def get_ai_config_path() -> Path:
@@ -113,6 +137,8 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
     if not isinstance(auto_suggest, bool):
         raise AIConfigError("AI config 'auto_suggest_on_create' must be a boolean")
 
+    pricing = _parse_pricing(ai.get("pricing"))
+
     return AIConfig(
         enabled=enabled,
         provider=provider,
@@ -126,7 +152,30 @@ def _load_ai_config_cached(path_str: str) -> AIConfig:
         api_key_env=api_key_env,
         api_key=api_key,
         auto_suggest_on_create=auto_suggest,
+        pricing=pricing,
     )
+
+
+def _parse_pricing(value: Any) -> dict[str, dict[str, float]]:
+    """Optional {model: {input, output}} price table (USD per 1M tokens)."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise AIConfigError("AI config 'pricing' must be a mapping of model -> {input, output}")
+    table: dict[str, dict[str, float]] = {}
+    for model_key, rates in value.items():
+        if not isinstance(model_key, str) or not model_key.strip():
+            raise AIConfigError("AI config 'pricing' keys must be non-empty model-name strings")
+        if not isinstance(rates, dict):
+            raise AIConfigError(f"AI config 'pricing.{model_key}' must be a mapping with input/output")
+        parsed_rates: dict[str, float] = {}
+        for rate_key in ("input", "output"):
+            rate = rates.get(rate_key, 0)
+            if not isinstance(rate, (int, float)):
+                raise AIConfigError(f"AI config 'pricing.{model_key}.{rate_key}' must be a number")
+            parsed_rates[rate_key] = float(rate)
+        table[model_key] = parsed_rates
+    return table
 
 
 def _require_str(obj: dict[str, Any], key: str) -> str:
