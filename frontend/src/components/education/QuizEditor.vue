@@ -45,10 +45,18 @@ async function load() {
   })
 }
 
+// A per-mount random prefix guarantees a freshly-generated choice id can never
+// collide with an id already persisted by the backend (whose ids we preserve on
+// load). A plain counter like `c{n}_{len}` could regenerate an existing id and
+// corrupt the answer key (correct flags are keyed by choice id).
+const _idSalt =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 10)
 let choiceSeq = 0
 function newChoiceId(): string {
   choiceSeq += 1
-  return `c${choiceSeq}_${questions.value.length}`
+  return `c_${_idSalt}_${choiceSeq}`
 }
 
 function addQuestion() {

@@ -1243,6 +1243,9 @@
             "grade": "Grade",
             "objectives": "Learning objectives",
             "materials": "Materials",
+            "rubrics": "Rubrics",
+            "criterion": "Criterion",
+            "points": "Points",
             "notFoundTitle": "Plan not found",
             "notFoundMessage": "This lesson plan does not exist or is not public."
         }

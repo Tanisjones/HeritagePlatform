@@ -1441,3 +1441,45 @@ class RubricSecurityTest(TestCase):
             ],
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
+
+
+class LessonPlanReviewFix2Test(TestCase):
+    """Final-review regressions: duplicate carries standards+rubrics; publish makes
+    an unlisted plan public; PDF filename uses the shared slug helper."""
+
+    def setUp(self):
+        from apps.education.models import LessonPlan, LessonActivity, Rubric, RubricCriterion, CurriculumStandard
+        self.LessonPlan = LessonPlan
+        self.client = APIClient()
+        self.teacher = User.objects.create_user(email='rf2@example.com', password='pw', is_staff=True)
+        self.plan = LessonPlan.objects.create(
+            title='Fuente', author=self.teacher, subject='CS', objectives=['O'],
+        )
+        LessonActivity.objects.create(lesson=self.plan, order=0, title='A', activity_type='hook')
+        self.plan.standards.set(list(CurriculumStandard.objects.all()[:2]))
+        r = Rubric.objects.create(lesson=self.plan, title='R1')
+        RubricCriterion.objects.create(rubric=r, order=0, label='Crit', max_points=4, levels=[])
+
+    def test_duplicate_carries_standards_and_rubrics(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/duplicate/')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        clone = self.LessonPlan.objects.get(id=resp.data['id'])
+        self.assertEqual(clone.standards.count(), 2)
+        self.assertEqual(clone.rubrics.count(), 1)
+        self.assertEqual(clone.rubrics.first().criteria.count(), 1)
+        # Deep copy — clone's rubric is a distinct row from the source's.
+        self.assertNotEqual(clone.rubrics.first().id, self.plan.rubrics.first().id)
+
+    def test_publish_makes_unlisted_plan_public(self):
+        self.plan.visibility = self.LessonPlan.VISIBILITY_UNLISTED
+        self.plan.status = self.LessonPlan.STATUS_REVIEW
+        self.plan.save(update_fields=['visibility', 'status'])
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/publish/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.visibility, self.LessonPlan.VISIBILITY_PUBLIC)
+        # Now reachable anonymously.
+        self.client.force_authenticate(user=None)
+        self.assertEqual(self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/').status_code, 200)

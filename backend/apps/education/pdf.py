@@ -148,11 +148,8 @@ def build_lesson_plan_pdf(plan) -> tuple[io.BytesIO, str]:
 
     doc.build(story)
     buf.seek(0)
-    filename = _slugify(plan.title) + "-lesson-plan.pdf"
+    # Reuse the shared filename slug helper (don't add a third divergent copy).
+    from apps.routes.exports import slugify_filename
+
+    filename = slugify_filename(_text(plan.title), fallback="lesson-plan") + "-lesson-plan.pdf"
     return buf, filename
-
-
-def _slugify(value: str) -> str:
-    value = _text(value).lower()
-    value = re.sub(r"[^a-z0-9]+", "-", value).strip("-")
-    return value or "lesson-plan"

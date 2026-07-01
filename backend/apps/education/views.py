@@ -52,6 +52,27 @@ def _role_slug(user):
     return getattr(role, "slug", None)
 
 
+def visible_lesson_plans(user, base_qs=None):
+    """LessonPlans `user` may see — the ONE source of truth for plan visibility.
+
+    Curator/staff → all; authenticated → own (any state) OR published-public;
+    anonymous → published-public only. Shared by LessonPlanViewSet.get_queryset and
+    RubricViewSet so a rubric can never leak the assessment of a plan the caller
+    can't see, and the two never drift.
+    """
+    from .models import LessonPlan  # local import: module also imported early
+
+    qs = LessonPlan.objects.all() if base_qs is None else base_qs
+    if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
+        return qs
+    published_public = qs.filter(
+        status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC
+    )
+    if user and user.is_authenticated:
+        return (qs.filter(author=user) | published_public).distinct()
+    return published_public
+
+
 class IsAuthenticatedOrReadOnly(permissions.BasePermission):
     """
     Custom permission to allow read-only access to unauthenticated users
@@ -610,21 +631,12 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         activities_qs = LessonActivity.objects.select_related(
             'heritage_item', 'route', 'educational_resource'
         )
-        qs = LessonPlan.objects.all().prefetch_related(
+        base = LessonPlan.objects.all().prefetch_related(
             Prefetch('activities', queryset=activities_qs),
             'standards',
             'rubrics__criteria',
         )
-        user = self.request.user
-        if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
-            return qs
-        published_public = qs.filter(
-            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC
-        )
-        if user and user.is_authenticated:
-            # Own plans (any state) OR published-public.
-            return (qs.filter(author=user) | published_public).distinct()
-        return published_public
+        return visible_lesson_plans(self.request.user, base_qs=base)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -646,28 +658,46 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
-        """Clone a plan (and its activities) as a fresh draft owned by the caller."""
+        """Clone a plan — its activities, curriculum standards, AND rubrics (with
+        criteria) — as a fresh draft owned by the caller."""
+        from django.db import transaction as _txn
+        from .models import Rubric, RubricCriterion
+
         source = self.get_object()
-        clone = LessonPlan.objects.create(
-            title=f"{source.title} (copy)",
-            summary=source.summary,
-            objectives=list(source.objectives or []),
-            subject=source.subject,
-            grade_level=source.grade_level,
-            audience=source.audience,
-            curriculum_alignment=source.curriculum_alignment,
-            pedagogical_approach=source.pedagogical_approach,
-            estimated_total_minutes=source.estimated_total_minutes,
-            related_route=source.related_route,
-            status=LessonPlan.STATUS_DRAFT,
-            visibility=LessonPlan.VISIBILITY_PRIVATE,
-            author=request.user,
-        )
-        for activity in source.activities.all():
-            activity.pk = None
-            activity.id = None
-            activity.lesson = clone
-            activity.save()
+        with _txn.atomic():
+            clone = LessonPlan.objects.create(
+                title=f"{source.title} (copy)",
+                summary=source.summary,
+                objectives=list(source.objectives or []),
+                subject=source.subject,
+                grade_level=source.grade_level,
+                audience=source.audience,
+                curriculum_alignment=source.curriculum_alignment,
+                pedagogical_approach=source.pedagogical_approach,
+                estimated_total_minutes=source.estimated_total_minutes,
+                related_route=source.related_route,
+                status=LessonPlan.STATUS_DRAFT,
+                visibility=LessonPlan.VISIBILITY_PRIVATE,
+                author=request.user,
+            )
+            for activity in source.activities.all():
+                activity.pk = None
+                activity.id = None
+                activity.lesson = clone
+                activity.save()
+            # Carry over the curated standards (M2M) and the assessment rubrics.
+            clone.standards.set(source.standards.all())
+            for rubric in source.rubrics.prefetch_related('criteria'):
+                criteria = list(rubric.criteria.all())
+                rubric.pk = None
+                rubric.id = None
+                rubric.lesson = clone
+                rubric.save()
+                for crit in criteria:
+                    crit.pk = None
+                    crit.id = None
+                    crit.rubric = rubric
+                    crit.save()
         return Response(LessonPlanSerializer(clone, context={'request': request}).data,
                         status=status.HTTP_201_CREATED)
 
@@ -711,9 +741,11 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
             )
         update_fields = ['status', 'updated_at']
         plan.status = to_status
-        # Publishing makes the plan publicly visible; without this a default-private
-        # plan would be "published" yet still 404 on the public detail route.
-        if to_status == LessonPlan.STATUS_PUBLISHED and plan.visibility == LessonPlan.VISIBILITY_PRIVATE:
+        # Publishing makes the plan publicly visible. get_queryset exposes only
+        # PUBLISHED + PUBLIC plans to non-owners, so any non-public visibility
+        # (private OR unlisted) must be bumped to public on publish — otherwise the
+        # plan is "published" yet still 404s on the public detail route.
+        if to_status == LessonPlan.STATUS_PUBLISHED and plan.visibility != LessonPlan.VISIBILITY_PUBLIC:
             plan.visibility = LessonPlan.VISIBILITY_PUBLIC
             update_fields.append('visibility')
         plan.save(update_fields=update_fields)
@@ -831,23 +863,13 @@ class RubricViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['lesson']
 
-    def _visible_lessons(self):
-        """LessonPlan pks the caller may see (mirrors LessonPlanViewSet.get_queryset)."""
-        user = self.request.user
-        qs = LessonPlan.objects.all()
-        if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
-            return qs.values_list('pk', flat=True)
-        published_public = qs.filter(
-            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC
-        )
-        if user and user.is_authenticated:
-            return (qs.filter(author=user) | published_public).values_list('pk', flat=True)
-        return published_public.values_list('pk', flat=True)
-
     def get_queryset(self):
+        # Reuse the single source of truth for plan visibility so rubric access can
+        # never drift from LessonPlanViewSet.
+        visible = visible_lesson_plans(self.request.user).values_list('pk', flat=True)
         return (
             Rubric.objects.prefetch_related('criteria').select_related('lesson')
-            .filter(lesson__in=self._visible_lessons())
+            .filter(lesson__in=visible)
         )
 
     def _require_lesson_owner(self, lesson):

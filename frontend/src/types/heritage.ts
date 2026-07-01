@@ -358,6 +358,11 @@ export interface LessonActivity {
   heritage_item_title?: string | null;
   route_title?: string | null;
   educational_resource_title?: string | null;
+  // Client-only transient state for the inline quiz editor (assess activities).
+  // Stored on the activity so it travels with reorder/delete; never sent to the API.
+  _quizLomId?: string | null;
+  _quizResolving?: boolean;
+  _quizError?: string;
 }
 
 export type LessonPlanStatus = 'draft' | 'review' | 'published' | 'archived';

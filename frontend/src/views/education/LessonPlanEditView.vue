@@ -138,6 +138,10 @@ function onBindingChange(
   a.heritage_item_title = null
   a.route_title = null
   a.educational_resource_title = null
+  // A resolved quiz belongs to the OLD heritage item's LOM — reset it so it must be
+  // re-resolved for the new binding (don't edit the wrong item's answer key).
+  a._quizLomId = null
+  a._quizError = ''
 }
 
 // --- native HTML5 drag-and-drop reorder (same approach as the route builder) ---
@@ -158,25 +162,22 @@ function reindex() {
 
 // --- quiz authoring for `assess` activities ---------------------------------
 // A quiz lives on the LOMGeneral of the activity's bound heritage item. We resolve
-// that id on demand and mount the QuizEditor inline (keyed by index → lom id).
-const quizLomByIndex = ref<Record<number, string>>({})
-const quizResolving = ref<number | null>(null)
-const quizError = ref('')
-
-async function openQuiz(index: number) {
-  const a = form.activities[index]
-  if (!a?.heritage_item) return
-  quizError.value = ''
-  quizResolving.value = index
+// that id on demand and stash it ON THE ACTIVITY object (transient `_quiz*` fields)
+// so the resolved editor travels with the activity through reorder/delete — keying
+// by array index would bind the QuizEditor to the wrong activity after a splice.
+async function openQuiz(activity: LessonActivity) {
+  if (!activity.heritage_item) return
+  activity._quizError = ''
+  activity._quizResolving = true
   try {
-    const res = await educationService.getByHeritageItem(a.heritage_item)
+    const res = await educationService.getByHeritageItem(activity.heritage_item)
     const lomId = res.data?.id
-    if (lomId) quizLomByIndex.value = { ...quizLomByIndex.value, [index]: String(lomId) }
-    else quizError.value = t('quiz.noLom')
+    if (lomId) activity._quizLomId = String(lomId)
+    else activity._quizError = t('quiz.noLom')
   } catch {
-    quizError.value = t('quiz.noLom')
+    activity._quizError = t('quiz.noLom')
   } finally {
-    quizResolving.value = null
+    activity._quizResolving = false
   }
 }
 
@@ -489,19 +490,19 @@ onMounted(load)
                 <template v-if="!activity.heritage_item">
                   <p class="text-xs text-gray-500">{{ t('quiz.needHeritage') }}</p>
                 </template>
-                <template v-else-if="quizLomByIndex[index]">
-                  <QuizEditor :lom-general-id="quizLomByIndex[index]" />
+                <template v-else-if="activity._quizLomId">
+                  <QuizEditor :lom-general-id="activity._quizLomId" />
                 </template>
                 <template v-else>
                   <button
                     type="button"
                     class="text-sm text-primary-600 hover:underline disabled:opacity-50"
-                    :disabled="quizResolving === index"
-                    @click="openQuiz(index)"
+                    :disabled="activity._quizResolving"
+                    @click="openQuiz(activity)"
                   >
-                    {{ quizResolving === index ? t('common.loading') : t('quiz.editQuiz') }}
+                    {{ activity._quizResolving ? t('common.loading') : t('quiz.editQuiz') }}
                   </button>
-                  <span v-if="quizError && quizResolving === null" class="ml-2 text-xs text-red-600">{{ quizError }}</span>
+                  <span v-if="activity._quizError && !activity._quizResolving" class="ml-2 text-xs text-red-600">{{ activity._quizError }}</span>
                 </template>
               </div>
 

@@ -84,12 +84,23 @@ onMounted(load)
         </div>
       </header>
 
-      <!-- objectives + curriculum -->
-      <section v-if="(plan.objectives && plan.objectives.length) || plan.curriculum_alignment" class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+      <!-- objectives + curriculum + standards -->
+      <section
+        v-if="(plan.objectives && plan.objectives.length) || plan.curriculum_alignment || (plan.standards_detail && plan.standards_detail.length)"
+        class="bg-white border border-gray-200 rounded-xl p-5 mb-6"
+      >
         <div v-if="plan.objectives && plan.objectives.length">
           <h2 class="text-lg font-semibold text-gray-900 mb-2">{{ t('lessonPlans.detail.objectives') }}</h2>
           <ul class="list-disc list-inside space-y-1 text-gray-700">
             <li v-for="(obj, i) in plan.objectives" :key="i">{{ obj }}</li>
+          </ul>
+        </div>
+        <div v-if="plan.standards_detail && plan.standards_detail.length" class="mt-4">
+          <h3 class="text-sm font-semibold text-gray-900 mb-1">{{ t('lessonPlans.fields.standards') }}</h3>
+          <ul class="space-y-1 text-sm text-gray-700">
+            <li v-for="std in plan.standards_detail" :key="std.id">
+              <span class="font-medium">{{ std.code }}</span> — {{ std.description }}
+            </li>
           </ul>
         </div>
         <div v-if="plan.curriculum_alignment" class="mt-4 text-sm text-gray-600">
@@ -124,6 +135,29 @@ onMounted(load)
         </ol>
         <div v-if="orderedActivities.length === 0" class="text-center text-gray-500 py-8 border border-dashed border-gray-200 rounded-lg">
           {{ t('lessonPlans.noActivities') }}
+        </div>
+      </section>
+
+      <!-- rubrics -->
+      <section v-if="plan.rubrics && plan.rubrics.length" class="mt-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-3">{{ t('lessonPlans.detail.rubrics') }}</h2>
+        <div v-for="rubric in plan.rubrics" :key="rubric.id" class="bg-white border border-gray-200 rounded-xl p-5 mb-3">
+          <h3 class="font-semibold text-gray-900">{{ rubric.title }}</h3>
+          <p v-if="rubric.description" class="text-sm text-gray-600 mb-2">{{ rubric.description }}</p>
+          <table v-if="rubric.criteria && rubric.criteria.length" class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-500 border-b border-gray-200">
+                <th class="py-1.5 font-medium">{{ t('lessonPlans.detail.criterion') }}</th>
+                <th class="py-1.5 font-medium text-right">{{ t('lessonPlans.detail.points') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in [...rubric.criteria].sort((a, b) => a.order - b.order)" :key="c.id || c.label" class="border-b border-gray-100 last:border-0">
+                <td class="py-1.5 text-gray-800">{{ c.label }}</td>
+                <td class="py-1.5 text-right tabular-nums">{{ c.max_points }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </template>

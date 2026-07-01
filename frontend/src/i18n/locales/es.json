@@ -1243,6 +1243,9 @@
             "grade": "Grado",
             "objectives": "Objetivos de aprendizaje",
             "materials": "Materiales",
+            "rubrics": "Rúbricas",
+            "criterion": "Criterio",
+            "points": "Puntos",
             "notFoundTitle": "Plan no encontrado",
             "notFoundMessage": "Este plan de lección no existe o no es público."
         }
