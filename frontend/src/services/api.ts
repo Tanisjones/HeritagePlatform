@@ -184,6 +184,13 @@ export const lessonPlanService = {
   update: (id: string, payload: LessonPlanWriteData) => api.patch(`/lesson-plans/${id}/`, payload),
   delete: (id: string) => api.delete(`/lesson-plans/${id}/`),
   duplicate: (id: string) => api.post(`/lesson-plans/${id}/duplicate/`),
+  // State machine (P.2b): draft → review → published → archived.
+  submit: (id: string) => api.post(`/lesson-plans/${id}/submit/`),
+  publish: (id: string) => api.post(`/lesson-plans/${id}/publish/`),
+  archive: (id: string) => api.post(`/lesson-plans/${id}/archive/`),
+  // Bundle the plan's linked heritage items into one SCORM collection package.
+  exportScorm: (id: string, variant: 'scorm12' | 'scorm2004' = 'scorm12') =>
+    api.get(`/lesson-plans/${id}/export-scorm/`, { params: { variant }, responseType: 'blob' }),
 };
 
 export const aiSuggestionService = {

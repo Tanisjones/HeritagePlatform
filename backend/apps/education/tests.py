@@ -1129,3 +1129,122 @@ class LessonPlanAPITest(TestCase):
         self.assertNotEqual(resp.data['id'], created['id'])
         self.assertEqual(len(resp.data['activities']), 2)
         self.assertEqual(resp.data['status'], self.LessonPlan.STATUS_DRAFT)
+
+
+class LessonPlanExportStateTest(TestCase):
+    """P.2b — LessonPlan SCORM export + state-machine actions."""
+
+    def setUp(self):
+        import io, zipfile  # noqa: F401
+        from apps.education.models import LessonPlan, LessonActivity, LOMGeneral
+        from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
+        self.LessonPlan = LessonPlan
+        self.client = APIClient()
+        self.teacher = User.objects.create_user(email='t_pe@example.com', password='pw', is_staff=True)
+        self.tourist = User.objects.create_user(email='tour_pe@example.com', password='pw')
+
+        htype = HeritageType.objects.create(name='Tangible', slug='tangible-pe')
+        hcat = HeritageCategory.objects.create(name='Arch', slug='arch-pe')
+        parish = Parish.objects.create(name='Parish PE', canton='Riobamba')
+        self.item = HeritageItem.objects.create(
+            title='Catedral', description='d', heritage_type=htype, heritage_category=hcat,
+            parish=parish, location='POINT(0 0)', status='published',
+        )
+        LOMGeneral.objects.create(heritage_item=self.item, title='LO Cat', language='es', description='x')
+
+        self.plan = LessonPlan.objects.create(
+            title='Plan Colonial', summary='s', author=self.teacher,
+            status=LessonPlan.STATUS_DRAFT, visibility=LessonPlan.VISIBILITY_PRIVATE,
+        )
+        LessonActivity.objects.create(
+            lesson=self.plan, order=0, title='Explorar', activity_type='explore',
+            heritage_item=self.item,
+        )
+        # An activity with no linked item (should be skipped by the export).
+        LessonActivity.objects.create(
+            lesson=self.plan, order=1, title='Reflexionar', activity_type='reflect',
+        )
+
+    # ---- export ------------------------------------------------------------
+
+    def test_export_scorm_returns_zip(self):
+        import io, zipfile
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/export-scorm/')
+        # NB: a FileResponse has no .content — don't pass it as the assert message.
+        self.assertEqual(resp.status_code, 200)
+        content = b''.join(resp.streaming_content)
+        with zipfile.ZipFile(io.BytesIO(content), 'r') as zf:
+            self.assertIn('imsmanifest.xml', zf.namelist())
+
+    def test_export_scorm2004_variant(self):
+        import io, zipfile
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/export-scorm/?variant=scorm2004')
+        self.assertEqual(resp.status_code, 200)
+        content = b''.join(resp.streaming_content)
+        with zipfile.ZipFile(io.BytesIO(content), 'r') as zf:
+            self.assertIn('2004 4th Edition', zf.read('imsmanifest.xml').decode('utf-8'))
+
+    def test_export_rejects_bad_variant(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/export-scorm/?variant=cmi5')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_export_empty_plan_400(self):
+        from apps.education.models import LessonPlan
+        empty = LessonPlan.objects.create(
+            title='Vacío', author=self.teacher,
+            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC,
+        )
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.get(f'/api/v1/lesson-plans/{empty.id}/export-scorm/')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_export_requires_auth(self):
+        resp = self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/export-scorm/')
+        self.assertIn(resp.status_code, (401, 403))
+
+    # ---- state machine -----------------------------------------------------
+
+    def test_owner_can_submit(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/submit/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.status, self.LessonPlan.STATUS_REVIEW)
+
+    def test_publish_requires_curator(self):
+        # teacher (staff here) IS a curator-equivalent via is_staff; use a plain teacher role instead.
+        from apps.users.models import UserRole, UserProfile
+        role, _ = UserRole.objects.get_or_create(name='Teacher', slug='teacher')
+        plain_teacher = User.objects.create_user(email='plain_t@example.com', password='pw')
+        UserProfile.objects.create(user=plain_teacher, role=role)
+        plan = self.LessonPlan.objects.create(
+            title='P2', author=plain_teacher, status=self.LessonPlan.STATUS_REVIEW,
+        )
+        from apps.education.models import LessonActivity
+        LessonActivity.objects.create(lesson=plan, order=0, title='A', activity_type='hook')
+        self.client.force_authenticate(user=plain_teacher)
+        resp = self.client.post(f'/api/v1/lesson-plans/{plan.id}/publish/')
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    def test_curator_publish_requires_activities(self):
+        from apps.education.models import LessonPlan
+        empty = LessonPlan.objects.create(title='NoAct', author=self.teacher, status=LessonPlan.STATUS_REVIEW)
+        self.client.force_authenticate(user=self.teacher)  # staff == curator-equivalent
+        resp = self.client.post(f'/api/v1/lesson-plans/{empty.id}/publish/')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_curator_can_publish_with_activities(self):
+        self.client.force_authenticate(user=self.teacher)  # staff
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/publish/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.status, self.LessonPlan.STATUS_PUBLISHED)
+
+    def test_non_owner_cannot_transition(self):
+        self.client.force_authenticate(user=self.tourist)
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/submit/')
+        # tourist is not a teacher → IsTeacher blocks at 403.
+        self.assertEqual(resp.status_code, 403)

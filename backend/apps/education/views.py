@@ -568,9 +568,14 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         return LessonPlanSerializer
 
     def get_permissions(self):
-        # Reading is open (list/retrieve filtered by visibility); writing is teacher-gated.
+        # Reading is open (list/retrieve filtered by visibility). Exporting a
+        # package is available to any authenticated user (matches the other
+        # /education/*-packages exports). Everything else (create/update/state
+        # transitions/duplicate) is teacher-gated.
         if self.action in ('list', 'retrieve'):
             return [permissions.AllowAny()]
+        if self.action == 'export_scorm':
+            return [permissions.IsAuthenticated()]
         return [IsTeacher()]
 
     def get_queryset(self):
@@ -630,3 +635,90 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
             activity.save()
         return Response(LessonPlanSerializer(clone, context={'request': request}).data,
                         status=status.HTTP_201_CREATED)
+
+    # ---- state machine: draft → review → published → archived --------------
+    #
+    # submit (draft/changes → review), publish (review/draft → published),
+    # archive (any → archived). Only the owner or a curator/staff may transition;
+    # publishing is additionally restricted to curators/staff (a teacher submits,
+    # a curator publishes) and requires at least one activity.
+
+    def _transition(self, request, *, to_status, require_curator=False, require_activities=False):
+        plan = self.get_object()
+        self._require_owner_or_curator(plan)
+        user = request.user
+        is_curator = user.is_staff or _role_slug(user) == 'curator'
+        if require_curator and not is_curator:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only a curator can publish a lesson plan.')
+        if require_activities and not plan.activities.exists():
+            return Response(
+                {'detail': 'A lesson plan needs at least one activity before it can be published.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        plan.status = to_status
+        plan.save(update_fields=['status', 'updated_at'])
+        return Response(LessonPlanSerializer(plan, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        """Owner sends a draft for review (draft → review)."""
+        return self._transition(request, to_status=LessonPlan.STATUS_REVIEW)
+
+    @action(detail=True, methods=['post'])
+    def publish(self, request, pk=None):
+        """Curator publishes a plan (→ published); requires ≥1 activity."""
+        return self._transition(
+            request, to_status=LessonPlan.STATUS_PUBLISHED,
+            require_curator=True, require_activities=True,
+        )
+
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        """Retire a plan (→ archived)."""
+        return self._transition(request, to_status=LessonPlan.STATUS_ARCHIVED)
+
+    @action(detail=True, methods=['get'], url_path='export-scorm')
+    def export_scorm(self, request, pk=None):
+        """Bundle the heritage items referenced by this plan's activities into ONE
+        SCORM collection package titled after the plan.
+
+        ``?variant=scorm12|scorm2004`` (default scorm12). Only activities that link
+        a heritage_item contribute content; the activity ORDER is preserved. A plan
+        with no linked items → 400 (nothing to package).
+        """
+        plan = self.get_object()
+
+        variant = request.query_params.get('variant', 'scorm12')
+        if variant not in ('scorm12', 'scorm2004'):
+            return Response(
+                {'error': f"Unknown variant '{variant}'. Use one of: scorm12, scorm2004."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        entries = []
+        seen_item_ids = set()
+        for activity in plan.activities.order_by('order').select_related('heritage_item'):
+            item = activity.heritage_item
+            if item is None or item.id in seen_item_ids:
+                continue
+            seen_item_ids.add(item.id)
+            entries.append({
+                'heritage_item': item,
+                'lom_data': _lom_data_for_item(item),
+                'media_files': _gather_item_media(item),
+            })
+
+        if not entries:
+            return Response(
+                {'error': 'This lesson plan has no activities linked to heritage items to package.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        zip_file, filename = build_collection_scorm_zip(
+            title=plan.title,
+            description=plan.summary or '',
+            entries=entries,
+            package_format=variant,
+        )
+        return _zip_file_response(zip_file, filename)
