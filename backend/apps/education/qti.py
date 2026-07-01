@@ -53,24 +53,47 @@ def _normalise_choices(raw) -> list:
     return choices
 
 
-def _declare_feedback_outcome(item, feedback: str) -> None:
-    """Declare the FEEDBACK outcome an always-shown modalFeedback depends on.
+_MATCH_CORRECT_TEMPLATE = (
+    "http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"
+)
 
-    A modalFeedback with outcomeIdentifier="FEEDBACK" is invalid QTI 2.1 unless a
-    matching outcomeDeclaration exists. We declare it with a default value equal
-    to the feedback block's identifier ("FB"), so showHide="show" resolves and
-    the feedback is always displayed. No-op when there is no feedback.
-    Must be called after the responseDeclaration(s) and before itemBody.
+
+def _add_response_processing(item, scorable: bool):
+    """Add responseProcessing ONLY when the item can be auto-scored.
+
+    QTI 2.1 defines exactly three standard RP templates (match_correct,
+    map_response, map_response_point) — there is no "none" template, so an
+    un-scorable item (short-answer with no expected answer, or a choice item with
+    no correct option) must OMIT responseProcessing entirely, which is the valid
+    way to say "grading is external / manual".
+    """
+    if not scorable:
+        return
+    ET.SubElement(
+        item,
+        f"{{{QTI_NS}}}responseProcessing",
+        {"template": _MATCH_CORRECT_TEMPLATE},
+    )
+
+
+def _make_teacher_feedback_rubric(feedback: str):
+    """Build the author's feedback as a scorer/tutor-facing rubricBlock element.
+
+    Using rubricBlock (view="scorer tutor") instead of an always-shown
+    modalFeedback keeps the note out of the learner's pre-answer view (so it
+    can't spoil the question) and needs no FEEDBACK outcome / custom
+    responseProcessing to be schema-valid. Returns None when there's no feedback;
+    the caller appends it as the FIRST child of itemBody.
     """
     if not feedback:
-        return
-    outcome = ET.SubElement(
-        item,
-        f"{{{QTI_NS}}}outcomeDeclaration",
-        {"identifier": "FEEDBACK", "cardinality": "single", "baseType": "identifier"},
+        return None
+    rubric = ET.Element(
+        f"{{{QTI_NS}}}rubricBlock",
+        {"view": "scorer tutor"},
     )
-    default = ET.SubElement(outcome, f"{{{QTI_NS}}}defaultValue")
-    ET.SubElement(default, f"{{{QTI_NS}}}value").text = "FB"
+    p = ET.SubElement(rubric, f"{{{QTI_NS}}}p")
+    p.text = feedback
+    return rubric
 
 
 def build_assessment_item_xml(question, identifier: str) -> str:
@@ -136,10 +159,11 @@ def build_assessment_item_xml(question, identifier: str) -> str:
             for cid in correct_ids:
                 ET.SubElement(correct, _q("value")).text = cid
 
-        _declare_feedback_outcome(item, feedback)
-
-        # itemBody + choiceInteraction
+        # itemBody: teacher feedback (rubricBlock) FIRST, then the interaction.
         body = ET.SubElement(item, _q("itemBody"))
+        rubric = _make_teacher_feedback_rubric(feedback)
+        if rubric is not None:
+            body.append(rubric)
         interaction = ET.SubElement(
             body,
             _q("choiceInteraction"),
@@ -156,17 +180,10 @@ def build_assessment_item_xml(question, identifier: str) -> str:
             )
             simple.text = c["text"]
 
-        # responseProcessing: standard match_correct template.
-        ET.SubElement(
-            item,
-            _q("responseProcessing"),
-            {
-                "template": (
-                    "http://www.imsglobal.org/question/qti_v2p1/"
-                    "rptemplates/match_correct"
-                )
-            },
-        )
+        # Auto-score only when the item actually has a correct option; an item
+        # with no correct answer (e.g. the empty-choices placeholder) is left
+        # un-scored rather than marking every response wrong.
+        _add_response_processing(item, scorable=bool(correct_ids))
     else:
         # short_answer -> extendedTextInteraction (text entry).
         correct_resp = str(_q_get(question, "correct_response", "") or "")
@@ -179,9 +196,10 @@ def build_assessment_item_xml(question, identifier: str) -> str:
             correct = ET.SubElement(rd, _q("correctResponse"))
             ET.SubElement(correct, _q("value")).text = correct_resp
 
-        _declare_feedback_outcome(item, feedback)
-
         body = ET.SubElement(item, _q("itemBody"))
+        rubric = _make_teacher_feedback_rubric(feedback)
+        if rubric is not None:
+            body.append(rubric)
         interaction = ET.SubElement(
             body,
             _q("extendedTextInteraction"),
@@ -189,30 +207,10 @@ def build_assessment_item_xml(question, identifier: str) -> str:
         )
         ET.SubElement(interaction, _q("prompt")).text = prompt
 
-        # Only auto-score when an expected answer was supplied; otherwise use the
-        # no-op template so the (comment-promised) LMS/manual grading applies
-        # instead of scoring every free-text answer wrong against a missing key.
-        rp_template = "match_correct" if correct_resp else "none"
-        ET.SubElement(
-            item,
-            _q("responseProcessing"),
-            {
-                "template": (
-                    "http://www.imsglobal.org/question/qti_v2p1/"
-                    f"rptemplates/{rp_template}"
-                )
-            },
-        )
-
-    if feedback:
-        # Always-shown modal feedback, keyed on the FEEDBACK outcome declared
-        # above (its default value equals this identifier so showHide works).
-        fb = ET.SubElement(
-            item,
-            _q("modalFeedback"),
-            {"outcomeIdentifier": "FEEDBACK", "identifier": "FB", "showHide": "show"},
-        )
-        fb.text = feedback
+        # Auto-score only when an expected answer was supplied; otherwise OMIT
+        # responseProcessing so manual/LMS grading applies (there is no valid
+        # "none" template to reference).
+        _add_response_processing(item, scorable=bool(correct_resp))
 
     return _pretty_xml(item)
 

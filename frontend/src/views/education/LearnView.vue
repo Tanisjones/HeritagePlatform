@@ -169,6 +169,9 @@ const filteredResources = computed(() => {
     }
 
     if (filters.value.timeBand) {
+      // iso8601ToMinutes handles the full grammar (incl. weeks/months) and
+      // returns 0 for a real zero-length duration; null only for unparseable
+      // values, which we exclude from all bands.
       const minutes = iso8601ToMinutes(edu.typical_learning_time);
       if (minutes === null) return false;
       if (filters.value.timeBand === 'short' && minutes >= 30) return false;

@@ -527,6 +527,38 @@ class EducationQTITest(TestCase):
                 any(e.tag.endswith('}extendedTextInteraction') for e in root.iter())
             )
 
+    def test_qti_unscorable_item_omits_responseprocessing(self):
+        """short_answer with no expected answer must OMIT responseProcessing
+        (there is no valid 'none' template to reference)."""
+        from apps.education.qti import build_assessment_item_xml
+        root = ET.fromstring(build_assessment_item_xml(
+            {'question_type': 'short_answer', 'prompt': 'Explain'}, 'IT'))
+        rp = [c for c in root if c.tag.endswith('}responseProcessing')]
+        self.assertEqual(rp, [])
+        # And no fabricated 'none' template appears in the XML.
+        self.assertNotIn('rptemplates/none', ET.tostring(root, encoding='unicode'))
+
+    def test_qti_feedback_is_scorer_rubric_not_always_shown_modal(self):
+        """Feedback must render as a scorer/tutor rubricBlock (not an always-shown
+        modalFeedback that spoils the answer before the learner responds)."""
+        from apps.education.qti import build_assessment_item_xml
+        root = ET.fromstring(build_assessment_item_xml(
+            {'question_type': 'single_choice', 'prompt': 'Q', 'feedback': 'The answer is X',
+             'choices': [{'id': 'a', 'text': 'A', 'correct': True}]}, 'IT'))
+        self.assertFalse([e for e in root.iter() if e.tag.endswith('}modalFeedback')])
+        rubrics = [e for e in root.iter() if e.tag.endswith('}rubricBlock')]
+        self.assertTrue(rubrics)
+        self.assertEqual(rubrics[0].get('view'), 'scorer tutor')
+
+    def test_qti_empty_choice_item_is_not_autoscored(self):
+        from apps.education.qti import build_assessment_item_xml
+        root = ET.fromstring(build_assessment_item_xml(
+            {'question_type': 'single_choice', 'prompt': 'Q', 'choices': []}, 'IT'))
+        # A placeholder simpleChoice keeps it schema-valid...
+        self.assertTrue([e for e in root.iter() if e.tag.endswith('}simpleChoice')])
+        # ...but with no correct option it must not be auto-scored wrong.
+        self.assertEqual([c for c in root if c.tag.endswith('}responseProcessing')], [])
+
 
 class EducationCollectionBuilderTest(TestCase):
     """Unit test for the collection package builder (accepts plain dicts)."""
@@ -777,6 +809,44 @@ class EducationReviewFixesTest(TestCase):
         results2 = resp2.data.get('results', resp2.data)
         self.assertIn('correct_response', results2[0])
 
+    def _nested_questions(self, data):
+        """Pull questions[] out of an LOMGeneral-shaped payload."""
+        return (data or {}).get('questions', [])
+
+    def test_answer_key_hidden_on_nested_lom_read_paths(self):
+        """The answer key must be stripped for anonymous callers on EVERY path
+        that nests LOMGeneralSerializer, not just /lom-questions/."""
+        AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=1, question_type='single_choice',
+            prompt='¿Cuál?',
+            choices=[{'id': 'a', 'text': 'Sí', 'correct': True},
+                     {'id': 'b', 'text': 'No', 'correct': False}],
+            correct_response='a',
+        )
+
+        def assert_stripped(questions, where):
+            self.assertTrue(questions, f'no questions in {where}')
+            q = questions[0]
+            self.assertNotIn('correct_response', q, where)
+            for choice in q.get('choices', []):
+                self.assertNotIn('correct', choice, where)
+
+        # /lom/{id}/ (retrieve)
+        r = self.client.get(f'/api/v1/lom/{self.lom.id}/')
+        assert_stripped(self._nested_questions(r.data), '/lom/{id}/')
+        # /lom/by_heritage_item/
+        r = self.client.get(f'/api/v1/lom/by_heritage_item/?heritage_item_id={self.item.id}')
+        assert_stripped(self._nested_questions(r.data), '/lom/by_heritage_item/')
+        # /heritage-items/{id}/ (detail, lom_metadata nested)
+        r = self.client.get(f'/api/v1/heritage-items/{self.item.id}/')
+        assert_stripped(self._nested_questions(r.data.get('lom_metadata')), '/heritage-items/{id}/')
+
+        # Authenticated curator sees the answer key on the nested path.
+        self.client.force_authenticate(user=self.user)
+        r = self.client.get(f'/api/v1/lom/{self.lom.id}/')
+        q = self._nested_questions(r.data)[0]
+        self.assertIn('correct_response', q)
+
     def test_export_qti_requires_authentication(self):
         AssessmentQuestion.objects.create(
             lom_general=self.lom, order=1, question_type='true_false',
@@ -785,25 +855,71 @@ class EducationReviewFixesTest(TestCase):
         resp = self.client.get(f'/api/v1/lom-questions/export-qti/?lom_general={self.lom.id}')
         self.assertIn(resp.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
 
-    def test_question_update_preserves_uuid_in_place(self):
+    def test_question_update_preserves_uuid_by_id(self):
         q = AssessmentQuestion.objects.create(
             lom_general=self.lom, order=1, question_type='single_choice',
             prompt='Original', choices=[{'id': 'a', 'text': 'A', 'correct': True}],
         )
         original_id = q.id
         self.client.force_authenticate(user=self.user)
+        # Sending the row's id matches it by identity → in-place update, same UUID.
         resp = self.client.patch(
             f'/api/v1/lom/{self.lom.id}/',
-            {'questions': [{'order': 1, 'question_type': 'single_choice', 'prompt': 'Edited',
-                            'choices': [{'id': 'a', 'text': 'A', 'correct': True}]}]},
+            {'questions': [{'id': str(original_id), 'order': 1, 'question_type': 'single_choice',
+                            'prompt': 'Edited', 'choices': [{'id': 'a', 'text': 'A', 'correct': True}]}]},
             format='json',
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
         self.assertEqual(self.lom.questions.count(), 1)
         survivor = self.lom.questions.first()
-        # Row was updated in place, not delete-and-recreated → same UUID.
         self.assertEqual(survivor.id, original_id)
         self.assertEqual(survivor.prompt, 'Edited')
+
+    def test_question_reorder_keeps_content_with_its_uuid(self):
+        """Reordering questions must keep each UUID attached to ITS content
+        (the positional-matching bug swapped content between rows)."""
+        q1 = AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=1, question_type='short_answer', prompt='First',
+        )
+        q2 = AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=2, question_type='short_answer', prompt='Second',
+        )
+        self.client.force_authenticate(user=self.user)
+        # Send them reordered (q2 first) with ids; new orders swapped.
+        resp = self.client.patch(
+            f'/api/v1/lom/{self.lom.id}/',
+            {'questions': [
+                {'id': str(q2.id), 'order': 1, 'question_type': 'short_answer', 'prompt': 'Second'},
+                {'id': str(q1.id), 'order': 2, 'question_type': 'short_answer', 'prompt': 'First'},
+            ]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
+        q1.refresh_from_db()
+        q2.refresh_from_db()
+        # Each UUID still holds its OWN prompt (no content swap), with updated order.
+        self.assertEqual(q1.prompt, 'First')
+        self.assertEqual(q1.order, 2)
+        self.assertEqual(q2.prompt, 'Second')
+        self.assertEqual(q2.order, 1)
+
+    def test_question_dropped_from_payload_is_deleted(self):
+        q1 = AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=1, question_type='short_answer', prompt='Keep',
+        )
+        q2 = AssessmentQuestion.objects.create(
+            lom_general=self.lom, order=2, question_type='short_answer', prompt='Drop',
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.patch(
+            f'/api/v1/lom/{self.lom.id}/',
+            {'questions': [{'id': str(q1.id), 'order': 1, 'question_type': 'short_answer', 'prompt': 'Keep'}]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
+        self.assertEqual(self.lom.questions.count(), 1)
+        self.assertEqual(self.lom.questions.first().id, q1.id)
+        self.assertFalse(AssessmentQuestion.objects.filter(id=q2.id).exists())
 
     def test_classification_update_preserves_untouched_rows(self):
         c = LOMClassification.objects.create(
@@ -814,8 +930,8 @@ class EducationReviewFixesTest(TestCase):
         self.client.force_authenticate(user=self.user)
         resp = self.client.patch(
             f'/api/v1/lom/{self.lom.id}/',
-            {'classifications': [{'purpose': 'discipline', 'taxon_source': 'Local',
-                                  'taxon_entry': 'Arquitectura colonial'}]},
+            {'classifications': [{'id': str(original_id), 'purpose': 'discipline',
+                                  'taxon_source': 'Local', 'taxon_entry': 'Arquitectura colonial'}]},
             format='json',
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)

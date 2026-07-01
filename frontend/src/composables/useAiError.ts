@@ -11,19 +11,32 @@ import { useAIAvailability } from '@/services/aiAvailability'
  *   const { applyAIError } = useAiError()
  *   catch (err) { applyAIError(err, someErrorRef) }
  */
+type AiErrorKeys = { unavailable?: string; rateLimited?: string; generic?: string }
+
+const DEFAULT_KEYS: Required<AiErrorKeys> = {
+  unavailable: 'ai.unavailable',
+  rateLimited: 'ai.rateLimited',
+  generic: 'ai.genericError',
+}
+
 export function useAiError() {
   const { t } = useI18n()
   const { markUnavailable } = useAIAvailability()
 
-  function applyAIError(err: any, target: { value: string }) {
+  /**
+   * @param keys optional i18n key overrides for callers that use their own
+   *   message namespace (e.g. the curator review uses curatorReview.aiReview.*).
+   */
+  function applyAIError(err: any, target: { value: string }, keys: AiErrorKeys = {}) {
+    const k = { ...DEFAULT_KEYS, ...keys }
     const status = err?.response?.status
     if (status === 503) {
-      target.value = t('ai.unavailable')
+      target.value = t(k.unavailable)
       markUnavailable()
     } else if (status === 429) {
-      target.value = t('ai.rateLimited')
+      target.value = t(k.rateLimited)
     } else {
-      target.value = t('ai.genericError')
+      target.value = t(k.generic)
     }
   }
 

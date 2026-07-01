@@ -15,7 +15,7 @@ import type { LOMMetadata, LOMEducational, LOMClassification } from '@/types/her
 import { educationService, aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability';
 import { useAiError } from '@/composables/useAiError';
-import { isValidIso8601Duration, looksLikeMonthsNotMinutes } from '@/utils/duration';
+import { useDurationValidation } from '@/composables/useDurationValidation';
 import {
   LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS, LOM_INTERACTIVITY_TYPES,
   LOM_INTERACTIVITY_LEVELS, LOM_END_USER_ROLES, LOM_PEDAGOGICAL_APPROACHES,
@@ -91,18 +91,11 @@ const aiLoading = ref(false);
 const aiError = ref('');
 const aiNote = ref('');
 
-// ISO-8601 duration client-side guard (shared with /learn; mirrors the backend
-// validator). Also warns on the "P30M means 30 months, not minutes" footgun.
-const learningTimeError = ref('');
-watch(() => educational.typical_learning_time, (value) => {
-  if (value && !isValidIso8601Duration(value)) {
-    learningTimeError.value = t('lomEditor.errors.duration');
-  } else if (looksLikeMonthsNotMinutes(value)) {
-    learningTimeError.value = t('lomEditor.errors.months');
-  } else {
-    learningTimeError.value = '';
-  }
-});
+// ISO-8601 learning-time guard, shared with the wizard (utils + composable).
+const learningTimeError = useDurationValidation(
+  () => educational.typical_learning_time,
+  { invalidKey: 'lomEditor.errors.duration', monthsKey: 'lomEditor.errors.months' },
+);
 
 // --- Hydrate from the current metadata ---
 const firstEducational = (m?: LOMMetadata | null): LOMEducational | undefined => {
@@ -209,6 +202,9 @@ const save = async () => {
     return;
   }
   const allClassifications = classifications.value.map((c) => ({
+    // Send id for existing rows so the backend matches by identity and preserves
+    // their UUIDs; omit it for rows the curator just added (they get created).
+    ...(c.id ? { id: c.id } : {}),
     purpose: c.purpose,
     taxon_source: c.taxon_source,
     taxon_id: c.taxon_id || '',

@@ -348,18 +348,13 @@ class ContributionViewSet(viewsets.ModelViewSet):
         """
         from django.db import transaction
         from apps.education.models import LOMGeneral, LOMEducational, LOMLifeCycle
-        from apps.education.serializers import LOMEducationalSerializer
 
-        # Validate the optional wizard "Capa educativa" payload FIRST, before any
-        # rows are written, so a bad value returns 400 without leaving an orphan
-        # HeritageItem (ATOMIC_REQUESTS is off) and without silently dropping the
-        # contributor's data.
-        edu_fields = {}
-        edu_payload = self.request.data.get('educational') if hasattr(self.request, 'data') else None
-        if isinstance(edu_payload, dict) and edu_payload:
-            edu_serializer = LOMEducationalSerializer(data=edu_payload, partial=True)
-            edu_serializer.is_valid(raise_exception=True)
-            edu_fields = dict(edu_serializer.validated_data)
+        # The wizard's optional "Capa educativa" payload was validated by the
+        # contribution serializer (as a write-only nested field), so errors
+        # already surfaced as 400 with an ``educational.<field>`` path. Pop it out
+        # of validated_data before save() so it doesn't reach HeritageItem's
+        # constructor; we attach it to the LOM below.
+        edu_fields = dict(serializer.validated_data.pop('educational', None) or {})
 
         contributor = self.request.user if self.request.user.is_authenticated else None
 

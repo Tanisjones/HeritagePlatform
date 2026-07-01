@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryField
 from .models import HeritageItem, HeritageCategory, HeritageType, Parish, MediaFile, HeritageRelation, Annotation
-from apps.education.serializers import LOMGeneralSerializer
+from apps.education.serializers import LOMGeneralSerializer, LOMEducationalSerializer
 
 
 class MediaFileSerializer(serializers.ModelSerializer):
@@ -76,7 +76,9 @@ class HeritageItemListSerializer(serializers.ModelSerializer):
 
     def get_lom_metadata(self, obj):
         if hasattr(obj, 'lom_general'):
-            return LOMGeneralSerializer(obj.lom_general).data
+            # Pass context so the request threads through: LOMGeneralSerializer
+            # strips question answer keys for anonymous callers.
+            return LOMGeneralSerializer(obj.lom_general, context=self.context).data
         return None
 
 
@@ -103,7 +105,9 @@ class HeritageItemDetailSerializer(serializers.ModelSerializer):
 
     def get_lom_metadata(self, obj):
         if hasattr(obj, 'lom_general'):
-            return LOMGeneralSerializer(obj.lom_general).data
+            # Pass context so the request threads through: LOMGeneralSerializer
+            # strips question answer keys for anonymous callers.
+            return LOMGeneralSerializer(obj.lom_general, context=self.context).data
         return None
 
     def get_primary_image(self, obj):
@@ -131,8 +135,15 @@ class HeritageItemContributionSerializer(serializers.ModelSerializer):
     """
     Serializer used by the contribution wizard.
     Simplifies the creation process for end-users.
+
+    ``educational`` is an optional, write-only nested payload for the wizard's
+    "Capa educativa" step. Declaring it here (rather than reading request.data in
+    the view) means DRF validates it in the normal flow, so errors surface with a
+    proper ``educational.<field>`` path. The view pops it from validated_data and
+    applies it to the item's LOM after creation.
     """
     location = GeometryField()
+    educational = LOMEducationalSerializer(required=False, write_only=True)
 
     class Meta:
         model = HeritageItem

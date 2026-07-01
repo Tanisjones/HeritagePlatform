@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { aiService, curatorService } from '@/services/api'
 import { useAIAvailability } from '@/services/aiAvailability'
+import { useAiError } from '@/composables/useAiError'
 import MapContainer from '@/components/map/MapContainer.vue'
 import type {
   CuratorReviewDetail,
@@ -75,8 +76,8 @@ const aiLoading = ref(false)
 const aiError = ref<string | null>(null)
 const aiReview = ref<AIReview | null>(null)
 const canCopy = typeof globalThis !== 'undefined' && Boolean((globalThis as any).navigator?.clipboard)
-const { isAvailable: aiAvailable, refresh: refreshAIAvailability, markUnavailable: markAIUnavailable } =
-  useAIAvailability()
+const { isAvailable: aiAvailable, refresh: refreshAIAvailability } = useAIAvailability()
+const { applyAIError } = useAiError()
 
 function getCurrentLocale() {
   return localStorage.getItem('hp_locale') || 'es'
@@ -133,13 +134,12 @@ async function runAIReview() {
       score.value.notes = `${prefix}${res.curator_feedback_draft}`.trim()
     }
   } catch (e: any) {
-    const status = e?.response?.status
-    if (status === 503) {
-      aiError.value = t('curatorReview.aiReview.unavailable')
-      markAIUnavailable()
-    }
-    else if (status === 429) aiError.value = t('curatorReview.aiReview.tooManyRequests')
-    else aiError.value = e?.message ?? t('curatorReview.aiReview.requestFailed')
+    // Shared AI-error mapping with this view's own message namespace.
+    applyAIError(e, aiError as { value: string }, {
+      unavailable: 'curatorReview.aiReview.unavailable',
+      rateLimited: 'curatorReview.aiReview.tooManyRequests',
+      generic: 'curatorReview.aiReview.requestFailed',
+    })
   } finally {
     aiLoading.value = false
   }

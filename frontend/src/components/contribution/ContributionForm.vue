@@ -16,7 +16,7 @@ import type { HeritageItemContribution, Parish, HeritageType, HeritageCategory }
 import api, { aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability'
 import { useAiError } from '@/composables/useAiError';
-import { isValidIso8601Duration, looksLikeMonthsNotMinutes } from '@/utils/duration';
+import { useDurationValidation } from '@/composables/useDurationValidation';
 import {
   LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS, LOM_INTERACTIVITY_TYPES,
   LOM_END_USER_ROLES, LOM_PEDAGOGICAL_APPROACHES,
@@ -98,18 +98,12 @@ const educational = reactive<EducationalDraft>(createEducationalDraft());
 // Single-line editing buffer for the learning-objectives list (one per line).
 const objectivesText = ref('');
 
-// Client-side ISO-8601 guard for learning time (mirrors the backend validator),
+// Client-side ISO-8601 guard for learning time (shared with the LOM editor),
 // so a bad value is caught here instead of failing the whole submit server-side.
-const eduTimeError = ref('');
-watch(() => educational.typical_learning_time, (value) => {
-  if (value && !isValidIso8601Duration(value)) {
-    eduTimeError.value = t('contribution.step5edu.errors.duration');
-  } else if (looksLikeMonthsNotMinutes(value)) {
-    eduTimeError.value = t('contribution.step5edu.errors.months');
-  } else {
-    eduTimeError.value = '';
-  }
-});
+const eduTimeError = useDurationValidation(
+  () => educational.typical_learning_time,
+  { invalidKey: 'contribution.step5edu.errors.duration', monthsKey: 'contribution.step5edu.errors.months' },
+);
 
 // Vocabularies shared with the LOM editor and /learn; labels come from i18n
 // (reuse the existing `lom.*` and `learn.*` keys where possible).

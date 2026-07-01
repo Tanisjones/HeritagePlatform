@@ -7,27 +7,43 @@ from .models import (
 )
 
 
-def _sync_ordered_children(manager, model, parent, entries):
+def _sync_ordered_children(manager, entries):
     """Reconcile a FK-many relation with a desired list of child dicts.
 
-    Updates existing rows in positional order (preserving their primary keys —
-    so UUIDs and any references survive an edit), creates rows for extra
-    payloads, and deletes any surplus existing rows. This replaces the naive
-    delete-then-recreate, which churned every child's UUID on every save.
+    Matches existing rows to incoming entries by IDENTITY (``id``), not by list
+    position: an entry carrying an ``id`` that matches an existing row updates
+    that row in place (preserving its UUID and any external references); an entry
+    without a matching ``id`` creates a new row; existing rows whose ``id`` is not
+    present in the payload are deleted. This is order-independent, so a client
+    reordering the children no longer mis-assigns content to the wrong UUID (the
+    bug positional matching had, made worse by unordered querysets).
+
+    ``manager`` is a reverse-FK related manager; the model and parent instance and
+    the FK field name are all derived from it.
     """
-    existing = list(manager.all())
+    model = manager.model
+    parent = manager.instance
     field_name = manager.field.name
-    for idx, data in enumerate(entries):
-        if idx < len(existing):
-            obj = existing[idx]
+
+    existing = {obj.pk: obj for obj in manager.all()}
+    seen_ids = set()
+
+    for data in entries:
+        data = dict(data)
+        entry_id = data.pop('id', None)
+        obj = existing.get(entry_id) if entry_id is not None else None
+        if obj is not None:
+            seen_ids.add(obj.pk)
             for attr, value in data.items():
                 setattr(obj, attr, value)
             obj.save()
         else:
             model.objects.create(**{field_name: parent}, **data)
-    # Remove rows beyond the new set's length.
-    for obj in existing[len(entries):]:
-        obj.delete()
+
+    # Delete rows the client dropped (present before, absent from the payload).
+    for pk, obj in existing.items():
+        if pk not in seen_ids:
+            obj.delete()
 
 
 class LOMContributorSerializer(serializers.ModelSerializer):
@@ -53,9 +69,13 @@ class LOMRightsSerializer(serializers.ModelSerializer):
         exclude = ['id', 'lom_general', 'created_at', 'updated_at']
 
 class LOMClassificationSerializer(serializers.ModelSerializer):
+    # id is optional-writable so nested replace-all can match existing rows by
+    # identity (update in place) instead of by list position. Omit it to create.
+    id = serializers.UUIDField(required=False)
+
     class Meta:
         model = LOMClassification
-        exclude = ['id', 'lom_general', 'created_at', 'updated_at']
+        exclude = ['lom_general', 'created_at', 'updated_at']
 
 
 class LOMRelationSerializer(serializers.ModelSerializer):
@@ -99,10 +119,14 @@ class AssessmentQuestionPublicSerializer(serializers.ModelSerializer):
 
 class AssessmentQuestionNestedSerializer(serializers.ModelSerializer):
     """Question shape for nested writes under LOMGeneral (no ``lom_general`` —
-    it is bound from the parent). Mirrors how classifications are written."""
+    it is bound from the parent). ``id`` is optional-writable so the replace-all
+    sync can match existing rows by identity (preserving their UUID) rather than
+    by list position. Omit ``id`` to create a new question."""
+    id = serializers.UUIDField(required=False)
+
     class Meta:
         model = AssessmentQuestion
-        exclude = ['id', 'lom_general', 'created_at', 'updated_at']
+        exclude = ['lom_general', 'created_at', 'updated_at']
 
 
 class LOMGeneralSerializer(serializers.ModelSerializer):
@@ -112,11 +136,23 @@ class LOMGeneralSerializer(serializers.ModelSerializer):
     rights = LOMRightsSerializer(read_only=True)
     classifications = LOMClassificationSerializer(many=True, read_only=True)
     relations = LOMRelationSerializer(many=True, read_only=True)
-    questions = AssessmentQuestionSerializer(many=True, read_only=True)
+    # Answer-key protection lives HERE (not just on the /lom-questions/ endpoint)
+    # because this serializer is the read shape for /lom/, /lom/by_heritage_item/,
+    # /education/lom-packages/ AND the nested lom_metadata on /heritage-items/ —
+    # all anonymously readable. Anonymous callers get the answer-key-free shape.
+    questions = serializers.SerializerMethodField()
 
     class Meta:
         model = LOMGeneral
         exclude = ['heritage_item', 'created_at', 'updated_at']
+
+    def get_questions(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        question_qs = obj.questions.all()
+        if user and user.is_authenticated:
+            return AssessmentQuestionSerializer(question_qs, many=True, context=self.context).data
+        return AssessmentQuestionPublicSerializer(question_qs, many=True, context=self.context).data
 
 
 class LOMGeneralWriteSerializer(serializers.ModelSerializer):
@@ -163,17 +199,13 @@ class LOMGeneralWriteSerializer(serializers.ModelSerializer):
                 lom_general=instance, defaults=lifecycle
             )
 
-        # FK-many children: sync in place rather than delete-and-recreate, so
-        # existing rows keep their UUIDs when a client edits (not reorders) the
-        # set. Surplus rows are removed; new payloads create new rows.
+        # FK-many children: sync by identity (id) rather than delete-and-recreate,
+        # so existing rows keep their UUIDs across edits AND reorders. Rows the
+        # client dropped are removed; entries without an id create new rows.
         if classifications is not None:
-            _sync_ordered_children(
-                instance.classifications, LOMClassification, instance, classifications
-            )
+            _sync_ordered_children(instance.classifications, classifications)
         if questions is not None:
-            _sync_ordered_children(
-                instance.questions, AssessmentQuestion, instance, questions
-            )
+            _sync_ordered_children(instance.questions, questions)
 
         instance.refresh_from_db()
         return instance
