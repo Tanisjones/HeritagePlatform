@@ -11,6 +11,7 @@ import { RouterLink } from 'vue-router';
 import { routeService, teacherService } from '@/services/api';
 import type { HeritageRoute } from '@/types/heritage';
 import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download';
+import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -82,10 +83,7 @@ onMounted(fetchRoutes);
       <h2 class="text-xl font-bold text-gray-900 mb-4">{{ t('teach.routesTitle') }}</h2>
 
       <div v-if="loading" class="flex justify-center py-16">
-        <svg class="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-        </svg>
+        <BaseSpinner class="h-8 w-8 text-primary-600" />
       </div>
 
       <div v-else-if="errorMessage" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{{ errorMessage }}</div>
@@ -104,7 +102,7 @@ onMounted(fetchRoutes);
               :disabled="packagingId === route.id"
               class="w-full inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-100 rounded-lg hover:bg-primary-100 disabled:opacity-50 transition-colors"
             >
-              <svg v-if="packagingId === route.id" class="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              <BaseSpinner v-if="packagingId === route.id" class="-ml-1 mr-2 h-4 w-4 text-primary-700" />
               {{ packagingId === route.id ? t('teach.exporting') : t('teach.exportRoute') }}
             </button>
           </div>

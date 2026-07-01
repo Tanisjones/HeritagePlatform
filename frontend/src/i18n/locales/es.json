@@ -33,7 +33,14 @@
         "clickToUpdateMap": "Haga clic en el mapa para actualizar el marcador de ubicación.",
         "mainImage": "Imagen Principal",
         "errorUploading": "Error al subir la imagen",
-        "waitUpload": "Por favor espere a que termine la carga"
+        "waitUpload": "Por favor espere a que termine la carga",
+        "retry": "Reintentar",
+        "dismiss": "Descartar",
+        "close": "Cerrar",
+        "confirm": "Confirmar",
+        "error": "Error",
+        "success": "Éxito",
+        "nothingHere": "No hay nada aquí todavía"
     },
     "nav": {
         "home": "Inicio",

@@ -17,6 +17,7 @@ import api, { aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability'
 import { useAiError } from '@/composables/useAiError';
 import { useDurationValidation } from '@/composables/useDurationValidation';
+import { useToast } from '@/composables/useDialogs';
 import {
   LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS, LOM_INTERACTIVITY_TYPES,
   LOM_END_USER_ROLES, LOM_PEDAGOGICAL_APPROACHES,
@@ -33,6 +34,7 @@ import { useRouter } from 'vue-router';
 // --- State ---
 const { t, locale } = useI18n();
 const router = useRouter();
+const toast = useToast();
 const emit = defineEmits(['step-change']);
 
 const currentStep = ref(1);
@@ -501,7 +503,7 @@ const submitContribution = async () => {
       return;
     }
 
-    alert(t('contribution.actions.error'));
+    toast.error(t('contribution.actions.error'));
   } finally {
     submitting.value = false;
   }

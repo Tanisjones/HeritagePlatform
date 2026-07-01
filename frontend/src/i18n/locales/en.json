@@ -33,7 +33,14 @@
         "clickToUpdateMap": "Click on the map to update the location marker.",
         "mainImage": "Main Image",
         "errorUploading": "Error uploading image",
-        "waitUpload": "Please wait for upload to finish"
+        "waitUpload": "Please wait for upload to finish",
+        "retry": "Retry",
+        "dismiss": "Dismiss",
+        "close": "Close",
+        "confirm": "Confirm",
+        "error": "Error",
+        "success": "Success",
+        "nothingHere": "Nothing here yet"
     },
     "nav": {
         "home": "Home",

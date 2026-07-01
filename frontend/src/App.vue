@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import AppHeader from './components/layout/AppHeader.vue'
+import AppDialogHost from './components/common/AppDialogHost.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -17,6 +18,7 @@ onMounted(() => {
     <main class="flex-grow">
       <RouterView />
     </main>
+    <AppDialogHost />
   </div>
 </template>
 

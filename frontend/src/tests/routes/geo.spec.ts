@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { haversineMeters, boundingBox, lngLatToTile, type LngLat } from '@/utils/geo'
+import {
+  haversineMeters,
+  boundingBox,
+  lngLatToTile,
+  parsePoint,
+  parseLineString,
+  type LngLat,
+} from '@/utils/geo'
 
 describe('geo utils', () => {
   it('haversineMeters ~ correct for two Riobamba points', () => {
@@ -34,5 +41,54 @@ describe('geo utils', () => {
     expect(x).toBeLessThan(n)
     expect(y).toBeGreaterThanOrEqual(0)
     expect(y).toBeLessThan(n)
+  })
+})
+
+describe('WKT / GeoJSON parsing', () => {
+  it('parsePoint reads SRID-prefixed WKT into [lat, lng]', () => {
+    expect(parsePoint('SRID=4326;POINT (-78.6479 -1.6735)')).toEqual([-1.6735, -78.6479])
+  })
+
+  it('parsePoint reads bare WKT POINT', () => {
+    expect(parsePoint('POINT(-78.65 -1.67)')).toEqual([-1.67, -78.65])
+  })
+
+  it('parsePoint reads a GeoJSON Point object into [lat, lng]', () => {
+    expect(parsePoint({ type: 'Point', coordinates: [-78.65, -1.67] })).toEqual([-1.67, -78.65])
+  })
+
+  it('parsePoint returns null for empty/garbage', () => {
+    expect(parsePoint(null)).toBeNull()
+    expect(parsePoint('')).toBeNull()
+    expect(parsePoint('POINT()')).toBeNull()
+    expect(parsePoint({ type: 'Point' })).toBeNull()
+  })
+
+  it('parseLineString reads WKT LINESTRING into [lat, lng] pairs', () => {
+    expect(parseLineString('LINESTRING (-78.65 -1.67, -78.64 -1.66)')).toEqual([
+      [-1.67, -78.65],
+      [-1.66, -78.64],
+    ])
+  })
+
+  it('parseLineString reads a GeoJSON LineString object', () => {
+    expect(
+      parseLineString({
+        type: 'LineString',
+        coordinates: [
+          [-78.65, -1.67],
+          [-78.64, -1.66],
+        ],
+      }),
+    ).toEqual([
+      [-1.67, -78.65],
+      [-1.66, -78.64],
+    ])
+  })
+
+  it('parseLineString returns null for non-linestring input', () => {
+    expect(parseLineString(null)).toBeNull()
+    expect(parseLineString('POINT (-78.65 -1.67)')).toBeNull()
+    expect(parseLineString({ type: 'Point', coordinates: [-78.65, -1.67] })).toBeNull()
   })
 })

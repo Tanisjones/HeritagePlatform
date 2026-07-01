@@ -4,16 +4,21 @@ import { useRoute, useRouter } from 'vue-router';
 import { resourceService } from '@/services/api'; // Ensure this matches existing exports
 import api from '@/services/api';
 import { useI18n } from 'vue-i18n';
+import { useToast } from '@/composables/useDialogs';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
+import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 
 const { t } = useI18n();
+const toast = useToast();
 const route = useRoute();
 const router = useRouter();
 const id = route.params.id as string;
 
 const loading = ref(false);
 const saving = ref(false);
+const error = ref<string | null>(null);
 
 const form = reactive({
   title: '',
@@ -49,6 +54,7 @@ const historicalPeriods = [
 
 const fetchData = async () => {
   loading.value = true;
+  error.value = null;
   try {
     const [itemRes, parishesRes, typesRes, categoriesRes] = await Promise.all([
       resourceService.get(id),
@@ -87,9 +93,9 @@ const fetchData = async () => {
     heritageTypes.value = typesRes.data.results || typesRes.data;
     heritageCategories.value = categoriesRes.data.results || categoriesRes.data;
 
-  } catch (error) {
-    console.error('Error loading data:', error);
-    alert(t('common.errorLoading'));
+  } catch (err) {
+    console.error('Error loading data:', err);
+    error.value = t('common.errorLoading');
   } finally {
     loading.value = false;
   }
@@ -134,7 +140,7 @@ const handleImageUpload = async (event: Event) => {
      form.main_image = id;
   } catch (err) {
      console.error('Upload failed', err);
-     alert(t('common.errorUploading'));
+     toast.error(t('common.errorUploading'));
   } finally {
      uploadingImage.value = false;
   }
@@ -144,7 +150,7 @@ const save = async () => {
   saving.value = true;
   try {
     if (uploadingImage.value) {
-       alert(t('common.waitUpload'));
+       toast.info(t('common.waitUpload'));
        return;
     }
     // Clean payload
@@ -157,14 +163,14 @@ const save = async () => {
     if (!payload.parish) delete (payload as any).parish;
     
     await resourceService.update(id, payload);
-    alert(t('common.saved'));
+    toast.success(t('common.saved'));
     router.push('/moderation/resources');
-  } catch (error: any) {
-    console.error('Error saving:', error);
-    if (error.response && error.response.data) {
-        console.error('Validation errors:', error.response.data);
+  } catch (err: any) {
+    console.error('Error saving:', err);
+    if (err.response && err.response.data) {
+        console.error('Validation errors:', err.response.data);
     }
-    alert(t('common.errorSaving'));
+    toast.error(t('common.errorSaving'));
   } finally {
     saving.value = false;
   }
@@ -188,7 +194,9 @@ onMounted(fetchData);
       </button>
     </div>
 
-    <div v-if="loading" class="p-8 text-center text-gray-500">
+    <ErrorBanner v-if="error" :message="error" class="m-6" @retry="fetchData" />
+
+    <div v-else-if="loading" class="p-8 text-center text-gray-500">
       {{ t('curatorReview.loading') }}
     </div>
 
@@ -281,10 +289,7 @@ onMounted(fetchData);
           {{ t('common.cancel') }}
         </button>
         <button type="submit" :disabled="saving" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center">
-          <svg v-if="saving" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
+          <BaseSpinner v-if="saving" class="-ml-1 mr-2 h-4 w-4 text-white" />
           {{ t('common.save') }}
         </button>
       </div>

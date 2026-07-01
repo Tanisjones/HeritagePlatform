@@ -4,9 +4,12 @@ import api from '@/services/api';
 import { apiBaseUrl } from '@/utils/apiUrl';
 import { iso8601ToMinutes } from '@/utils/duration';
 import type { LOMResource } from '@/types/heritage';
+import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { useI18n } from 'vue-i18n';
+import { useToast } from '@/composables/useDialogs';
 
 const { t } = useI18n();
+const toast = useToast();
 const loading = ref(false);
 const errorMessage = ref('');
 const lomResources = ref<LOMResource[]>([]);
@@ -121,7 +124,7 @@ const downloadScorm = async (resource: LOMResource) => {
     document.body.removeChild(link);
   } catch (e) {
     console.error('Download failed', e);
-    alert(t('learn.labels.downloadError'));
+    toast.error(t('learn.labels.downloadError'));
   } finally {
     downloadingId.value = null;
   }
@@ -350,10 +353,7 @@ onMounted(fetchLom);
 
     <section>
       <div v-if="loading" class="flex justify-center items-center py-16">
-        <svg class="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+        <BaseSpinner class="h-8 w-8 text-primary-600" />
       </div>
 
       <div v-else-if="errorMessage" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
@@ -439,7 +439,7 @@ onMounted(fetchLom);
                   :disabled="downloadingId === resource.id || !resource.heritage_item_id"
                   class="w-full inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-100 rounded-lg hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <svg v-if="downloadingId === resource.id" class="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <BaseSpinner v-if="downloadingId === resource.id" class="-ml-1 mr-2 h-4 w-4 text-primary-700" />
                   <svg v-else class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                   {{ downloadingId === resource.id ? t('learn.labels.downloading') : t('learn.labels.download') }}
               </button>

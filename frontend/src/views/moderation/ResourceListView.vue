@@ -3,9 +3,13 @@ import { ref, onMounted, watch } from 'vue';
 import { resourceService } from '@/services/api';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useConfirm, useToast } from '@/composables/useDialogs';
+import ErrorBanner from '@/components/common/ErrorBanner.vue';
 
 const { t } = useI18n();
 const router = useRouter();
+const { confirm } = useConfirm();
+const toast = useToast();
 
 interface Resource {
   id: string;
@@ -18,6 +22,7 @@ interface Resource {
 
 const resources = ref<Resource[]>([]);
 const loading = ref(false);
+const error = ref<string | null>(null);
 const page = ref(1);
 const totalPages = ref(1);
 const filters = ref({
@@ -27,6 +32,7 @@ const filters = ref({
 
 const fetchResources = async () => {
   loading.value = true;
+  error.value = null;
   try {
     const params = {
       page: page.value,
@@ -40,8 +46,9 @@ const fetchResources = async () => {
        // For now, let's just use a simple pagination based on count if available, defaulting to next/prev logic if passed
        totalPages.value = Math.ceil(response.data.count / 20); 
     }
-  } catch (error) {
-    console.error('Error fetching resources:', error);
+  } catch (err) {
+    console.error('Error fetching resources:', err);
+    error.value = t('common.errorLoading');
   } finally {
     loading.value = false;
   }
@@ -50,13 +57,13 @@ const fetchResources = async () => {
 const deleteResource = async (id: string, event?: Event) => {
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  if (!confirm(t('moderation.resources.confirmDelete'))) return;
+  if (!(await confirm({ message: t('moderation.resources.confirmDelete'), danger: true }))) return;
   try {
     await resourceService.delete(id);
     await fetchResources();
-  } catch (error) {
-    console.error('Error deleting resource:', error);
-    alert(t('moderation.resources.deleteError'));
+  } catch (err) {
+    console.error('Error deleting resource:', err);
+    toast.error(t('moderation.resources.deleteError'));
   }
 };
 
@@ -82,6 +89,8 @@ onMounted(fetchResources);
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-gray-900">{{ t('moderation.resources.title') }}</h1>
     </div>
+
+    <ErrorBanner :message="error" @retry="fetchResources" />
 
     <!-- Filters -->
     <div class="bg-white p-4 rounded-lg shadow-sm flex gap-4">
@@ -150,7 +159,7 @@ onMounted(fetchResources);
               {{ new Date(resource.created_at).toLocaleDateString() }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <button type="button" @click.stop.prevent="editResource(resource.id, $event)" class="text-indigo-600 hover:text-indigo-900 mr-4">
+              <button type="button" @click.stop.prevent="editResource(resource.id, $event)" class="text-primary-600 hover:text-primary-800 mr-4">
                 {{ t('common.edit') }}
               </button>
               <button type="button" @click.stop.prevent="deleteResource(resource.id, $event)" class="text-red-600 hover:text-red-900">

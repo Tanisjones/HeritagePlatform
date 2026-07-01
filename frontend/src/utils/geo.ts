@@ -46,3 +46,79 @@ export function lngLatToTile(lng: number, lat: number, zoom: number): { x: numbe
   )
   return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) }
 }
+
+// ── WKT / GeoJSON geometry parsing ───────────────────────────────────────────
+// Backends emit locations either as a GeoJSON object or as a (possibly
+// SRID-prefixed) WKT string. These helpers unify the three hand-rolled parsers
+// that used to live in RouteMap, HomeView and ContributionReviewView. They
+// return Leaflet order `[lat, lng]` since every consumer feeds Leaflet.
+
+/** A Leaflet coordinate pair, `[lat, lng]`. */
+export type LatLng = [number, number]
+
+type GeoJsonGeometry = { type?: string; coordinates?: unknown }
+
+/**
+ * Parse a POINT from a WKT string ("SRID=4326;POINT (lng lat)" or
+ * "POINT(lng lat)") or a GeoJSON Point object into `[lat, lng]`. Returns null
+ * when the value is empty or unparseable.
+ */
+export function parsePoint(value: string | GeoJsonGeometry | null | undefined): LatLng | null {
+  if (!value) return null
+
+  if (typeof value === 'object') {
+    const coords = value.coordinates
+    if (Array.isArray(coords) && coords.length >= 2) {
+      const lng = Number(coords[0])
+      const lat = Number(coords[1])
+      return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null
+    }
+    return null
+  }
+
+  // WKT string: grab the numbers inside the parentheses.
+  const match = value.match(/\(([^)]+)\)/)
+  if (!match || !match[1]) return null
+  const parts = match[1].trim().split(/\s+/).filter(Boolean)
+  if (parts.length < 2) return null
+  const lng = Number(parts[0])
+  const lat = Number(parts[1])
+  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null
+}
+
+/**
+ * Parse a LINESTRING from a WKT string ("SRID=4326;LINESTRING (lng lat, …)" or
+ * "LINESTRING(lng lat, …)") or a GeoJSON LineString object into an array of
+ * `[lat, lng]`. Returns null when empty or unparseable.
+ */
+export function parseLineString(
+  value: string | GeoJsonGeometry | null | undefined,
+): LatLng[] | null {
+  if (!value) return null
+
+  if (typeof value === 'object') {
+    if (value.type === 'LineString' && Array.isArray(value.coordinates)) {
+      const points = (value.coordinates as unknown[])
+        .map((c): LatLng | null => {
+          const pair = c as unknown[]
+          const lng = Number(pair?.[0])
+          const lat = Number(pair?.[1])
+          return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null
+        })
+        .filter((p): p is LatLng => p !== null)
+      return points.length ? points : null
+    }
+    return null
+  }
+
+  const match = value.match(/LINESTRING\s*\(\s*([^)]+)\s*\)/i)
+  if (!match || !match[1]) return null
+  const points: LatLng[] = []
+  for (const pair of match[1].split(',')) {
+    const [lngStr, latStr] = pair.trim().split(/\s+/).filter(Boolean)
+    const lng = Number(lngStr)
+    const lat = Number(latStr)
+    if (Number.isFinite(lat) && Number.isFinite(lng)) points.push([lat, lng])
+  }
+  return points.length ? points : null
+}

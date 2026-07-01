@@ -4,6 +4,7 @@ import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import LevelProgress from '@/components/gamification/LevelProgress.vue';
 import BadgeCard from '@/components/gamification/BadgeCard.vue';
+import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -80,7 +81,7 @@ const sortedBadges = computed(() => {
         </div>
 
         <div v-if="loading" class="flex justify-center p-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <BaseSpinner class="h-12 w-12 text-primary-600" />
         </div>
 
         <template v-else>

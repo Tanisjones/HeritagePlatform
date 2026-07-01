@@ -184,10 +184,10 @@ router.beforeEach(async (to) => {
   }
 
   const isAuthed = authStore.isAuthenticated
-  const requiresAuth = to.matched.some((record) => (record.meta as any)?.requiresAuth)
-  const guestOnly = to.matched.some((record) => (record.meta as any)?.guestOnly)
-  const requiresCurator = to.matched.some((record) => (record.meta as any)?.requiresCurator)
-  const requiresTeacher = to.matched.some((record) => (record.meta as any)?.requiresTeacher)
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+  const guestOnly = to.matched.some((record) => record.meta.guestOnly)
+  const requiresCurator = to.matched.some((record) => record.meta.requiresCurator)
+  const requiresTeacher = to.matched.some((record) => record.meta.requiresTeacher)
 
   if (guestOnly && isAuthed) return { path: '/dashboard' }
 

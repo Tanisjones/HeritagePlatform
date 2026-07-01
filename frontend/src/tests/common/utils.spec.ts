@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest'
+import { unwrapResults, resultCount } from '@/utils/pagination'
+import { extractApiError } from '@/utils/apiError'
+
+describe('unwrapResults', () => {
+  it('returns a bare array as-is', () => {
+    expect(unwrapResults([1, 2, 3])).toEqual([1, 2, 3])
+  })
+
+  it('unwraps a DRF paginated envelope', () => {
+    expect(unwrapResults({ count: 2, results: ['a', 'b'] })).toEqual(['a', 'b'])
+  })
+
+  it('returns [] for null/undefined/non-list', () => {
+    expect(unwrapResults(null)).toEqual([])
+    expect(unwrapResults(undefined)).toEqual([])
+    expect(unwrapResults({ detail: 'nope' })).toEqual([])
+  })
+})
+
+describe('resultCount', () => {
+  it('uses the envelope count when present', () => {
+    expect(resultCount({ count: 42, results: ['a'] })).toBe(42)
+  })
+
+  it('falls back to array length', () => {
+    expect(resultCount([1, 2, 3])).toBe(3)
+    expect(resultCount(null)).toBe(0)
+  })
+})
+
+describe('extractApiError', () => {
+  it('reads DRF non_field_errors first', () => {
+    const err = {
+      response: { data: { non_field_errors: ['Bad credentials'], email: ['taken'] } },
+    }
+    expect(extractApiError(err)).toBe('Bad credentials')
+  })
+
+  it('reads the first field error', () => {
+    const err = { response: { data: { email: ['This field is required.'] } } }
+    expect(extractApiError(err)).toBe('This field is required.')
+  })
+
+  it('reads a detail string', () => {
+    const err = { response: { data: { detail: 'Not found.' } } }
+    expect(extractApiError(err)).toBe('Not found.')
+  })
+
+  it('reads a plain string body', () => {
+    const err = { response: { data: 'Server exploded' } }
+    expect(extractApiError(err)).toBe('Server exploded')
+  })
+
+  it('falls back to the error message then the default', () => {
+    expect(extractApiError({ message: 'Network Error' })).toBe('Network Error')
+    expect(extractApiError({}, 'Oops')).toBe('Oops')
+  })
+})

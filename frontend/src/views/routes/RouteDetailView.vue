@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useRoutesStore } from '@/stores/routes'
 import { useRouteNavigation } from '@/composables/useRouteNavigation'
+import { useConfirm } from '@/composables/useDialogs'
 import { routeService } from '@/services/api'
 import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download'
 import AppButton from '@/components/common/AppButton.vue'
@@ -25,6 +26,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const routesStore = useRoutesStore()
 const { t } = useI18n()
+const { confirm } = useConfirm()
 
 const loading = computed(() => routesStore.loading)
 const currentRoute = computed(() => routesStore.currentRoute)
@@ -117,7 +119,7 @@ async function onEdit() {
 }
 
 async function onDelete() {
-  if (!window.confirm(t('routesUi.builder.confirmDelete'))) return
+  if (!(await confirm({ message: t('routesUi.builder.confirmDelete'), danger: true }))) return
   actionError.value = null
   try {
     await routesStore.deleteRoute(routeId.value)
@@ -128,7 +130,7 @@ async function onDelete() {
 }
 
 async function onArchive() {
-  if (!window.confirm(t('routesUi.builder.confirmArchive'))) return
+  if (!(await confirm({ message: t('routesUi.builder.confirmArchive'), danger: true }))) return
   actionError.value = null
   try {
     await routesStore.archiveRoute(routeId.value)
