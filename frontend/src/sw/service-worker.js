@@ -35,7 +35,9 @@ const isUserDataPath = (pathname) =>
   pathname.startsWith('/api/v1/notifications/') ||
   pathname.startsWith('/api/v1/my-contributions/') ||
   pathname.startsWith('/api/v1/contributions/') ||
-  pathname.startsWith('/api/v1/route-progress/')
+  pathname.startsWith('/api/v1/route-progress/') ||
+  pathname.startsWith('/api/v1/point-transactions/') ||
+  pathname.startsWith('/api/v1/user-badges/')
 
 const contributionSyncQueue = new BackgroundSyncPlugin('contributionsQueue', {
   maxRetentionTime: 24 * 60, // minutes (24 hours)

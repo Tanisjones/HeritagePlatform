@@ -28,6 +28,7 @@ from apps.ai_services.assist_views import (
     ContributionMetadataAssistView,
     CuratorReviewAssistView,
     EducationalMetadataAssistView,
+    RouteMetadataAssistView,
     TranslateAssistView,
 )
 from apps.ai_services.status_views import AIStatusView
@@ -115,5 +116,6 @@ urlpatterns = [
         EducationalMetadataAssistView.as_view(),
         name='ai-educational-metadata',
     ),
+    path('ai/assist/route-metadata/', RouteMetadataAssistView.as_view(), name='ai-route-metadata'),
     path('ai/assist/translate/', TranslateAssistView.as_view(), name='ai-translate'),
 ]

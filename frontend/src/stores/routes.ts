@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { routeService } from '@/services/api'
-import type { HeritageRoute, RouteCreateData, RouteRating, UserRouteProgress } from '@/types/heritage'
+import type { HeritageRoute, RouteAwards, RouteCreateData, RouteRating, UserRouteProgress } from '@/types/heritage'
 
 function unwrapResults<T>(data: any): T[] {
   if (!data) return []
@@ -15,6 +15,7 @@ export const useRoutesStore = defineStore('routes', () => {
   const currentRoute = ref<HeritageRoute | null>(null)
   const myRoutes = ref<HeritageRoute[]>([])
   const activeRoutes = ref<HeritageRoute[]>([])
+  const nearbyRoutes = ref<HeritageRoute[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -161,16 +162,61 @@ export const useRoutesStore = defineStore('routes', () => {
     }
   }
 
-  async function checkInAtStop(routeId: string, stopId: string) {
+  async function checkInAtStop(
+    routeId: string,
+    stopId: string,
+    coords?: { latitude: number; longitude: number },
+  ) {
     loading.value = true
     error.value = null
     try {
-      const res = await routeService.checkIn(routeId, { stop_id: stopId })
+      const res = await routeService.checkIn(routeId, { stop_id: stopId, ...(coords || {}) })
       const progress = res.data as UserRouteProgress
       if (currentRoute.value?.id === routeId) currentRoute.value.user_progress = progress
       return progress
     } catch (e: any) {
       error.value = e?.message || 'Failed to check in'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchNearbyRoutes(params: { latitude: number; longitude: number; radius?: number }) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await routeService.nearby(params)
+      nearbyRoutes.value = unwrapResults<HeritageRoute>(res.data)
+      return nearbyRoutes.value
+    } catch (e: any) {
+      error.value = e?.message || 'Failed to load nearby routes'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchSimilarRoutes(routeId: string) {
+    try {
+      const res = await routeService.similar(routeId)
+      return unwrapResults<HeritageRoute>(res.data)
+    } catch {
+      return []
+    }
+  }
+
+  async function archiveRoute(routeId: string) {
+    loading.value = true
+    error.value = null
+    try {
+      await routeService.archive(routeId)
+      if (currentRoute.value?.id === routeId) currentRoute.value.status = 'archived'
+      myRoutes.value = myRoutes.value.map((r) =>
+        r.id === routeId ? { ...r, status: 'archived' } : r,
+      )
+    } catch (e: any) {
+      error.value = e?.message || 'Failed to archive route'
       throw e
     } finally {
       loading.value = false
@@ -198,12 +244,16 @@ export const useRoutesStore = defineStore('routes', () => {
     error.value = null
     try {
       const res = await routeService.complete(routeId)
-      const progress = res.data as UserRouteProgress
+      // The response is the progress object plus an `awards` block the backend
+      // computed from the points/badges it just granted (exact, not a heuristic).
+      const { awards, ...progress } = (res.data || {}) as UserRouteProgress & {
+        awards?: RouteAwards
+      }
       if (currentRoute.value?.id === routeId) {
-        currentRoute.value.user_progress = progress
+        currentRoute.value.user_progress = progress as UserRouteProgress
         currentRoute.value.completion_count = (currentRoute.value.completion_count || 0) + 1
       }
-      return progress
+      return { progress: progress as UserRouteProgress, awards: awards ?? { points: 0, badges: [] } }
     } catch (e: any) {
       error.value = e?.message || 'Failed to complete route'
       throw e
@@ -233,6 +283,7 @@ export const useRoutesStore = defineStore('routes', () => {
     currentRoute,
     myRoutes,
     activeRoutes,
+    nearbyRoutes,
     loading,
     error,
     publishedRoutes,
@@ -242,8 +293,11 @@ export const useRoutesStore = defineStore('routes', () => {
     createRoute,
     updateRoute,
     deleteRoute,
+    archiveRoute,
     fetchMyRoutes,
     fetchActiveRoutes,
+    fetchNearbyRoutes,
+    fetchSimilarRoutes,
     submitForReview,
     startRoute,
     checkInAtStop,

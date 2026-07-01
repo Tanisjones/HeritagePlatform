@@ -1,22 +1,69 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoutesStore } from '@/stores/routes'
 import { useAuthStore } from '@/stores/auth'
+import { useGeolocation } from '@/composables/useGeolocation'
 import RouteFilters from '@/components/routes/RouteFilters.vue'
 import RouteCard from '@/components/routes/RouteCard.vue'
 import AppButton from '@/components/common/AppButton.vue'
+import BaseSpinner from '@/components/common/BaseSpinner.vue'
 
 const { t } = useI18n()
 const routesStore = useRoutesStore()
 const authStore = useAuthStore()
+const { lngLat, isSupported, error: geoError, start, stop } = useGeolocation()
 
 const filters = ref<Record<string, any>>({})
 const loading = computed(() => routesStore.loading)
-const routes = computed(() => routesStore.routes)
+
+// 'all' shows the filtered catalogue; 'nearby' shows geolocated results.
+const mode = ref<'all' | 'nearby'>('all')
+const locating = ref(false)
+const nearbyError = ref('')
+
+const displayedRoutes = computed(() =>
+  mode.value === 'nearby' ? routesStore.nearbyRoutes : routesStore.routes,
+)
 
 async function load() {
   await routesStore.fetchRoutes(filters.value)
+}
+
+function findNearby() {
+  if (!isSupported.value) {
+    nearbyError.value = t('routesUi.nearby.unsupported')
+    return
+  }
+  nearbyError.value = ''
+  locating.value = true
+  start()
+
+  // Resolve on the first fix, or bail on a geolocation error.
+  const unwatch = watch([lngLat, geoError], async ([pos, err]) => {
+    if (pos) {
+      unwatch()
+      stop()
+      try {
+        await routesStore.fetchNearbyRoutes({ latitude: pos[1], longitude: pos[0], radius: 5 })
+        mode.value = 'nearby'
+      } catch {
+        nearbyError.value = t('routesUi.nearby.error')
+      } finally {
+        locating.value = false
+      }
+    } else if (err) {
+      unwatch()
+      stop()
+      locating.value = false
+      nearbyError.value = t('routesUi.nearby.denied')
+    }
+  })
+}
+
+function showAll() {
+  mode.value = 'all'
+  nearbyError.value = ''
 }
 
 onMounted(load)
@@ -26,12 +73,33 @@ onMounted(load)
   <div class="max-w-6xl mx-auto p-5 space-y-5">
     <div class="flex items-center justify-between gap-4">
       <h1 class="text-3xl font-bold text-gray-900">{{ t('routes.title') }}</h1>
-      <router-link v-if="authStore.isAuthenticated" to="/routes/new">
-        <AppButton size="sm">{{ t('routesUi.createRoute') }}</AppButton>
-      </router-link>
+      <div class="flex items-center gap-2">
+        <AppButton size="sm" variant="secondary" :loading="locating" @click="findNearby">
+          {{ t('routesUi.nearby.button') }}
+        </AppButton>
+        <router-link v-if="authStore.isAuthenticated" to="/routes/new">
+          <AppButton size="sm">{{ t('routesUi.createRoute') }}</AppButton>
+        </router-link>
+      </div>
+    </div>
+
+    <p v-if="nearbyError" class="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+      {{ nearbyError }}
+    </p>
+
+    <!-- Nearby mode banner -->
+    <div
+      v-if="mode === 'nearby'"
+      class="flex items-center justify-between gap-3 bg-primary-50 border border-primary-200 rounded-lg px-4 py-2"
+    >
+      <span class="text-sm text-primary-800">{{ t('routesUi.nearby.showing') }}</span>
+      <button class="text-sm text-primary-700 hover:underline" @click="showAll">
+        {{ t('routesUi.nearby.showAll') }}
+      </button>
     </div>
 
     <RouteFilters
+      v-if="mode === 'all'"
       @change="
         async (p) => {
           filters.value = p
@@ -40,19 +108,18 @@ onMounted(load)
       "
     />
 
-    <div v-if="loading" class="flex justify-center items-center py-12">
-      <svg class="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
+    <div v-if="loading || locating" class="flex justify-center items-center py-12">
+      <BaseSpinner class="h-8 w-8 text-primary-600" />
     </div>
 
-    <div v-else-if="routes.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-      <RouteCard v-for="r in routes" :key="r.id" :route="r" />
+    <div v-else-if="displayedRoutes.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <RouteCard v-for="r in displayedRoutes" :key="r.id" :route="r" />
     </div>
 
     <div v-else class="text-center py-12">
-      <p class="text-gray-600">{{ t('routes.noRoutes') }}</p>
+      <p class="text-gray-600">
+        {{ mode === 'nearby' ? t('routesUi.nearby.noneNear') : t('routes.noRoutes') }}
+      </p>
     </div>
   </div>
 </template>

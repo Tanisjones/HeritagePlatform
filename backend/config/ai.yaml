@@ -39,6 +39,7 @@ ai:
     - contribution_metadata
     - curator_review_assist
     - educational_metadata
+    - route_metadata
     - translate
 
   # Prompt templates are stored here so they can evolve without code changes.
@@ -73,6 +74,17 @@ ai:
       context (one of: school, higher_education, training, other),
       learning_objectives (array of short strings),
       keywords (array of strings).
+      Use null when a value cannot be inferred. Language: {{language}}.
+
+    route_metadata: |
+      You are helping design a cultural heritage walking route in Riobamba,
+      Ecuador. From the route title and its ordered list of stops (each a heritage
+      site with a title and description), propose route metadata. Return JSON with
+      fields:
+      description (a short, inviting paragraph summarizing the route),
+      theme (a concise theme, e.g. "religious heritage", "colonial architecture"),
+      difficulty (one of: easy, medium, hard),
+      estimated_duration (ISO-8601 duration for a walking visit, e.g. "PT2H").
       Use null when a value cannot be inferred. Language: {{language}}.
 
     translate: |

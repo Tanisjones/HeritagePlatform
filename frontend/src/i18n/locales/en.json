@@ -368,7 +368,10 @@
         "nav": {
             "back": "Back",
             "myRoutes": "My routes",
-            "active": "Active"
+            "active": "Active",
+            "followMe": "Follow my location",
+            "stopFollowing": "Stop following",
+            "distanceToNext": "{meters} m to the next stop"
         },
         "actions": {
             "startRoute": "Start route",
@@ -382,7 +385,9 @@
             "search": "Search",
             "add": "Add",
             "remove": "Remove",
-            "saveRoute": "Save route"
+            "saveRoute": "Save route",
+            "share": "Share",
+            "archive": "Archive"
         },
         "states": {
             "noStopsYet": "No stops yet.",
@@ -455,7 +460,8 @@
             "pending": "Pending review",
             "changes_requested": "Changes requested",
             "rejected": "Rejected",
-            "archived": "Archived"
+            "archived": "Archived",
+            "published": "Published"
         },
         "mapTitle": "Map",
         "mapSubtitle": "Stops and suggested path.",
@@ -463,7 +469,94 @@
         "routeCompletedTitle": "Route completed",
         "congratsTitle": "Congratulations!",
         "congratsBody": "You completed this route.",
-        "close": "Close"
+        "close": "Close",
+        "builder": {
+            "moreDetailsTitle": "Additional details",
+            "editRouteTitle": "Edit route",
+            "estimatedCostLabel": "Estimated cost",
+            "costNotesLabel": "Cost notes",
+            "accessibilityNotesLabel": "Accessibility notes",
+            "publicTransitAccessible": "Public transit accessible",
+            "availableLanguagesLabel": "Available languages",
+            "language_es": "Spanish",
+            "language_en": "English",
+            "dragToReorder": "Drag to reorder",
+            "moveUp": "Move up",
+            "moveDown": "Move down",
+            "suggestWithAI": "Suggest with AI",
+            "suggesting": "Generating…",
+            "aiHint": "AI proposes a description, theme, difficulty and duration from the stops.",
+            "edit": "Edit",
+            "delete": "Delete",
+            "confirmDelete": "Delete this route? This cannot be undone.",
+            "deleteError": "Could not delete the route.",
+            "confirmArchive": "Archive this route? It will no longer appear in the public catalogue.",
+            "archiveError": "Could not archive the route.",
+            "notAllowedToEdit": "You do not have permission to edit this route."
+        },
+        "exports": {
+            "gpx": "Export GPX",
+            "kml": "Export KML",
+            "error": "Could not export the route."
+        },
+        "audio": {
+            "title": "Audio guide",
+            "nowPlaying": "Now playing: {title}"
+        },
+        "gamification": {
+            "pointsEarned": "+{points} points",
+            "newBadge": "{name}"
+        },
+        "similar": {
+            "title": "Similar routes"
+        },
+        "offline": {
+            "title": "Offline use",
+            "description": "Download this route's map, data and content to follow it without coverage.",
+            "download": "Download for offline use",
+            "confirm": "This will download about {count} map tiles plus the stops' content. Continue?",
+            "confirmDownload": "Download",
+            "downloading": "Downloading… {percent}%",
+            "saved": "Available offline",
+            "remove": "Remove download",
+            "tilesCached": "{count} tiles cached",
+            "mustBeOnline": "You must be online to download."
+        },
+        "nearby": {
+            "button": "Routes near me",
+            "showing": "Showing routes near your location.",
+            "showAll": "Show all",
+            "noneNear": "No routes near you.",
+            "unsupported": "Your browser does not support geolocation.",
+            "denied": "Could not get your location.",
+            "error": "Could not load nearby routes."
+        },
+        "directions": {
+            "title": "Turn-by-turn directions",
+            "subtitle": "Walking directions to follow the route.",
+            "continue": "Continue",
+            "maneuvers": {
+                "depart": "Start the walk",
+                "arrive": "Arrive",
+                "turn_left": "Turn left",
+                "turn_right": "Turn right",
+                "turn_sharp_left": "Turn sharply left",
+                "turn_sharp_right": "Turn sharply right",
+                "turn_slight_left": "Turn slightly left",
+                "turn_slight_right": "Turn slightly right",
+                "turn_straight": "Continue straight",
+                "continue": "Continue",
+                "continue_straight": "Continue straight",
+                "new_name": "Continue",
+                "roundabout": "Take the roundabout",
+                "rotary": "Take the rotary",
+                "fork_left": "At the fork, keep left",
+                "fork_right": "At the fork, keep right",
+                "merge": "Merge",
+                "end_of_road_left": "At the end of the road, turn left",
+                "end_of_road_right": "At the end of the road, turn right"
+            }
+        }
     },
     "contribution": {
         "title": "Contribute",

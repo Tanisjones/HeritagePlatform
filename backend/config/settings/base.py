@@ -195,3 +195,15 @@ CORS_ALLOW_ALL_ORIGINS = False
 # it from .env into the process environment where the loader can see it.
 AI_CONFIG_PATH = env("AI_CONFIG_PATH", default=str(BASE_DIR / "config" / "ai.yaml"))
 GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+
+# Route geometry / walking-directions provider. OFF by default: with
+# ROUTING_PROVIDER=straight_line, route paths are simple polylines through the
+# stops and no external service is called. Set ROUTING_PROVIDER=osrm + OSRM_URL
+# (e.g. http://osrm:5000) to snap paths to streets with turn-by-turn + real ETA;
+# an unreachable OSRM degrades to the straight-line fallback (never breaks a save).
+ROUTING_PROVIDER = env("ROUTING_PROVIDER", default="straight_line")
+OSRM_URL = env("OSRM_URL", default="")
+ROUTING_TIMEOUT_SECONDS = env.int("ROUTING_TIMEOUT_SECONDS", default=8)
+ROUTING_WALKING_SPEED_MPS = env.float("ROUTING_WALKING_SPEED_MPS", default=1.3)
+# Radius (metres) within which a geolocated check-in is considered "at" the stop.
+ROUTE_CHECKIN_RADIUS_M = env.int("ROUTE_CHECKIN_RADIUS_M", default=100)

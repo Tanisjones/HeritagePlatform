@@ -12,6 +12,9 @@ class LevelSerializer(serializers.ModelSerializer):
         fields = ['id', 'number', 'name', 'min_points', 'max_points', 'benefits']
 
 class UserBadgeSerializer(serializers.ModelSerializer):
+    # Nest the badge so clients get its name/icon, not a bare PK.
+    badge = BadgeSerializer(read_only=True)
+
     class Meta:
         model = UserBadge
         fields = ['id', 'user', 'badge', 'earned_at']

@@ -108,3 +108,21 @@ class TranslateAssistResponseSerializer(StrictSerializer):
         allow_empty=True,
         max_length=30,
     )
+
+
+class RouteMetadataStopSerializer(serializers.Serializer):
+    title = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
+class RouteMetadataAssistRequestSerializer(serializers.Serializer):
+    language = serializers.CharField(required=False, default="es", max_length=10)
+    title = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    stops = RouteMetadataStopSerializer(many=True, required=False)
+
+
+class RouteMetadataAssistResponseSerializer(StrictSerializer):
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=5000)
+    theme = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=100)
+    difficulty = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
+    estimated_duration = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=40)

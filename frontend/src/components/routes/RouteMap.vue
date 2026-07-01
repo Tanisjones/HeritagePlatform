@@ -1,17 +1,28 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { HeritageRoute, RouteStop } from '@/types/heritage'
 
 const props = defineProps<{
   route: HeritageRoute
+  // Live user position as [lng, lat] (GeoJSON order), shown as a blue dot.
+  livePosition?: [number, number] | null
 }>()
 
+const { t } = useI18n()
 const mapEl = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
 let markersLayer: L.LayerGroup | null = null
 let lineLayer: L.Polyline | null = null
+let positionMarker: L.CircleMarker | null = null
+
+function escapeHtml(s: string): string {
+  const div = document.createElement('div')
+  div.textContent = s ?? ''
+  return div.innerHTML
+}
 
 function stopLatLng(stop: RouteStop): [number, number] | null {
   const coords = stop.heritage_item?.location?.coordinates
@@ -100,11 +111,12 @@ function render() {
     if (!latlng) continue
     markerLatLngs.push(latlng)
     const icon = createNumberedIcon(stop.order)
+    const stopLabel = escapeHtml(t('routesUi.stop.stopLabel', { order: stop.order }))
     const popupHtml = `
       <div style="min-width: 220px;">
-        <div style="font-weight: 600; margin-bottom: 4px;">Stop ${stop.order}</div>
-        <div style="font-weight: 600; color: #111827; margin-bottom: 6px;">${stop.heritage_item.title}</div>
-        ${stop.arrival_instructions ? `<div style="color:#4b5563; font-size: 13px;">${stop.arrival_instructions}</div>` : ''}
+        <div style="font-weight: 600; margin-bottom: 4px;">${stopLabel}</div>
+        <div style="font-weight: 600; color: #111827; margin-bottom: 6px;">${escapeHtml(stop.heritage_item.title)}</div>
+        ${stop.arrival_instructions ? `<div style="color:#4b5563; font-size: 13px;">${escapeHtml(stop.arrival_instructions)}</div>` : ''}
       </div>
     `
     L.marker(latlng, { icon }).bindPopup(popupHtml).addTo(markersLayer)
@@ -126,6 +138,32 @@ function render() {
   } else {
     map.setView([-1.6735, -78.6479], 13)
   }
+
+  updatePositionMarker()
+}
+
+function updatePositionMarker() {
+  if (!map) return
+  const pos = props.livePosition
+  if (!pos) {
+    if (positionMarker) {
+      positionMarker.remove()
+      positionMarker = null
+    }
+    return
+  }
+  const latlng: [number, number] = [pos[1], pos[0]] // [lat, lng]
+  if (positionMarker) {
+    positionMarker.setLatLng(latlng)
+  } else {
+    positionMarker = L.circleMarker(latlng, {
+      radius: 8,
+      color: '#2563eb',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.9,
+      weight: 3,
+    }).addTo(map)
+  }
 }
 
 watch(
@@ -133,6 +171,8 @@ watch(
   () => render(),
   { deep: true }
 )
+
+watch(() => props.livePosition, () => updatePositionMarker())
 
 onMounted(init)
 
@@ -142,6 +182,7 @@ onBeforeUnmount(() => {
     map = null
     markersLayer = null
     lineLayer = null
+    positionMarker = null
   }
 })
 </script>

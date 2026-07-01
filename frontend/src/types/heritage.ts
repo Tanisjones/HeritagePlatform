@@ -190,6 +190,20 @@ export interface RouteStop {
   order: number;
   arrival_instructions: string;
   suggested_time: string | null;
+  audio_url?: string | null;
+}
+
+export interface RouteStep {
+  instruction: string;
+  distance_m: number;
+  duration_s: number;
+  name?: string;
+}
+
+// Awards granted for completing a route, returned by the complete() endpoint.
+export interface RouteAwards {
+  points: number;
+  badges: string[];
 }
 
 export interface UserRouteProgress {
@@ -252,15 +266,23 @@ export interface HeritageRoute {
   is_active?: boolean;
 
   stops?: RouteStop[];
+  turn_by_turn?: RouteStep[];
   user_progress?: UserRouteProgress | null;
   user_rating?: RouteRating | null;
 }
 
 export interface RouteStopCreateData {
+  // Present when editing an existing route, so the backend can match stops by
+  // identity and preserve in-progress users' state (non-destructive update).
+  id?: string;
   heritage_item_id: string;
   order: number;
   arrival_instructions?: string;
   suggested_time?: string | null;
+  // Client-only helpers used by the builder map / AI button (not sent as-is; the
+  // backend ignores unknown keys but the form strips them before submit).
+  location?: Point | null;
+  title?: string;
 }
 
 export interface RouteCreateData {

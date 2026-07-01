@@ -40,6 +40,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/routes/:id/edit',
+      name: 'route-edit',
+      component: () => import('../views/routes/RouteEditView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/routes/:id',
       name: 'route-detail',
       component: () => import('../views/routes/RouteDetailView.vue'),

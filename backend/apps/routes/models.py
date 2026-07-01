@@ -39,9 +39,13 @@ class HeritageRoute(models.Model):
     difficulty = models.CharField(_('difficulty'), max_length=20, choices=DIFFICULTY_CHOICES, default='medium')
     estimated_duration = models.DurationField(_('estimated duration'), null=True, blank=True)
     distance = models.FloatField(_('distance (km)'), null=True, blank=True)
-    
+
     path = models.LineStringField(_('path'), null=True, blank=True)
-    
+    # Turn-by-turn walking directions from the routing provider (OSRM). List of
+    # {instruction, distance_m, duration_s, name}; empty when the provider has no
+    # steps (e.g. the straight-line fallback). Not translated.
+    turn_by_turn = models.JSONField(_('turn-by-turn directions'), default=list, blank=True)
+
     items = models.ManyToManyField(
         'heritage.HeritageItem',
         through='RouteStop',

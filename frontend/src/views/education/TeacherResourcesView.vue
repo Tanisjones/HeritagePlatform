@@ -10,6 +10,7 @@ import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { routeService, teacherService } from '@/services/api';
 import type { HeritageRoute } from '@/types/heritage';
+import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -41,34 +42,15 @@ const fetchRoutes = async () => {
   }
 };
 
-// Trigger a browser download from a blob response.
-const saveBlob = (data: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(data);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};
-
 const exportRoute = async (route: HeritageRoute) => {
   packagingError.value = null;
   packagingId.value = route.id;
   try {
     const res = await teacherService.downloadRoutePackage(route.id, selectedFormat.value);
-    const slug = (route.title || 'route').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
+    const slug = slugifyFilename(route.title, 'route');
     saveBlob(res.data as Blob, `${slug}-${selectedFormat.value}.zip`);
   } catch (e: any) {
-    // Blob error bodies need to be read back as text.
-    let msg = t('teach.errors.package');
-    try {
-      if (e?.response?.data instanceof Blob) {
-        msg = await (e.response.data as Blob).text();
-      }
-    } catch { /* keep default */ }
-    packagingError.value = msg;
+    packagingError.value = await readBlobError(e, t('teach.errors.package'));
   } finally {
     packagingId.value = null;
   }

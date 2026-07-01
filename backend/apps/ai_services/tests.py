@@ -299,6 +299,56 @@ ai:
         self.assertEqual(resp.data["learning_objectives"], ["Entender la historia"])
 
     @patch("httpx.Client.post")
+    def test_route_metadata_success(self, post_mock):
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200,
+            json_data={
+                "message": {
+                    "content": (
+                        '{"description":"Un recorrido por el centro histórico.",'
+                        '"theme":"arquitectura colonial","difficulty":"easy",'
+                        '"estimated_duration":"PT2H"}'
+                    )
+                }
+            },
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/route-metadata/",
+            {
+                "language": "es",
+                "title": "Centro Histórico",
+                "stops": [
+                    {"title": "Catedral", "description": "Catedral de Riobamba"},
+                    {"title": "Parque Maldonado", "description": "Plaza central"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["theme"], "arquitectura colonial")
+        self.assertEqual(resp.data["difficulty"], "easy")
+        self.assertEqual(resp.data["estimated_duration"], "PT2H")
+
+    @patch("httpx.Client.post")
+    def test_route_metadata_rejects_extra_keys(self, post_mock):
+        post_mock.return_value = _MockHTTPXResponse(
+            status_code=200,
+            json_data={
+                "message": {
+                    "content": '{"description":"x","theme":"y","difficulty":"easy","bogus":1}'
+                }
+            },
+        )
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            "/api/v1/ai/assist/route-metadata/",
+            {"language": "es", "title": "R"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch("httpx.Client.post")
     def test_translate_success(self, post_mock):
         post_mock.return_value = _MockHTTPXResponse(
             status_code=200,

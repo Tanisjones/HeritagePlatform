@@ -175,13 +175,23 @@ export const routeService = {
   reject: (id: string, payload: { feedback?: string }) => api.post(`/routes/${id}/reject/`, payload),
   requestChanges: (id: string, payload: { feedback?: string }) => api.post(`/routes/${id}/request-changes/`, payload),
 
+  archive: (id: string) => api.post(`/routes/${id}/archive/`),
+
   start: (id: string) => api.post(`/routes/${id}/start/`),
-  checkIn: (id: string, payload: { stop_id: string }) => api.post(`/routes/${id}/check-in/`, payload),
+  checkIn: (id: string, payload: { stop_id: string; latitude?: number; longitude?: number }) =>
+    api.post(`/routes/${id}/check-in/`, payload),
   skipStop: (id: string, payload: { stop_id: string }) => api.post(`/routes/${id}/skip-stop/`, payload),
   complete: (id: string) => api.post(`/routes/${id}/complete/`),
 
   myRoutes: (params?: Record<string, any>) => api.get('/routes/my-routes/', { params }),
   activeRoutes: (params?: Record<string, any>) => api.get('/routes/active-routes/', { params }),
+  nearby: (params: { latitude: number; longitude: number; radius?: number }) =>
+    api.get('/routes/nearby/', { params }),
+  similar: (id: string) => api.get(`/routes/${id}/similar/`),
+
+  // GPX/KML downloads (blob responses).
+  exportGpx: (id: string) => api.get(`/routes/${id}/export-gpx/`, { responseType: 'blob' }),
+  exportKml: (id: string) => api.get(`/routes/${id}/export-kml/`, { responseType: 'blob' }),
 
   getMyRating: (id: string) => api.get(`/routes/${id}/rate/`),
   rate: (id: string, payload: { rating: number; comment?: string }) => api.post(`/routes/${id}/rate/`, payload),
@@ -197,6 +207,24 @@ export const resourceService = {
 export const routeProgressService = {
   list: (params?: Record<string, any>) => api.get('/route-progress/', { params }),
   get: (id: string) => api.get(`/route-progress/${id}/`),
+};
+
+export type PointTransaction = {
+  id: string
+  points: number
+  reason: string
+  created_at: string
+}
+
+export type UserBadge = {
+  id: string
+  badge: { id: number; name: string; description?: string; icon?: string | null }
+  earned_at: string
+}
+
+export const gamificationService = {
+  pointTransactions: (params?: Record<string, any>) => api.get('/point-transactions/', { params }),
+  userBadges: (params?: Record<string, any>) => api.get('/user-badges/', { params }),
 };
 
 export type AIAssistContributionDraftRequest = {
@@ -278,6 +306,19 @@ export type AIAssistTranslateRequest = {
 
 export type AIAssistTranslateResponse = AITranslateFields
 
+export type AIAssistRouteMetadataRequest = {
+  language?: string
+  title?: string
+  stops?: { title?: string; description?: string }[]
+}
+
+export type AIAssistRouteMetadataResponse = {
+  description?: string | null
+  theme?: string | null
+  difficulty?: string | null
+  estimated_duration?: string | null
+}
+
 export const aiService = {
   status: async () => {
     const response = await api.get<AIStatusResponse>('/ai/status/')
@@ -301,6 +342,10 @@ export const aiService = {
   },
   translate: async (payload: AIAssistTranslateRequest) => {
     const response = await api.post<AIAssistTranslateResponse>('/ai/assist/translate/', payload)
+    return response.data
+  },
+  routeMetadata: async (payload: AIAssistRouteMetadataRequest) => {
+    const response = await api.post<AIAssistRouteMetadataResponse>('/ai/assist/route-metadata/', payload)
     return response.data
   },
 }

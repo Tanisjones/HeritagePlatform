@@ -19,6 +19,8 @@ from .assist_serializers import (
     CuratorReviewAssistResponseSerializer,
     EducationalMetadataAssistRequestSerializer,
     EducationalMetadataAssistResponseSerializer,
+    RouteMetadataAssistRequestSerializer,
+    RouteMetadataAssistResponseSerializer,
     TranslateAssistRequestSerializer,
     TranslateAssistResponseSerializer,
 )
@@ -141,6 +143,12 @@ class EducationalMetadataAssistView(BaseAssistView):
     operation = "educational_metadata"
     request_serializer = EducationalMetadataAssistRequestSerializer
     response_serializer = EducationalMetadataAssistResponseSerializer
+
+
+class RouteMetadataAssistView(BaseAssistView):
+    operation = "route_metadata"
+    request_serializer = RouteMetadataAssistRequestSerializer
+    response_serializer = RouteMetadataAssistResponseSerializer
 
 
 class TranslateAssistView(BaseAssistView):

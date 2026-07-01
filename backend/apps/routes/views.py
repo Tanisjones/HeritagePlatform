@@ -1,11 +1,18 @@
 from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.contrib.gis.db.models import GeographyField
+from django.contrib.gis.geos import Point
 from django.db.models import Q, F, Count, Avg
+from django.db.models.functions import Cast
+from django.http import HttpResponse
 from django.utils import timezone
+from django.utils.http import content_disposition_header
 from django_filters.rest_framework import DjangoFilterBackend
 
+from .exports import build_gpx, build_kml, slugify_filename, GPX_CONTENT_TYPE, KML_CONTENT_TYPE
 from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating
+from .routing import haversine_m
 from .serializers import (
     RouteListSerializer,
     RouteDetailSerializer,
@@ -32,26 +39,48 @@ class RouteViewSet(viewsets.ModelViewSet):
     ]
     ordering = ['-created_at']
 
+    def _visibility_filter(self, qs):
+        """Restrict routes by the requesting user's role."""
+        if not self.request.user.is_authenticated:
+            return qs.filter(status='published')
+        if not self.request.user.is_staff:
+            # Authenticated users see published + own routes (incl. their archived
+            # ones, which are hidden from the public listing).
+            return qs.filter(
+                Q(status='published') |
+                Q(creator=self.request.user,
+                  status__in=['draft', 'pending', 'rejected', 'changes_requested', 'archived'])
+            )
+        return qs
+
+    # Actions rendered by the lightweight RouteListSerializer (stop COUNT only).
+    _LIST_ACTIONS = {'list', 'my_routes', 'active_routes', 'nearby', 'similar'}
+
     def get_queryset(self):
-        """Filter queryset based on user authentication and role."""
+        """
+        Full queryset for detail/write (prefetch stops + their media). List-style
+        actions get the lightweight queryset instead (no stops→media prefetch).
+        """
+        if getattr(self, 'action', None) in self._LIST_ACTIONS:
+            return self.list_queryset()
         qs = HeritageRoute.objects.select_related(
             'creator', 'curator'
         ).prefetch_related(
             'stops__heritage_item',
-            'stops__heritage_item__images'
+            'stops__heritage_item__images',
+            # audio backs RouteStopSerializer.audio_url; without this it's an N+1.
+            'stops__heritage_item__audio',
         )
+        return self._visibility_filter(qs)
 
-        # Filter by status for non-authenticated users
-        if not self.request.user.is_authenticated:
-            qs = qs.filter(status='published')
-        elif not self.request.user.is_staff:
-            # Authenticated users see published + own routes
-            qs = qs.filter(
-                Q(status='published') |
-                Q(creator=self.request.user, status__in=['draft', 'pending', 'rejected', 'changes_requested'])
-            )
-
-        return qs
+    def list_queryset(self):
+        """
+        Lightweight queryset for list-style endpoints (list/my/active/nearby/
+        similar) served by RouteListSerializer, which only needs a stop COUNT —
+        so the heavy stops→heritage_item→media prefetch is skipped.
+        """
+        qs = HeritageRoute.objects.select_related('creator', 'curator')
+        return self._visibility_filter(qs)
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
@@ -213,12 +242,48 @@ class RouteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Optional geolocation: validate proximity to the stop but never reject —
+        # a manual check-in is always allowed; being far just returns a warning.
+        proximity = self._check_in_proximity(request, stop)
+
         progress.current_stop = stop
         progress.visited_stops.add(stop)
         progress.save(update_fields=['current_stop'])
 
         serializer = UserRouteProgressSerializer(progress, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        payload = serializer.data
+        if proximity is not None:
+            payload = {**payload, **proximity}
+        return Response(payload, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _check_in_proximity(request, stop):
+        """
+        If the request carries latitude/longitude, return a dict describing how
+        far the user is from the stop (and a 'far_from_stop' warning past the
+        configured radius). Returns None when no coordinates were sent.
+        """
+        lat = request.data.get('latitude')
+        lng = request.data.get('longitude')
+        if lat is None or lng is None:
+            return None
+        try:
+            lat = float(lat)
+            lng = float(lng)
+        except (TypeError, ValueError):
+            return None
+
+        location = getattr(stop.heritage_item, 'location', None)
+        if location is None:
+            return None
+
+        distance_m = haversine_m((lng, lat), (float(location.x), float(location.y)))
+        from django.conf import settings
+        radius = float(getattr(settings, 'ROUTE_CHECKIN_RADIUS_M', 100))
+        result = {'distance_m': round(distance_m, 1)}
+        if distance_m > radius:
+            result['warning'] = 'far_from_stop'
+        return result
 
     @action(detail=True, methods=['post'], url_path='skip-stop')
     def skip_stop(self, request, pk=None):
@@ -277,6 +342,12 @@ class RouteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Snapshot points/badges BEFORE the save so we can report exactly what the
+        # completion awarded. Gamification is granted synchronously by the
+        # post_save signal on UserRouteProgress (apps.gamification.signals /
+        # services.handle_route_completed) when completed_at is set below.
+        points_before, badges_before = self._award_snapshot(request.user)
+
         progress.completed_at = timezone.now()
         progress.save(update_fields=['completed_at'])
 
@@ -285,12 +356,39 @@ class RouteViewSet(viewsets.ModelViewSet):
         route.save(update_fields=['completion_count'])
         route.refresh_from_db(fields=['completion_count'])
 
-        # TODO: Award gamification points (future phase)
-        # from apps.gamification.services import add_points
-        # add_points(request.user, 30, "Route completed", route, unique_reference=True)
+        points_after, badges_after = self._award_snapshot(request.user)
+        new_badge_names = [b.name for bid, b in badges_after.items() if bid not in badges_before]
 
         serializer = UserRouteProgressSerializer(progress, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        payload = dict(serializer.data)
+        payload['awards'] = {
+            'points': max(0, points_after - points_before),
+            'badges': new_badge_names,
+        }
+        return Response(payload, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _award_snapshot(user):
+        """
+        Return (total_points, {badge_id: Badge}) for the user, read FRESH from the
+        DB. Uses the authoritative profile.points total (updated atomically by
+        add_points), so the completion delta is exact — not a transaction-window
+        heuristic. Reads fresh (not the request user's cached relations) because the
+        award happens between the two snapshots via the post_save signal.
+        """
+        from apps.gamification.models import UserBadge
+        from apps.users.models import UserProfile
+
+        points = (
+            UserProfile.objects.filter(user=user)
+            .values_list('points', flat=True)
+            .first()
+        ) or 0
+        badges = {
+            ub.badge_id: ub.badge
+            for ub in UserBadge.objects.filter(user=user).select_related('badge')
+        }
+        return points, badges
 
     # Custom views
     @action(detail=False, methods=['get'], url_path='my-routes')
@@ -325,6 +423,141 @@ class RouteViewSet(viewsets.ModelViewSet):
         if page:
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
+
+    # Geospatial discovery
+    @action(detail=False, methods=['get'])
+    def nearby(self, request):
+        """
+        Published routes near a location.
+
+        Query params: latitude, longitude, radius (km, default 5). A route
+        matches if its path passes within the radius, or (when it has no path
+        yet) if any of its stops is within the radius.
+        """
+        try:
+            latitude = float(request.query_params.get('latitude'))
+            longitude = float(request.query_params.get('longitude'))
+            radius = float(request.query_params.get('radius', 5))
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'Invalid latitude, longitude, or radius parameters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        point = Point(longitude, latitude, srid=4326)
+        radius_m = radius * 1000.0
+        base = self.list_queryset().filter(status='published')
+        # Cast the 4326 geometry COLUMNS to geography so ST_DWithin measures the
+        # radius in METRES (a plain geometry distance on 4326 is in degrees). A
+        # route matches if its path passes within the radius, or (no path yet) if
+        # any of its stops does.
+        near = (
+            base.annotate(
+                path_geog=Cast('path', GeographyField()),
+                stop_geog=Cast('stops__heritage_item__location', GeographyField()),
+            )
+            .filter(
+                Q(path__isnull=False, path_geog__dwithin=(point, radius_m))
+                | Q(path__isnull=True, stop_geog__dwithin=(point, radius_m))
+            )
+            .distinct()
+        )
+
+        page = self.paginate_queryset(near)
+        serializer = RouteListSerializer(
+            page if page is not None else near, many=True, context={'request': request}
+        )
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def similar(self, request, pk=None):
+        """Up to 6 published routes sharing this one's theme or its stops."""
+        route = self.get_object()
+        item_ids = list(route.stops.values_list('heritage_item_id', flat=True))
+        candidates = self.list_queryset().filter(status='published').exclude(pk=route.pk)
+
+        # Select candidates by theme OR overlapping stops via a subquery (so the
+        # main queryset isn't inner-joined on stops); then count overlap with
+        # distinct=True so the join multiplication doesn't inflate `shared`.
+        overlap_ids = []
+        if item_ids:
+            overlap_ids = list(
+                RouteStop.objects.filter(heritage_item_id__in=item_ids)
+                .values_list('route_id', flat=True)
+                .distinct()
+            )
+
+        selector = Q()
+        if route.theme:
+            selector |= Q(theme__iexact=route.theme)
+        if overlap_ids:
+            selector |= Q(pk__in=overlap_ids)
+        if not selector:
+            return Response([])
+
+        similar = (
+            candidates.filter(selector)
+            .annotate(
+                shared=Count(
+                    'stops',
+                    filter=Q(stops__heritage_item_id__in=item_ids),
+                    distinct=True,
+                )
+            )
+            .order_by('-shared', '-average_rating', '-completion_count')[:6]
+        )
+        serializer = RouteListSerializer(similar, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    # Export
+    @action(detail=True, methods=['get'], url_path='export-gpx')
+    def export_gpx(self, request, pk=None):
+        """Download the route as a GPX 1.1 file (waypoints + track)."""
+        route = self.get_object()
+        return self._xml_download(build_gpx(route), GPX_CONTENT_TYPE, route, 'gpx')
+
+    @action(detail=True, methods=['get'], url_path='export-kml')
+    def export_kml(self, request, pk=None):
+        """Download the route as a KML 2.2 file (placemarks + line)."""
+        route = self.get_object()
+        return self._xml_download(build_kml(route), KML_CONTENT_TYPE, route, 'kml')
+
+    @staticmethod
+    def _xml_download(xml, content_type, route, ext):
+        """Wrap an XML string in an attachment response (mirrors education downloads)."""
+        filename = f"{slugify_filename(route.title)}.{ext}"
+        response = HttpResponse(xml, content_type=content_type)
+        response['Content-Disposition'] = content_disposition_header(
+            as_attachment=True, filename=filename
+        )
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
+
+    # Governance: archive
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        """Archive a published or rejected route (creator or staff)."""
+        route = self.get_object()
+
+        if route.creator != request.user and not request.user.is_staff:
+            return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        if route.status not in ['published', 'rejected']:
+            return Response(
+                {'error': 'Only published or rejected routes can be archived'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        route.status = 'archived'
+        route.last_review_date = timezone.now()
+        route.save(update_fields=['status', 'last_review_date'])
+
+        self._notify_creator(route, 'route_archived', 'Route archived',
+                             'Your route has been archived.')
+
+        return Response({'status': 'archived'}, status=status.HTTP_200_OK)
 
     # Rating
     @action(detail=True, methods=['get', 'post'], url_path='rate')
@@ -388,6 +621,14 @@ class UserRouteProgressViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """Return progress for current user only."""
-        return UserRouteProgress.objects.filter(
-            user=self.request.user
-        ).select_related('route', 'current_stop').prefetch_related('visited_stops').order_by('-started_at')
+        return (
+            UserRouteProgress.objects.filter(user=self.request.user)
+            .select_related('route', 'current_stop__heritage_item')
+            .prefetch_related(
+                'visited_stops__heritage_item',
+                # audio backs RouteStopSerializer.audio_url on visited/current stops.
+                'visited_stops__heritage_item__audio',
+                'current_stop__heritage_item__audio',
+            )
+            .order_by('-started_at')
+        )

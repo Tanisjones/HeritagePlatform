@@ -368,7 +368,10 @@
         "nav": {
             "back": "Volver",
             "myRoutes": "Mis rutas",
-            "active": "Activas"
+            "active": "Activas",
+            "followMe": "Seguir mi ubicación",
+            "stopFollowing": "Dejar de seguir",
+            "distanceToNext": "A {meters} m de la siguiente parada"
         },
         "actions": {
             "startRoute": "Iniciar ruta",
@@ -382,7 +385,9 @@
             "search": "Buscar",
             "add": "Añadir",
             "remove": "Eliminar",
-            "saveRoute": "Guardar ruta"
+            "saveRoute": "Guardar ruta",
+            "share": "Compartir",
+            "archive": "Archivar"
         },
         "states": {
             "noStopsYet": "Aún no hay paradas.",
@@ -455,7 +460,8 @@
             "pending": "Pendiente de revisión",
             "changes_requested": "Cambios solicitados",
             "rejected": "Rechazada",
-            "archived": "Archivada"
+            "archived": "Archivada",
+            "published": "Publicada"
         },
         "mapTitle": "Mapa",
         "mapSubtitle": "Paradas y ruta sugerida.",
@@ -463,7 +469,94 @@
         "routeCompletedTitle": "Ruta completada",
         "congratsTitle": "¡Felicidades!",
         "congratsBody": "Has completado esta ruta.",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "builder": {
+            "moreDetailsTitle": "Detalles adicionales",
+            "editRouteTitle": "Editar ruta",
+            "estimatedCostLabel": "Coste estimado",
+            "costNotesLabel": "Notas de coste",
+            "accessibilityNotesLabel": "Notas de accesibilidad",
+            "publicTransitAccessible": "Accesible en transporte público",
+            "availableLanguagesLabel": "Idiomas disponibles",
+            "language_es": "Español",
+            "language_en": "Inglés",
+            "dragToReorder": "Arrastra para reordenar",
+            "moveUp": "Subir",
+            "moveDown": "Bajar",
+            "suggestWithAI": "Sugerir con IA",
+            "suggesting": "Generando…",
+            "aiHint": "La IA propone descripción, tema, dificultad y duración a partir de las paradas.",
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "confirmDelete": "¿Eliminar esta ruta? Esta acción no se puede deshacer.",
+            "deleteError": "No se pudo eliminar la ruta.",
+            "confirmArchive": "¿Archivar esta ruta? Dejará de aparecer en el catálogo público.",
+            "archiveError": "No se pudo archivar la ruta.",
+            "notAllowedToEdit": "No tienes permiso para editar esta ruta."
+        },
+        "exports": {
+            "gpx": "Exportar GPX",
+            "kml": "Exportar KML",
+            "error": "No se pudo exportar la ruta."
+        },
+        "audio": {
+            "title": "Audioguía",
+            "nowPlaying": "Reproduciendo: {title}"
+        },
+        "gamification": {
+            "pointsEarned": "+{points} puntos",
+            "newBadge": "{name}"
+        },
+        "similar": {
+            "title": "Rutas similares"
+        },
+        "offline": {
+            "title": "Uso sin conexión",
+            "description": "Descarga el mapa, los datos y el contenido de esta ruta para seguirla sin cobertura.",
+            "download": "Descargar para uso sin conexión",
+            "confirm": "Se descargarán unas {count} teselas de mapa más el contenido de las paradas. ¿Continuar?",
+            "confirmDownload": "Descargar",
+            "downloading": "Descargando… {percent}%",
+            "saved": "Disponible sin conexión",
+            "remove": "Eliminar descarga",
+            "tilesCached": "{count} teselas guardadas",
+            "mustBeOnline": "Necesitas conexión para descargar."
+        },
+        "nearby": {
+            "button": "Rutas cerca de mí",
+            "showing": "Mostrando rutas cercanas a tu ubicación.",
+            "showAll": "Ver todas",
+            "noneNear": "No hay rutas cerca de ti.",
+            "unsupported": "Tu navegador no admite geolocalización.",
+            "denied": "No se pudo obtener tu ubicación.",
+            "error": "No se pudieron cargar las rutas cercanas."
+        },
+        "directions": {
+            "title": "Indicaciones paso a paso",
+            "subtitle": "Direcciones para recorrer la ruta a pie.",
+            "continue": "Continúa",
+            "maneuvers": {
+                "depart": "Comienza el recorrido",
+                "arrive": "Llegada",
+                "turn_left": "Gira a la izquierda",
+                "turn_right": "Gira a la derecha",
+                "turn_sharp_left": "Gira bruscamente a la izquierda",
+                "turn_sharp_right": "Gira bruscamente a la derecha",
+                "turn_slight_left": "Gira ligeramente a la izquierda",
+                "turn_slight_right": "Gira ligeramente a la derecha",
+                "turn_straight": "Sigue recto",
+                "continue": "Continúa",
+                "continue_straight": "Sigue recto",
+                "new_name": "Continúa",
+                "roundabout": "Toma la rotonda",
+                "rotary": "Toma la glorieta",
+                "fork_left": "En la bifurcación, mantente a la izquierda",
+                "fork_right": "En la bifurcación, mantente a la derecha",
+                "merge": "Incorpórate",
+                "end_of_road_left": "Al final de la calle, gira a la izquierda",
+                "end_of_road_right": "Al final de la calle, gira a la derecha"
+            }
+        }
     },
     "contribution": {
         "title": "Contribuir",
