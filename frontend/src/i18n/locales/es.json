@@ -1182,6 +1182,10 @@
             "summary": "Resumen",
             "subject": "Asignatura",
             "gradeLevel": "Grado / nivel",
+            "audience": "Audiencia",
+            "curriculum": "Alineación curricular",
+            "approach": "Enfoque pedagógico",
+            "approachNone": "— Sin especificar —",
             "objectives": "Objetivos de aprendizaje",
             "objectivesPlaceholder": "Un objetivo por línea",
             "objectivesHelp": "Escribe un objetivo por línea.",
@@ -1190,6 +1194,45 @@
             "activityTitle": "Título de la actividad",
             "instructions": "Instrucciones para el aula",
             "minutes": "minutos"
+        },
+        "approaches": {
+            "expository": "Expositivo",
+            "inquiry": "Por indagación",
+            "constructivist": "Constructivista",
+            "project_based": "Basado en proyectos",
+            "collaborative": "Colaborativo",
+            "gamified": "Gamificado"
+        },
+        "ai": {
+            "generate": "Generar con IA",
+            "generating": "Generando…",
+            "filled": "Borrador generado. Revísalo y edítalo antes de guardar.",
+            "replaceTitle": "¿Reemplazar el contenido actual?",
+            "replaceMessage": "La IA sustituirá los objetivos y las actividades actuales por un nuevo borrador.",
+            "replaceConfirm": "Generar",
+            "suggestedContent": "Contenido sugerido por la IA: {hint}"
+        },
+        "content": {
+            "link": "Vincular contenido",
+            "unlink": "Quitar",
+            "change": "Cambiar",
+            "heritage": "Patrimonio",
+            "route": "Ruta",
+            "resource": "Recurso",
+            "linkedHeritage": "Ítem de patrimonio",
+            "linkedRoute": "Ruta",
+            "linkedResource": "Recurso educativo",
+            "searchPlaceholder": "Buscar…",
+            "noResults": "Sin resultados"
+        },
+        "actions": {
+            "submit": "Enviar a revisión",
+            "publish": "Publicar",
+            "archive": "Archivar",
+            "exportScorm": "Exportar SCORM",
+            "submitDone": "Enviado a revisión.",
+            "publishDone": "Plan publicado.",
+            "archiveDone": "Plan archivado."
         }
     },
     "aiUsage": {

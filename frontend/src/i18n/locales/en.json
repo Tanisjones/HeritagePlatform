@@ -1182,6 +1182,10 @@
             "summary": "Summary",
             "subject": "Subject",
             "gradeLevel": "Grade / level",
+            "audience": "Audience",
+            "curriculum": "Curriculum alignment",
+            "approach": "Pedagogical approach",
+            "approachNone": "— Not specified —",
             "objectives": "Learning objectives",
             "objectivesPlaceholder": "One objective per line",
             "objectivesHelp": "Write one objective per line.",
@@ -1190,6 +1194,45 @@
             "activityTitle": "Activity title",
             "instructions": "Classroom instructions",
             "minutes": "minutes"
+        },
+        "approaches": {
+            "expository": "Expository",
+            "inquiry": "Inquiry-based",
+            "constructivist": "Constructivist",
+            "project_based": "Project-based",
+            "collaborative": "Collaborative",
+            "gamified": "Gamified"
+        },
+        "ai": {
+            "generate": "Generate with AI",
+            "generating": "Generating…",
+            "filled": "Draft generated. Review and edit it before saving.",
+            "replaceTitle": "Replace current content?",
+            "replaceMessage": "AI will replace the current objectives and activities with a new draft.",
+            "replaceConfirm": "Generate",
+            "suggestedContent": "AI-suggested content: {hint}"
+        },
+        "content": {
+            "link": "Link content",
+            "unlink": "Remove",
+            "change": "Change",
+            "heritage": "Heritage",
+            "route": "Route",
+            "resource": "Resource",
+            "linkedHeritage": "Heritage item",
+            "linkedRoute": "Route",
+            "linkedResource": "Educational resource",
+            "searchPlaceholder": "Search…",
+            "noResults": "No results"
+        },
+        "actions": {
+            "submit": "Submit for review",
+            "publish": "Publish",
+            "archive": "Archive",
+            "exportScorm": "Export SCORM",
+            "submitDone": "Submitted for review.",
+            "publishDone": "Plan published.",
+            "archiveDone": "Plan archived."
         }
     },
     "aiUsage": {

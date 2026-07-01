@@ -2,19 +2,27 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { lessonPlanService } from '@/services/api'
+import { lessonPlanService, aiService } from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { useToast } from '@/composables/useDialogs'
+import { useToast, useConfirm } from '@/composables/useDialogs'
+import { useAiError } from '@/composables/useAiError'
+import { useAIAvailability } from '@/services/aiAvailability'
+import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download'
 import type { LessonActivity, LessonActivityType, LessonPlan, LessonPlanWriteData } from '@/types/heritage'
 import AppButton from '@/components/common/AppButton.vue'
 import AppInput from '@/components/common/AppInput.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
+import AiActionButton from '@/components/common/AiActionButton.vue'
+import ActivityContentPicker from '@/components/education/ActivityContentPicker.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirm()
+const { applyAIError } = useAiError()
+const { isAvailable: aiAvailable, refresh: refreshAi } = useAIAvailability()
 const { loading, error, run } = useAsyncAction()
 const saving = ref(false)
 const saveError = ref<string | null>(null)
@@ -23,13 +31,16 @@ const planId = computed(() => (route.params.id ? String(route.params.id) : null)
 const isNew = computed(() => !planId.value)
 
 const ACTIVITY_TYPES: LessonActivityType[] = ['hook', 'explore', 'explain', 'practice', 'assess', 'reflect']
+const APPROACHES = ['expository', 'inquiry', 'constructivist', 'project_based', 'collaborative', 'gamified']
 
-// The editable form. `objectivesText` is a textarea buffer (one objective per line).
 const form = reactive<{
   title: string
   summary: string
   subject: string
   grade_level: string
+  audience: string
+  curriculum_alignment: string
+  pedagogical_approach: string
   status: LessonPlan['status']
   visibility: LessonPlan['visibility']
   objectivesText: string
@@ -39,6 +50,9 @@ const form = reactive<{
   summary: '',
   subject: '',
   grade_level: '',
+  audience: '',
+  curriculum_alignment: '',
+  pedagogical_approach: '',
   status: 'draft',
   visibility: 'private',
   objectivesText: '',
@@ -50,6 +64,9 @@ function hydrate(plan: LessonPlan) {
   form.summary = plan.summary || ''
   form.subject = plan.subject || ''
   form.grade_level = plan.grade_level || ''
+  form.audience = plan.audience || ''
+  form.curriculum_alignment = plan.curriculum_alignment || ''
+  form.pedagogical_approach = plan.pedagogical_approach || ''
   form.status = plan.status
   form.visibility = plan.visibility
   form.objectivesText = (plan.objectives || []).join('\n')
@@ -60,6 +77,7 @@ function hydrate(plan: LessonPlan) {
 }
 
 async function load() {
+  refreshAi()
   if (isNew.value) {
     addActivity()
     return
@@ -77,12 +95,31 @@ function addActivity() {
     activity_type: 'explore',
     instructions: '',
     duration_minutes: null,
+    heritage_item: null,
+    route: null,
+    educational_resource: null,
   })
 }
 
 function removeActivity(index: number) {
   form.activities.splice(index, 1)
   reindex()
+}
+
+/** Apply a content-picker selection to an activity (single-target binding). */
+function onBindingChange(
+  index: number,
+  payload: { heritage_item: string | null; route: string | null; educational_resource: number | null },
+) {
+  const a = form.activities[index]
+  if (!a) return
+  a.heritage_item = payload.heritage_item
+  a.route = payload.route
+  a.educational_resource = payload.educational_resource
+  // Clear stale read-only titles so the chip reflects the new binding until save.
+  a.heritage_item_title = null
+  a.route_title = null
+  a.educational_resource_title = null
 }
 
 // --- native HTML5 drag-and-drop reorder (same approach as the route builder) ---
@@ -113,11 +150,12 @@ function buildPayload(): LessonPlanWriteData {
     summary: form.summary,
     subject: form.subject,
     grade_level: form.grade_level,
+    audience: form.audience,
+    curriculum_alignment: form.curriculum_alignment,
+    pedagogical_approach: form.pedagogical_approach,
     status: form.status,
     visibility: form.visibility,
     objectives,
-    // Send only the fields the write serializer accepts; keep `id` so existing
-    // activities reconcile by identity (preserving their UUIDs on reorder).
     activities: form.activities.map((a, i) => ({
       ...(a.id ? { id: a.id } : {}),
       order: i,
@@ -126,12 +164,15 @@ function buildPayload(): LessonPlanWriteData {
       instructions: a.instructions || '',
       duration_minutes: a.duration_minutes ?? null,
       materials: a.materials || '',
+      heritage_item: a.heritage_item ?? null,
+      route: a.route ?? null,
+      educational_resource: a.educational_resource ?? null,
     })),
   }
 }
 
-async function save() {
-  if (!canSave.value) return
+async function save(): Promise<LessonPlan | null> {
+  if (!canSave.value) return null
   saving.value = true
   saveError.value = null
   try {
@@ -140,12 +181,95 @@ async function save() {
       ? await lessonPlanService.create(payload)
       : await lessonPlanService.update(planId.value as string, payload)
     toast.success(t('common.saved'))
-    router.replace({ name: 'lesson-plan-edit', params: { id: (res.data as LessonPlan).id } })
-    hydrate(res.data as LessonPlan)
+    const plan = res.data as LessonPlan
+    if (isNew.value) router.replace({ name: 'lesson-plan-edit', params: { id: plan.id } })
+    hydrate(plan)
+    return plan
   } catch (e: any) {
     saveError.value = e?.response?.data ? JSON.stringify(e.response.data) : t('common.errorSaving')
+    return null
   } finally {
     saving.value = false
+  }
+}
+
+// --- AI: generate a draft that fills the editor (P.3) -----------------------
+const aiLoading = ref(false)
+const aiError = ref('')
+async function generateWithAI() {
+  const proceed =
+    form.activities.length <= 1 && !form.activities.some((a) => a.title.trim())
+      ? true
+      : await confirm({
+          title: t('lessonPlans.ai.replaceTitle'),
+          message: t('lessonPlans.ai.replaceMessage'),
+          confirmLabel: t('lessonPlans.ai.replaceConfirm'),
+        })
+  if (!proceed) return
+  aiLoading.value = true
+  aiError.value = ''
+  try {
+    const draft = await aiService.lessonPlanDraft({
+      title: form.title,
+      subject: form.subject,
+      grade_level: form.grade_level,
+      audience: form.audience,
+      objectives: form.objectivesText.split('\n').map((s) => s.trim()).filter(Boolean),
+    })
+    if (draft.objectives?.length) form.objectivesText = draft.objectives.join('\n')
+    form.activities = (draft.activities || []).map((a, i) => ({
+      order: i,
+      title: a.title,
+      activity_type: a.activity_type,
+      instructions: a.instructions || '',
+      duration_minutes: a.duration_minutes ?? null,
+      heritage_item: null,
+      route: null,
+      educational_resource: null,
+      // Surface the AI's textual hint in materials so the teacher can find & bind it.
+      materials: a.suggested_heritage_item_hint
+        ? t('lessonPlans.ai.suggestedContent', { hint: a.suggested_heritage_item_hint })
+        : '',
+    }))
+    toast.success(t('lessonPlans.ai.filled'))
+  } catch (err) {
+    applyAIError(err, aiError)
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+// --- state machine + export -------------------------------------------------
+const acting = ref(false)
+async function transition(kind: 'submit' | 'publish' | 'archive') {
+  // Persist edits first so the transition acts on the latest content.
+  const saved = await save()
+  if (!saved) return
+  acting.value = true
+  try {
+    const res = await lessonPlanService[kind](saved.id)
+    hydrate(res.data as LessonPlan)
+    toast.success(t(`lessonPlans.actions.${kind}Done`))
+  } catch (e: any) {
+    saveError.value = e?.response?.data?.detail || e?.response?.data
+      ? JSON.stringify(e.response.data)
+      : t('common.errorGeneric')
+  } finally {
+    acting.value = false
+  }
+}
+
+const exporting = ref(false)
+async function exportScorm() {
+  if (isNew.value) return
+  exporting.value = true
+  try {
+    const res = await lessonPlanService.exportScorm(planId.value as string, 'scorm12')
+    saveBlob(res.data as Blob, `${slugifyFilename(form.title || 'lesson-plan')}-scorm12.zip`)
+  } catch (e: any) {
+    saveError.value = await readBlobError(e, t('common.errorGeneric'))
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -154,11 +278,11 @@ onMounted(load)
 
 <template>
   <div class="max-w-4xl mx-auto p-5 space-y-6">
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-3xl font-display font-bold text-gray-900">
         {{ isNew ? t('lessonPlans.newTitle') : t('lessonPlans.editTitle') }}
       </h1>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-wrap">
         <AppButton variant="ghost" @click="router.push({ name: 'lesson-plans' })">
           {{ t('common.cancel') }}
         </AppButton>
@@ -168,6 +292,7 @@ onMounted(load)
 
     <ErrorBanner :message="error" @retry="load" />
     <ErrorBanner :message="saveError" :retryable="false" dense />
+    <ErrorBanner :message="aiError" :retryable="false" dense />
 
     <div v-if="loading" class="flex justify-center py-16">
       <BaseSpinner class="h-8 w-8 text-primary-600" />
@@ -176,14 +301,38 @@ onMounted(load)
     <template v-else>
       <!-- Plan header -->
       <section class="bg-white rounded-lg shadow-sm p-5 space-y-4">
-        <AppInput v-model="form.title" :label="t('lessonPlans.fields.title')" :placeholder="t('lessonPlans.fields.titlePlaceholder')" />
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-grow">
+            <AppInput v-model="form.title" :label="t('lessonPlans.fields.title')" :placeholder="t('lessonPlans.fields.titlePlaceholder')" />
+          </div>
+          <div class="pt-6">
+            <AiActionButton
+              :label="t('lessonPlans.ai.generate')"
+              :loading-label="t('lessonPlans.ai.generating')"
+              :loading="aiLoading"
+              :available="aiAvailable"
+              @click="generateWithAI"
+            />
+          </div>
+        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.summary') }}</label>
           <textarea v-model="form.summary" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"></textarea>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <AppInput v-model="form.subject" :label="t('lessonPlans.fields.subject')" />
           <AppInput v-model="form.grade_level" :label="t('lessonPlans.fields.gradeLevel')" />
+          <AppInput v-model="form.audience" :label="t('lessonPlans.fields.audience')" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AppInput v-model="form.curriculum_alignment" :label="t('lessonPlans.fields.curriculum')" />
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.approach') }}</label>
+            <select v-model="form.pedagogical_approach" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              <option value="">{{ t('lessonPlans.fields.approachNone') }}</option>
+              <option v-for="a in APPROACHES" :key="a" :value="a">{{ t(`lessonPlans.approaches.${a}`) }}</option>
+            </select>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.objectives') }}</label>
@@ -203,6 +352,14 @@ onMounted(load)
               <option v-for="v in ['private','unlisted','public']" :key="v" :value="v">{{ t(`lessonPlans.visibility.${v}`) }}</option>
             </select>
           </div>
+        </div>
+
+        <!-- state-machine + export actions -->
+        <div v-if="!isNew" class="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+          <AppButton size="sm" variant="secondary" :loading="acting" @click="transition('submit')">{{ t('lessonPlans.actions.submit') }}</AppButton>
+          <AppButton size="sm" variant="secondary" :loading="acting" @click="transition('publish')">{{ t('lessonPlans.actions.publish') }}</AppButton>
+          <AppButton size="sm" variant="ghost" :loading="acting" @click="transition('archive')">{{ t('lessonPlans.actions.archive') }}</AppButton>
+          <AppButton size="sm" variant="ghost" :loading="exporting" class="ml-auto" @click="exportScorm">{{ t('lessonPlans.actions.exportScorm') }}</AppButton>
         </div>
       </section>
 
@@ -235,6 +392,18 @@ onMounted(load)
                 </select>
               </div>
               <textarea v-model="activity.instructions" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" :placeholder="t('lessonPlans.fields.instructions')"></textarea>
+
+              <!-- content picker: bind a real heritage item / route / resource -->
+              <ActivityContentPicker
+                :heritage-item="activity.heritage_item"
+                :route="activity.route"
+                :educational-resource="activity.educational_resource"
+                :heritage-item-title="activity.heritage_item_title"
+                :route-title="activity.route_title"
+                :educational-resource-title="activity.educational_resource_title"
+                @change="(p) => onBindingChange(index, p)"
+              />
+
               <div class="flex items-center gap-3">
                 <input v-model.number="activity.duration_minutes" type="number" min="0" class="w-28 px-3 py-1.5 border border-gray-300 rounded-lg" :placeholder="t('lessonPlans.fields.minutes')" />
                 <span class="text-xs text-gray-400">{{ t('lessonPlans.fields.minutes') }}</span>
