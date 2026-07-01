@@ -180,7 +180,7 @@ onMounted(() => {
       <div class="flex items-center gap-2">
         <span class="inline-block" :title="!aiAvailable ? t('curatorReview.aiReview.unavailable') : ''">
           <button
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+            class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
             :disabled="loading || aiLoading || !detail || !aiAvailable"
             @click="runAIReview"
           >
@@ -250,7 +250,7 @@ onMounted(() => {
                    :details-label="t('home.map.viewDetails')"
                    :markers="[{
                      id: detail.heritage_item.id,
-                     title: detail.heritage_item.title,
+                     title: detail.heritage_item.title || '',
                      coordinates: parsedLocation,
                      type: detail.heritage_item.heritage_type?.name,
                      category: detail.heritage_item.heritage_category?.name,
@@ -336,7 +336,7 @@ onMounted(() => {
                 <a
                   :href="doc.file"
                   target="_blank"
-                  class="ml-4 text-sm font-medium text-indigo-600 hover:text-indigo-900"
+                  class="ml-4 text-sm font-medium text-primary-600 hover:text-primary-900"
                 >
                   {{ t('curatorReview.media.view') }}
                 </a>

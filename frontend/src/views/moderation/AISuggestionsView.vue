@@ -128,7 +128,7 @@ onMounted(fetchSuggestions)
       >
         <div class="min-w-0">
           <div class="flex items-center gap-2 mb-1">
-            <span class="inline-block px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
+            <span class="inline-block px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
               {{ t(`aiSuggestions.types.${s.suggestion_type}`, s.suggestion_type) }}
             </span>
             <span class="text-xs text-gray-500">{{ s.suggester }}</span>

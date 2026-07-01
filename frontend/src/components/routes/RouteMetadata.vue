@@ -82,7 +82,7 @@ const stopsLabel = computed(() => {
     <span v-if="ratingLabel" class="inline-flex items-center rounded-full bg-yellow-50 text-yellow-800 px-2 py-0.5">
       ★ {{ ratingLabel }}
     </span>
-    <span v-if="!compact && route.best_season" class="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-2 py-0.5">
+    <span v-if="!compact && route.best_season" class="inline-flex items-center rounded-full bg-primary-50 text-primary-700 px-2 py-0.5">
       {{ bestSeasonLabel }}
     </span>
   </div>

@@ -20,9 +20,9 @@ defineProps<{
         <div class="text-xs text-amber-800">Pending</div>
         <div class="text-2xl font-bold text-amber-900">{{ pending }}</div>
       </div>
-      <div class="rounded-lg border border-blue-100 bg-blue-50 p-3">
-        <div class="text-xs text-blue-800">Changes</div>
-        <div class="text-2xl font-bold text-blue-900">{{ changesRequested }}</div>
+      <div class="rounded-lg border border-primary-100 bg-primary-50 p-3">
+        <div class="text-xs text-primary-800">Changes</div>
+        <div class="text-2xl font-bold text-primary-900">{{ changesRequested }}</div>
       </div>
       <div class="rounded-lg border border-green-100 bg-green-50 p-3">
         <div class="text-xs text-green-800">Published</div>

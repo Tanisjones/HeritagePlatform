@@ -58,7 +58,7 @@ onMounted(fetchAnnotations);
       <button
         v-if="authStore.isAuthenticated && !showForm"
         @click="showForm = true"
-        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+        class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition font-medium"
       >
         {{ t('heritage.annotations.add') }}
       </button>
@@ -73,7 +73,7 @@ onMounted(fetchAnnotations);
     </div>
 
     <div v-if="loading" class="flex justify-center py-8">
-      <BaseSpinner class="h-8 w-8 text-blue-600" />
+      <BaseSpinner class="h-8 w-8 text-primary-600" />
     </div>
 
     <div v-else-if="annotations.length === 0" class="text-center py-12 bg-gray-50 rounded-lg">
@@ -92,9 +92,9 @@ onMounted(fetchAnnotations);
       />
     </div>
 
-    <div v-if="!authStore.isAuthenticated" class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <p class="text-blue-800">
-        <router-link to="/login" class="font-medium underline hover:text-blue-900">{{ t('heritage.annotations.loginLink') }}</router-link>
+    <div v-if="!authStore.isAuthenticated" class="mt-6 bg-primary-50 border border-primary-200 rounded-lg p-4">
+      <p class="text-primary-800">
+        <router-link to="/login" class="font-medium underline hover:text-primary-900">{{ t('heritage.annotations.loginLink') }}</router-link>
         {{ t('heritage.annotations.loginReq') }}
       </p>
     </div>

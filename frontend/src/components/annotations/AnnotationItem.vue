@@ -35,8 +35,8 @@ const userInitials = computed(() => {
   <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
     <div class="flex items-start space-x-3">
       <div class="flex-shrink-0">
-        <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-          <span class="text-blue-700 font-semibold text-sm">{{ userInitials }}</span>
+        <div class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+          <span class="text-primary-700 font-semibold text-sm">{{ userInitials }}</span>
         </div>
       </div>
       <div class="flex-1 min-w-0">

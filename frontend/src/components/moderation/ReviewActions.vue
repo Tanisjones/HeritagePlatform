@@ -40,7 +40,7 @@ const feedback = ref('')
       <button
         type="button"
         :disabled="disabled"
-        class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+        class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
         @click="emit('requestChanges', feedback)"
       >
         {{ t('curatorReview.actions.requestChanges') }}

@@ -78,15 +78,15 @@ onMounted(() => {
     <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ t('dashboard.title') }}</h1>
 
     <div v-if="loading" class="flex justify-center items-center py-12">
-      <BaseSpinner class="h-12 w-12 text-blue-600" />
+      <BaseSpinner class="h-12 w-12 text-primary-600" />
     </div>
 
     <div v-else-if="dashboardData" class="space-y-6">
       <!-- User Info Card -->
       <div class="bg-white rounded-lg shadow-md p-6">
         <div class="flex items-center space-x-4">
-          <div class="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
-            <span class="text-blue-700 font-bold text-2xl">
+          <div class="h-16 w-16 rounded-full bg-primary-100 flex items-center justify-center">
+            <span class="text-primary-700 font-bold text-2xl">
               {{ dashboardData.user.email.charAt(0).toUpperCase() }}
             </span>
           </div>
@@ -110,7 +110,7 @@ onMounted(() => {
           <div class="space-y-4">
             <div>
               <div class="flex justify-between items-center mb-2">
-                <span class="text-2xl font-bold text-blue-600">
+                <span class="text-2xl font-bold text-primary-600">
                   {{ dashboardData.gamification.current_level.name || t('dashboard.levelFallback', { level: dashboardData.gamification.current_level.level }) }}
                 </span>
                 <span class="text-lg text-gray-600">
@@ -119,7 +119,7 @@ onMounted(() => {
               </div>
               <div class="w-full bg-gray-200 rounded-full h-4">
                 <div
-                  class="bg-blue-600 h-4 rounded-full transition-all duration-500"
+                  class="bg-primary-600 h-4 rounded-full transition-all duration-500"
                   :style="{ width: progressPercentage() + '%' }"
                 ></div>
               </div>
@@ -174,8 +174,8 @@ onMounted(() => {
               {{ t('dashboard.approved', { count: dashboardData.activity.contributions_approved }) }}
             </p>
           </div>
-          <div class="text-center p-4 bg-blue-50 rounded-lg">
-            <div class="text-4xl font-bold text-blue-600 mb-2">
+          <div class="text-center p-4 bg-primary-50 rounded-lg">
+            <div class="text-4xl font-bold text-primary-600 mb-2">
               {{ dashboardData.activity.annotations_total }}
             </div>
             <p class="text-gray-700 font-medium">{{ t('dashboard.annotations') }}</p>
@@ -193,7 +193,7 @@ onMounted(() => {
       <div v-if="dashboardData.notifications.recent.length > 0" class="bg-white rounded-lg shadow-md p-6">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-xl font-bold text-gray-900">{{ t('dashboard.recentNotifications') }}</h3>
-          <router-link to="/notifications" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+          <router-link to="/notifications" class="text-primary-600 hover:text-primary-800 text-sm font-medium">
             {{ t('dashboard.viewAll') }}
           </router-link>
         </div>
@@ -202,10 +202,10 @@ onMounted(() => {
             v-for="notification in dashboardData.notifications.recent"
             :key="notification.id"
             class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-            :class="{ 'bg-blue-50': !notification.is_read }"
+            :class="{ 'bg-primary-50': !notification.is_read }"
           >
             <div class="flex-shrink-0 mt-1">
-              <div class="h-2 w-2 rounded-full" :class="notification.is_read ? 'bg-gray-400' : 'bg-blue-600'"></div>
+              <div class="h-2 w-2 rounded-full" :class="notification.is_read ? 'bg-gray-400' : 'bg-primary-600'"></div>
             </div>
             <div class="flex-1 min-w-0">
               <p class="font-medium text-gray-900">{{ notification.title }}</p>
@@ -226,9 +226,9 @@ onMounted(() => {
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <router-link
             to="/contribute"
-            class="flex flex-col items-center p-4 border-2 border-blue-200 rounded-lg hover:bg-blue-50 transition"
+            class="flex flex-col items-center p-4 border-2 border-primary-200 rounded-lg hover:bg-primary-50 transition"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-primary-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             <span class="font-medium text-gray-900">{{ t('dashboard.actions.addContribution') }}</span>

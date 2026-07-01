@@ -79,7 +79,7 @@ const getNotificationIcon = (type: string) => {
     case 'level_up':
       return { icon: '⬆️', color: 'text-purple-600', bg: 'bg-purple-100' };
     case 'annotation_reply':
-      return { icon: '💬', color: 'text-blue-600', bg: 'bg-blue-100' };
+      return { icon: '💬', color: 'text-primary-600', bg: 'bg-primary-100' };
     case 'moderation_needed':
       return { icon: '⚠️', color: 'text-orange-600', bg: 'bg-orange-100' };
     default:
@@ -108,7 +108,7 @@ onMounted(() => {
         <h1 class="text-3xl font-bold text-gray-900">Notifications</h1>
         <button
           @click="markAllAsRead"
-          class="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition"
+          class="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-800 border border-primary-300 rounded-lg hover:bg-primary-50 transition"
         >
           Mark All as Read
         </button>
@@ -119,21 +119,21 @@ onMounted(() => {
         <button
           @click="changeFilter('all')"
           class="px-4 py-2 font-medium transition"
-          :class="filter === 'all' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'"
+          :class="filter === 'all' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-600 hover:text-gray-900'"
         >
           All
         </button>
         <button
           @click="changeFilter('unread')"
           class="px-4 py-2 font-medium transition"
-          :class="filter === 'unread' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'"
+          :class="filter === 'unread' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-600 hover:text-gray-900'"
         >
           Unread
         </button>
       </div>
 
       <div v-if="loading" class="flex justify-center items-center py-12">
-        <BaseSpinner class="h-12 w-12 text-blue-600" />
+        <BaseSpinner class="h-12 w-12 text-primary-600" />
       </div>
 
       <div v-else-if="filteredNotifications.length === 0" class="text-center py-12 bg-gray-50 rounded-lg">
@@ -151,7 +151,7 @@ onMounted(() => {
           v-for="notification in filteredNotifications"
           :key="notification.id"
           class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
-          :class="{ 'bg-blue-50 border-blue-200': !notification.is_read }"
+          :class="{ 'bg-primary-50 border-primary-200': !notification.is_read }"
         >
           <div class="flex items-start space-x-4">
             <div
@@ -167,7 +167,7 @@ onMounted(() => {
                     <h3 class="font-semibold text-gray-900">{{ notification.title }}</h3>
                     <span
                       v-if="!notification.is_read"
-                      class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded"
+                      class="px-2 py-1 bg-primary-600 text-white text-xs font-medium rounded"
                     >
                       New
                     </span>
@@ -177,7 +177,7 @@ onMounted(() => {
                 <button
                   v-if="!notification.is_read"
                   @click="markAsRead(notification.id)"
-                  class="ml-4 text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+                  class="ml-4 text-sm text-primary-600 hover:text-primary-800 font-medium whitespace-nowrap"
                 >
                   Mark as Read
                 </button>

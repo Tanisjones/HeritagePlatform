@@ -10,7 +10,7 @@ const pill = (status: string) => {
     case 'pending':
       return 'bg-amber-50 text-amber-800 border-amber-100'
     case 'changes_requested':
-      return 'bg-blue-50 text-blue-800 border-blue-100'
+      return 'bg-primary-50 text-primary-800 border-primary-100'
     case 'published':
       return 'bg-green-50 text-green-800 border-green-100'
     case 'rejected':

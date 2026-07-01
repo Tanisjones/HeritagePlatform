@@ -408,7 +408,7 @@ onMounted(fetchLom);
                   )
                 }}
                 </span>
-                <span v-if="resource.educational?.typical_age_range" class="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                <span v-if="resource.educational?.typical_age_range" class="px-2 py-1 rounded-full bg-primary-50 text-primary-700 border border-primary-100">
                 {{ t('learn.labels.ages') }} {{ resource.educational.typical_age_range }}
                 </span>
             </div>

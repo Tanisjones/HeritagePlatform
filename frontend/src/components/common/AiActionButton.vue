@@ -29,7 +29,7 @@ const { t } = useI18n()
     <span class="inline-block" :title="!props.available ? t('ai.unavailable') : ''">
       <button
         type="button"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
         :disabled="props.loading || props.disabled || !props.available"
         @click="emit('click')"
       >

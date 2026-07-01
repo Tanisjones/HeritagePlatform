@@ -60,7 +60,7 @@ const handleCancel = () => {
     <textarea
       v-model="content"
       rows="4"
-      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
       :placeholder="t('heritage.annotations.form.placeholder')"
       :disabled="submitting"
     ></textarea>
@@ -76,7 +76,7 @@ const handleCancel = () => {
       <button
         @click="submitAnnotation"
         :disabled="submitting || !content.trim()"
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span v-if="submitting">{{ t('heritage.annotations.form.submitting') }}</span>
         <span v-else>{{ t('heritage.annotations.form.submit') }}</span>

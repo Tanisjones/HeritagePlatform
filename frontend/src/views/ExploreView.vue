@@ -358,7 +358,7 @@ const getResourceType = (item: HeritageItem): string | null => {
             <h2 class="text-lg font-semibold text-gray-900 mb-2">{{ item.title }}</h2>
             <div class="flex flex-wrap gap-2 text-xs">
               <!-- Heritage Type -->
-              <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+              <span class="px-2 py-1 rounded-full bg-primary-100 text-primary-800 font-medium">
                 {{ item.heritage_type.name }}
               </span>
               <!-- Heritage Category -->

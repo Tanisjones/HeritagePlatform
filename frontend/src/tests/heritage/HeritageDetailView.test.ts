@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { shallowMount, flushPromises } from '@vue/test-utils'
 
-// Avoid bringing in Leaflet CSS into the test environment.
-vi.mock('leaflet/dist/leaflet.css', () => ({}))
+// The detail view's map is the shared LocationPickerMap (raw Leaflet). Stub it so
+// the test doesn't pull in Leaflet + its image assets.
+vi.mock('@/components/map/LocationPickerMap.vue', () => ({
+  default: { name: 'LocationPickerMap', template: '<div />' },
+}))
 
 // Mock i18n to keep rendering simple/stable.
 vi.mock('vue-i18n', () => ({
@@ -18,13 +21,6 @@ vi.mock('vue-router', () => ({
     params: { id: 'test-id' },
     query: {},
   }),
-}))
-
-// Mock map components.
-vi.mock('@vue-leaflet/vue-leaflet', () => ({
-  LMap: { name: 'LMap', template: '<div />' },
-  LTileLayer: { name: 'LTileLayer', template: '<div />' },
-  LMarker: { name: 'LMarker', template: '<div />' },
 }))
 
 const apiGetMock = vi.fn()

@@ -118,7 +118,7 @@ onMounted(() => {
   <div v-if="authStore.isAuthenticated" class="relative notification-bell">
     <button
       @click="toggleDropdown"
-      class="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
+      class="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg"
     >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -139,12 +139,12 @@ onMounted(() => {
       <div class="p-4 border-b border-gray-200">
         <div class="flex justify-between items-center">
           <h3 class="font-bold text-gray-900">Notifications</h3>
-          <span v-if="hasUnread" class="text-sm text-blue-600">{{ unreadCount }} new</span>
+          <span v-if="hasUnread" class="text-sm text-primary-600">{{ unreadCount }} new</span>
         </div>
       </div>
 
       <div v-if="loading" class="p-8 text-center">
-        <BaseSpinner class="h-6 w-6 text-blue-600 mx-auto" />
+        <BaseSpinner class="h-6 w-6 text-primary-600 mx-auto" />
       </div>
 
       <div v-else-if="notifications.length === 0" class="p-8 text-center text-gray-500">
@@ -160,7 +160,7 @@ onMounted(() => {
           :key="notification.id"
           @click="markAsRead(notification.id)"
           class="w-full px-4 py-3 hover:bg-gray-50 border-b border-gray-100 text-left transition"
-          :class="{ 'bg-blue-50': !notification.is_read }"
+          :class="{ 'bg-primary-50': !notification.is_read }"
         >
           <div class="flex items-start space-x-3">
             <span class="text-2xl flex-shrink-0">{{ getNotificationIcon(notification.notification_type) }}</span>
@@ -174,7 +174,7 @@ onMounted(() => {
               </p>
             </div>
             <div v-if="!notification.is_read" class="flex-shrink-0">
-              <div class="h-2 w-2 bg-blue-600 rounded-full"></div>
+              <div class="h-2 w-2 bg-primary-600 rounded-full"></div>
             </div>
           </div>
         </button>
@@ -183,7 +183,7 @@ onMounted(() => {
       <div class="p-3 border-t border-gray-200">
         <button
           @click="viewAllNotifications"
-          class="w-full text-center text-blue-600 hover:text-blue-800 font-medium text-sm"
+          class="w-full text-center text-primary-600 hover:text-primary-800 font-medium text-sm"
         >
           View All Notifications
         </button>

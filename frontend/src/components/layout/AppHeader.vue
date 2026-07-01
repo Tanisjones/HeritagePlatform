@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import NotificationBell from '@/components/notifications/NotificationBell.vue'
@@ -9,6 +9,32 @@ const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)
 const authStore = useAuthStore()
 const { t, locale } = useI18n()
+
+// Single source of truth for the primary nav, rendered in both the desktop bar
+// and the mobile menu — no more two hand-maintained copies that drift apart.
+interface NavLink {
+  to: string
+  labelKey: string
+  visible?: () => boolean
+}
+const primaryNav: NavLink[] = [
+  { to: '/', labelKey: 'nav.home' },
+  { to: '/explore', labelKey: 'nav.explore' },
+  { to: '/routes', labelKey: 'nav.routes' },
+  { to: '/learn', labelKey: 'nav.learn' },
+  { to: '/contribute', labelKey: 'nav.contribute' },
+  { to: '/moderation', labelKey: 'nav.moderation', visible: () => !!(authStore.isCurator || authStore.user?.is_staff) },
+  { to: '/teach', labelKey: 'nav.teach', visible: () => !!(authStore.isTeacher || authStore.user?.is_staff) },
+]
+// Authenticated "My account" links (dropdown on desktop, section on mobile).
+const accountNav: NavLink[] = [
+  { to: '/dashboard', labelKey: 'nav.dashboard' },
+  { to: '/routes/my', labelKey: 'nav.myRoutes' },
+  { to: '/routes/active', labelKey: 'nav.activeRoutes' },
+  { to: '/my-contributions', labelKey: 'nav.myContributions' },
+  { to: '/notifications', labelKey: 'nav.notifications' },
+]
+const visiblePrimaryNav = computed(() => primaryNav.filter((l) => !l.visible || l.visible()))
 
 const LOCALE_STORAGE_KEY = 'hp_locale'
 
@@ -58,48 +84,12 @@ onUnmounted(() => {
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-6 md:justify-self-center">
           <RouterLink
-            to="/"
+            v-for="link in visiblePrimaryNav"
+            :key="link.to"
+            :to="link.to"
             class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
           >
-            {{ t('nav.home') }}
-          </RouterLink>
-          <RouterLink
-            to="/explore"
-            class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          >
-            {{ t('nav.explore') }}
-          </RouterLink>
-          <RouterLink
-            to="/routes"
-            class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          >
-            {{ t('nav.routes') }}
-          </RouterLink>
-          <RouterLink
-            to="/learn"
-            class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          >
-            {{ t('nav.learn') }}
-          </RouterLink>
-          <RouterLink
-            to="/contribute"
-            class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          >
-            {{ t('nav.contribute') }}
-          </RouterLink>
-          <RouterLink
-            v-if="authStore.isCurator || authStore.user?.is_staff"
-            to="/moderation"
-            class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          >
-            {{ t('nav.moderation') }}
-          </RouterLink>
-          <RouterLink
-            v-if="authStore.isTeacher || authStore.user?.is_staff"
-            to="/teach"
-            class="text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          >
-            {{ t('nav.teach') }}
+            {{ t(link.labelKey) }}
           </RouterLink>
         </div>
 
@@ -258,55 +248,13 @@ onUnmounted(() => {
             >EN</button>
         </div>
         <RouterLink
-          to="/"
+          v-for="link in visiblePrimaryNav"
+          :key="link.to"
+          :to="link.to"
           class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
           @click="mobileMenuOpen = false"
         >
-          {{ t('nav.home') }}
-        </RouterLink>
-        <RouterLink
-          to="/explore"
-          class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          @click="mobileMenuOpen = false"
-        >
-          {{ t('nav.explore') }}
-        </RouterLink>
-        <RouterLink
-          to="/routes"
-          class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          @click="mobileMenuOpen = false"
-        >
-          {{ t('nav.routes') }}
-        </RouterLink>
-        <RouterLink
-          to="/learn"
-          class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          @click="mobileMenuOpen = false"
-        >
-          {{ t('nav.learn') }}
-        </RouterLink>
-        <RouterLink
-          to="/contribute"
-          class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          @click="mobileMenuOpen = false"
-        >
-          {{ t('nav.contribute') }}
-        </RouterLink>
-        <RouterLink
-          v-if="authStore.isCurator || authStore.user?.is_staff"
-          to="/moderation"
-          class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          @click="mobileMenuOpen = false"
-        >
-          {{ t('nav.moderation') }}
-        </RouterLink>
-        <RouterLink
-          v-if="authStore.isTeacher || authStore.user?.is_staff"
-          to="/teach"
-          class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium"
-          @click="mobileMenuOpen = false"
-        >
-          {{ t('nav.teach') }}
+          {{ t(link.labelKey) }}
         </RouterLink>
 
         <div class="pt-3 border-t border-gray-200 space-y-2" v-if="authStore.isAuthenticated">
@@ -314,39 +262,13 @@ onUnmounted(() => {
                  {{ t('nav.myAccount') }}
              </div>
              <RouterLink
-              to="/dashboard"
+              v-for="link in accountNav"
+              :key="link.to"
+              :to="link.to"
               class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium pl-2"
               @click="mobileMenuOpen = false"
             >
-              {{ t('nav.dashboard') }}
-            </RouterLink>
-            <RouterLink
-              to="/routes/my"
-              class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium pl-2"
-              @click="mobileMenuOpen = false"
-            >
-              {{ t('nav.myRoutes') }}
-            </RouterLink>
-            <RouterLink
-              to="/routes/active"
-              class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium pl-2"
-              @click="mobileMenuOpen = false"
-            >
-              {{ t('nav.activeRoutes') }}
-            </RouterLink>
-             <RouterLink
-              to="/my-contributions"
-              class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium pl-2"
-              @click="mobileMenuOpen = false"
-            >
-              {{ t('nav.myContributions') }}
-            </RouterLink>
-            <RouterLink
-              to="/notifications"
-              class="block py-2 text-gray-700 hover:text-primary-600 transition-colors font-medium pl-2"
-              @click="mobileMenuOpen = false"
-            >
-              {{ t('nav.notifications') }}
+              {{ t(link.labelKey) }}
             </RouterLink>
             <button
               @click="logout"

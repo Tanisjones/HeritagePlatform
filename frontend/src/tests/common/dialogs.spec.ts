@@ -38,13 +38,13 @@ describe('useToast', () => {
     vi.useFakeTimers()
     const { success, _toasts } = useToast()
     const before = _toasts.length
-    success('Saved!', 1000)
+    const id = success('Saved!', 1000)
     expect(_toasts.length).toBe(before + 1)
-    const added = _toasts[_toasts.length - 1]
-    expect(added.kind).toBe('success')
-    expect(added.message).toBe('Saved!')
+    const added = _toasts.find((t) => t.id === id)
+    expect(added?.kind).toBe('success')
+    expect(added?.message).toBe('Saved!')
     vi.advanceTimersByTime(1000)
-    expect(_toasts.find((t) => t.id === added.id)).toBeUndefined()
+    expect(_toasts.find((t) => t.id === id)).toBeUndefined()
   })
 
   it('error() can be dismissed manually', () => {

@@ -9,8 +9,7 @@ import LomEditor from '@/components/education/LomEditor.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useLomLabels } from '@/composables/useLomLabels';
-import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
-import "leaflet/dist/leaflet.css";
+import LocationPickerMap from '@/components/map/LocationPickerMap.vue';
 import { useI18n } from 'vue-i18n';
 
 const { t, te, locale } = useI18n();
@@ -526,11 +525,7 @@ onMounted(fetchHeritageItem);
           <!-- Map Card -->
           <div v-if="item.location" class="bg-white p-2 rounded-2xl shadow-xl">
              <div class="h-64 md:h-80 w-full rounded-xl overflow-hidden relative z-0">
-                 <l-map ref="map" v-model:zoom="zoom" :center="center" :use-global-leaflet="false">
-                    <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                    layer-type="base" name="OpenStreetMap"></l-tile-layer>
-                    <l-marker :lat-lng="center"></l-marker>
-                </l-map>
+                 <LocationPickerMap :latlng="center" :zoom="zoom" readonly />
              </div>
              <div class="p-4">
                <h3 class="font-bold text-gray-900">{{ t('heritage.detail.exploreLocation') }}</h3>
