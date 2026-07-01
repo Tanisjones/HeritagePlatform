@@ -809,6 +809,9 @@ class CurriculumStandardViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CurriculumStandard.objects.all()
     serializer_class = CurriculumStandardSerializer
     permission_classes = [permissions.AllowAny]
+    # Curated, small vocabulary — return the whole catalog so the editor's picker
+    # isn't silently capped at the default page size (20).
+    pagination_class = None
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['subject', 'grade_level']
     search_fields = ['code', 'description', 'subject']
@@ -818,11 +821,56 @@ class CurriculumStandardViewSet(viewsets.ReadOnlyModelViewSet):
 class RubricViewSet(viewsets.ModelViewSet):
     """CRUD for lesson-plan rubrics (P.6) with nested criteria.
 
-    Teacher/curator/staff writes (authoring); reads are public. Filter by
-    ?lesson=<plan id>.
+    Reads are scoped to rubrics whose parent plan the caller can SEE (same
+    visibility rule as LessonPlanViewSet — a rubric must never leak a private plan's
+    assessment). Writes require teacher/curator AND ownership of the parent plan
+    (a teacher cannot write a rubric onto someone else's plan).
     """
-    queryset = Rubric.objects.prefetch_related('criteria').select_related('lesson')
     serializer_class = RubricSerializer
     permission_classes = [IsTeacherOrCuratorOrReadOnly]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['lesson']
+
+    def _visible_lessons(self):
+        """LessonPlan pks the caller may see (mirrors LessonPlanViewSet.get_queryset)."""
+        user = self.request.user
+        qs = LessonPlan.objects.all()
+        if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
+            return qs.values_list('pk', flat=True)
+        published_public = qs.filter(
+            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC
+        )
+        if user and user.is_authenticated:
+            return (qs.filter(author=user) | published_public).values_list('pk', flat=True)
+        return published_public.values_list('pk', flat=True)
+
+    def get_queryset(self):
+        return (
+            Rubric.objects.prefetch_related('criteria').select_related('lesson')
+            .filter(lesson__in=self._visible_lessons())
+        )
+
+    def _require_lesson_owner(self, lesson):
+        user = self.request.user
+        if user.is_staff or _role_slug(user) == 'curator' or lesson.author_id == user.id:
+            return
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied('You can only edit rubrics on your own lesson plans.')
+
+    def perform_create(self, serializer):
+        lesson = serializer.validated_data.get('lesson')
+        if lesson is not None:
+            self._require_lesson_owner(lesson)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        # Guard both the current lesson and any attempt to re-home the rubric.
+        self._require_lesson_owner(serializer.instance.lesson)
+        new_lesson = serializer.validated_data.get('lesson')
+        if new_lesson is not None and new_lesson.pk != serializer.instance.lesson_id:
+            self._require_lesson_owner(new_lesson)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._require_lesson_owner(instance.lesson)
+        instance.delete()

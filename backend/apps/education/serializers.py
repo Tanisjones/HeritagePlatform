@@ -341,6 +341,16 @@ class RubricSerializer(serializers.ModelSerializer):
         fields = ['id', 'lesson', 'title', 'description', 'criteria', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
+    def validate_criteria(self, value):
+        # `order` is unique per rubric (DB constraint). Reject duplicates in the
+        # payload with a clean 400 instead of a 500 IntegrityError on insert (the
+        # collision-safe sync only protects reorders of EXISTING rows, not two new
+        # rows sharing an order in one create).
+        orders = [c.get('order') for c in value if c.get('order') is not None]
+        if len(orders) != len(set(orders)):
+            raise serializers.ValidationError('Each criterion must have a unique order.')
+        return value
+
     @transaction.atomic
     def create(self, validated_data):
         criteria = validated_data.pop('criteria', None)

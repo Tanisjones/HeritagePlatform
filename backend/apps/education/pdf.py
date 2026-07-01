@@ -36,10 +36,15 @@ _WS_RE = re.compile(r"\s+")
 _PRIMARY = colors.HexColor("#b55a3a")
 
 
-def _text(value: str) -> str:
-    """Flatten HTML-ish content to plain text and collapse whitespace."""
-    if not value:
+def _text(value) -> str:
+    """Flatten HTML-ish content to plain text and collapse whitespace.
+
+    Coerces non-strings to str defensively — `objectives` is a free-form JSONField,
+    so a numeric/None entry must not crash the PDF build."""
+    if value is None or value == "":
         return ""
+    if not isinstance(value, str):
+        value = str(value)
     return _WS_RE.sub(" ", _TAG_RE.sub(" ", value)).strip()
 
 

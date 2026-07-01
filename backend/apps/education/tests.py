@@ -1376,3 +1376,68 @@ class LessonPlanP6Test(TestCase):
         self.client.force_authenticate(user=self.tourist)
         resp = self.client.post('/api/v1/rubrics/', {'lesson': str(self.plan.id), 'title': 'x'}, format='json')
         self.assertEqual(resp.status_code, 403)
+
+
+class RubricSecurityTest(TestCase):
+    """P.6 code-review regressions: rubric ownership + visibility scoping."""
+
+    def setUp(self):
+        from apps.education.models import LessonPlan, Rubric
+        from apps.users.models import UserRole, UserProfile
+        self.LessonPlan = LessonPlan
+        self.Rubric = Rubric
+        self.client = APIClient()
+        role, _ = UserRole.objects.get_or_create(name='Teacher', slug='teacher')
+        self.teacher_a = User.objects.create_user(email='ra@example.com', password='pw')
+        UserProfile.objects.create(user=self.teacher_a, role=role)
+        self.teacher_b = User.objects.create_user(email='rb@example.com', password='pw')
+        UserProfile.objects.create(user=self.teacher_b, role=role)
+        # A's private draft plan.
+        self.plan_a = LessonPlan.objects.create(
+            title='A private', author=self.teacher_a,
+            status=LessonPlan.STATUS_DRAFT, visibility=LessonPlan.VISIBILITY_PRIVATE,
+        )
+
+    def test_teacher_cannot_write_rubric_on_another_plan(self):
+        self.client.force_authenticate(user=self.teacher_b)
+        resp = self.client.post(
+            '/api/v1/rubrics/', {'lesson': str(self.plan_a.id), 'title': 'sneaky'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertEqual(self.Rubric.objects.count(), 0)
+
+    def test_rubric_of_private_plan_not_listed_to_others(self):
+        rubric = self.Rubric.objects.create(lesson=self.plan_a, title='secret')
+        # Owner sees it.
+        self.client.force_authenticate(user=self.teacher_a)
+        resp = self.client.get(f'/api/v1/rubrics/?lesson={self.plan_a.id}')
+        self.assertEqual(len(resp.data['results'] if 'results' in resp.data else resp.data), 1)
+        # Another teacher does NOT.
+        self.client.force_authenticate(user=self.teacher_b)
+        resp2 = self.client.get(f'/api/v1/rubrics/?lesson={self.plan_a.id}')
+        rows = resp2.data['results'] if 'results' in resp2.data else resp2.data
+        self.assertEqual(len(rows), 0)
+        # Anonymous does NOT.
+        self.client.force_authenticate(user=None)
+        resp3 = self.client.get(f'/api/v1/rubrics/?lesson={self.plan_a.id}')
+        rows3 = resp3.data['results'] if 'results' in resp3.data else resp3.data
+        self.assertEqual(len(rows3), 0)
+        self.assertIsNotNone(rubric.id)
+
+    def test_owner_can_create_rubric_on_own_plan(self):
+        self.client.force_authenticate(user=self.teacher_a)
+        resp = self.client.post(
+            '/api/v1/rubrics/', {'lesson': str(self.plan_a.id), 'title': 'mine'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_duplicate_criterion_order_rejected_400(self):
+        self.client.force_authenticate(user=self.teacher_a)
+        resp = self.client.post('/api/v1/rubrics/', {
+            'lesson': str(self.plan_a.id), 'title': 'dup',
+            'criteria': [
+                {'order': 0, 'label': 'x', 'max_points': 4, 'levels': []},
+                {'order': 0, 'label': 'y', 'max_points': 4, 'levels': []},
+            ],
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)

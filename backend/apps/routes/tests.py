@@ -578,3 +578,46 @@ class RouteThemeTaxonomyTest(TestCase):
         self.assertEqual(route.theme_category_id, theme.id)
         # legacy `theme` string is denormalized from the category name.
         self.assertEqual(route.theme, theme.name)
+
+
+class RouteThemeDenormalizeTest(TestCase):
+    """H.2 code-review regression: theme string stays in sync when category changes."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.client = APIClient()
+        self.user = User.objects.create_user(email='denorm@example.com', password='pw')
+        self.client.force_authenticate(user=self.user)
+
+    def test_changing_category_updates_denormalized_theme(self):
+        from apps.routes.models import RouteTheme, HeritageRoute
+        colonial = RouteTheme.objects.get(slug='colonial-architecture')
+        gastronomy = RouteTheme.objects.get(slug='gastronomy')
+        # Create with a category (no explicit theme) → theme derives from category.
+        resp = self.client.post('/api/v1/routes/', {
+            'title': 'R', 'description': 'd', 'theme_category': str(colonial.id),
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        route = HeritageRoute.objects.get(title='R')
+        self.assertEqual(route.theme, colonial.name)
+        # Change category (still no explicit theme) → theme re-derives, not stale.
+        resp2 = self.client.patch(f'/api/v1/routes/{route.id}/', {
+            'theme_category': str(gastronomy.id),
+        }, format='json')
+        self.assertEqual(resp2.status_code, 200, resp2.content)
+        route.refresh_from_db()
+        self.assertEqual(route.theme, gastronomy.name)
+
+    def test_explicit_theme_string_is_respected(self):
+        from apps.routes.models import RouteTheme, HeritageRoute
+        colonial = RouteTheme.objects.get(slug='colonial-architecture')
+        resp = self.client.post('/api/v1/routes/', {
+            'title': 'R2', 'description': 'd', 'theme_category': str(colonial.id),
+            'theme': 'Mi tema personalizado',
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        route = HeritageRoute.objects.get(title='R2')
+        # Explicit free-text theme overrides the category-derived one.
+        self.assertEqual(route.theme, 'Mi tema personalizado')

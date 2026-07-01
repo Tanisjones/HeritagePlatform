@@ -325,21 +325,28 @@ class RouteCreateSerializer(serializers.ModelSerializer):
         }
 
     @staticmethod
-    def _denormalize_theme(route):
-        """Keep the legacy `theme` string in sync with the curated category, so
+    def _denormalize_theme(route, *, theme_explicit):
+        """Keep the legacy `theme` string in sync with the curated category so
         thematic search and theme-based gamification (which key off the string) keep
-        working when the client sets `theme_category` instead of free text."""
-        if route.theme_category_id and not (route.theme or '').strip():
-            route.theme = route.theme_category.name
-            route.save(update_fields=['theme'])
+        working. The category is authoritative WHEN the client did not also send an
+        explicit free-text `theme`: if a category is set, derive `theme` from its
+        name (covers create, change, and re-derive). If the client explicitly sent a
+        `theme` string, respect it (custom override). Clearing the category leaves
+        the last string untouched (it may be an intentional free-text value)."""
+        if route.theme_category_id and not theme_explicit:
+            new_theme = route.theme_category.name
+            if route.theme != new_theme:
+                route.theme = new_theme
+                route.save(update_fields=['theme'])
 
     def create(self, validated_data):
         """Create a route with nested stops, then auto-generate geometry."""
         stops_data = validated_data.pop('stops', [])
+        theme_explicit = 'theme' in validated_data
         client_supplied = self._client_geometry_fields(validated_data)
         with transaction.atomic():
             route = HeritageRoute.objects.create(**validated_data)
-            self._denormalize_theme(route)
+            self._denormalize_theme(route, theme_explicit=theme_explicit)
             if stops_data:
                 self._diff_stops(route, stops_data)
         # Routing (possible HTTP call) runs after the transaction commits.
@@ -349,13 +356,14 @@ class RouteCreateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update route fields + non-destructive stop diff, then regenerate geometry."""
         stops_data = validated_data.pop('stops', None)
+        theme_explicit = 'theme' in validated_data
         client_supplied = self._client_geometry_fields(validated_data)
 
         with transaction.atomic():
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
             instance.save()
-            self._denormalize_theme(instance)
+            self._denormalize_theme(instance, theme_explicit=theme_explicit)
 
             if stops_data is not None:
                 self._diff_stops(instance, stops_data)
