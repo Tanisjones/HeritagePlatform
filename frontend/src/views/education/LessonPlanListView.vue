@@ -106,6 +106,14 @@ onMounted(load)
         </div>
         <div class="mt-4 flex gap-2">
           <AppButton size="sm" @click="edit(plan)">{{ t('common.edit') }}</AppButton>
+          <AppButton
+            v-if="plan.status === 'published'"
+            size="sm"
+            variant="ghost"
+            @click="router.push({ name: 'lesson-plan-detail', params: { id: plan.id } })"
+          >
+            {{ t('lessonPlans.viewPublic') }}
+          </AppButton>
           <AppButton size="sm" variant="ghost" @click="duplicate(plan)">{{ t('lessonPlans.duplicate') }}</AppButton>
           <AppButton size="sm" variant="ghost" class="!text-red-600" @click="remove(plan)">{{ t('common.delete') }}</AppButton>
         </div>

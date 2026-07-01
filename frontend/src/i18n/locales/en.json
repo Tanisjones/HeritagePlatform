@@ -1233,6 +1233,36 @@
             "submitDone": "Submitted for review.",
             "publishDone": "Plan published.",
             "archiveDone": "Plan archived."
+        },
+        "viewPublic": "View sheet",
+        "detail": {
+            "grade": "Grade",
+            "objectives": "Learning objectives",
+            "materials": "Materials",
+            "notFoundTitle": "Plan not found",
+            "notFoundMessage": "This lesson plan does not exist or is not public."
+        }
+    },
+    "quiz": {
+        "title": "Quiz",
+        "addQuestion": "Add question",
+        "promptPlaceholder": "Write the question…",
+        "optionPlaceholder": "Answer option",
+        "addOption": "Add option",
+        "correctAnswer": "Correct answer",
+        "expectedAnswer": "Expected answer",
+        "feedbackPlaceholder": "Feedback (optional)",
+        "true": "True",
+        "false": "False",
+        "empty": "No questions yet.",
+        "editQuiz": "Edit quiz",
+        "needHeritage": "Link a heritage item to this activity to add a quiz.",
+        "noLom": "This item has no educational (LOM) layer yet to attach questions to.",
+        "types": {
+            "single_choice": "Single choice",
+            "multiple_choice": "Multiple choice",
+            "true_false": "True / False",
+            "short_answer": "Short answer"
         }
     },
     "aiUsage": {

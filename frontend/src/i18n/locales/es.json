@@ -1233,6 +1233,36 @@
             "submitDone": "Enviado a revisión.",
             "publishDone": "Plan publicado.",
             "archiveDone": "Plan archivado."
+        },
+        "viewPublic": "Ver ficha",
+        "detail": {
+            "grade": "Grado",
+            "objectives": "Objetivos de aprendizaje",
+            "materials": "Materiales",
+            "notFoundTitle": "Plan no encontrado",
+            "notFoundMessage": "Este plan de lección no existe o no es público."
+        }
+    },
+    "quiz": {
+        "title": "Cuestionario",
+        "addQuestion": "Añadir pregunta",
+        "promptPlaceholder": "Escribe la pregunta…",
+        "optionPlaceholder": "Opción de respuesta",
+        "addOption": "Añadir opción",
+        "correctAnswer": "Respuesta correcta",
+        "expectedAnswer": "Respuesta esperada",
+        "feedbackPlaceholder": "Retroalimentación (opcional)",
+        "true": "Verdadero",
+        "false": "Falso",
+        "empty": "Aún no hay preguntas.",
+        "editQuiz": "Editar cuestionario",
+        "needHeritage": "Vincula un ítem de patrimonio a esta actividad para añadir un cuestionario.",
+        "noLom": "Este ítem aún no tiene capa educativa (LOM) para adjuntar preguntas.",
+        "types": {
+            "single_choice": "Opción única",
+            "multiple_choice": "Opción múltiple",
+            "true_false": "Verdadero / Falso",
+            "short_answer": "Respuesta corta"
         }
     },
     "aiUsage": {

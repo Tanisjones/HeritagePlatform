@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { lessonPlanService, aiService } from '@/services/api'
+import { lessonPlanService, aiService, educationService } from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useToast, useConfirm } from '@/composables/useDialogs'
 import { useAiError } from '@/composables/useAiError'
@@ -15,6 +15,7 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
 import AiActionButton from '@/components/common/AiActionButton.vue'
 import ActivityContentPicker from '@/components/education/ActivityContentPicker.vue'
+import QuizEditor from '@/components/education/QuizEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,6 +137,30 @@ function onDrop(index: number) {
 }
 function reindex() {
   form.activities.forEach((a, i) => (a.order = i))
+}
+
+// --- quiz authoring for `assess` activities ---------------------------------
+// A quiz lives on the LOMGeneral of the activity's bound heritage item. We resolve
+// that id on demand and mount the QuizEditor inline (keyed by index → lom id).
+const quizLomByIndex = ref<Record<number, string>>({})
+const quizResolving = ref<number | null>(null)
+const quizError = ref('')
+
+async function openQuiz(index: number) {
+  const a = form.activities[index]
+  if (!a?.heritage_item) return
+  quizError.value = ''
+  quizResolving.value = index
+  try {
+    const res = await educationService.getByHeritageItem(a.heritage_item)
+    const lomId = res.data?.id
+    if (lomId) quizLomByIndex.value = { ...quizLomByIndex.value, [index]: String(lomId) }
+    else quizError.value = t('quiz.noLom')
+  } catch {
+    quizError.value = t('quiz.noLom')
+  } finally {
+    quizResolving.value = null
+  }
 }
 
 const canSave = computed(() => form.title.trim().length > 0)
@@ -403,6 +428,27 @@ onMounted(load)
                 :educational-resource-title="activity.educational_resource_title"
                 @change="(p) => onBindingChange(index, p)"
               />
+
+              <!-- quiz authoring for assess activities (needs a bound heritage item) -->
+              <div v-if="activity.activity_type === 'assess'" class="border-t border-gray-100 pt-3">
+                <template v-if="!activity.heritage_item">
+                  <p class="text-xs text-gray-500">{{ t('quiz.needHeritage') }}</p>
+                </template>
+                <template v-else-if="quizLomByIndex[index]">
+                  <QuizEditor :lom-general-id="quizLomByIndex[index]" />
+                </template>
+                <template v-else>
+                  <button
+                    type="button"
+                    class="text-sm text-primary-600 hover:underline disabled:opacity-50"
+                    :disabled="quizResolving === index"
+                    @click="openQuiz(index)"
+                  >
+                    {{ quizResolving === index ? t('common.loading') : t('quiz.editQuiz') }}
+                  </button>
+                  <span v-if="quizError && quizResolving === null" class="ml-2 text-xs text-red-600">{{ quizError }}</span>
+                </template>
+              </div>
 
               <div class="flex items-center gap-3">
                 <input v-model.number="activity.duration_minutes" type="number" min="0" class="w-28 px-3 py-1.5 border border-gray-300 rounded-lg" :placeholder="t('lessonPlans.fields.minutes')" />

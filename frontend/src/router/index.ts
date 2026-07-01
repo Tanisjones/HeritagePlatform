@@ -185,6 +185,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTeacher: true },
     },
     {
+      // Public lesson sheet (published + public); no auth — visibility enforced server-side.
+      path: '/learn/plans/:id',
+      name: 'lesson-plan-detail',
+      component: () => import('../views/education/LessonPlanDetailView.vue'),
+    },
+    {
       path: '/teach/plans/new',
       name: 'lesson-plan-new',
       component: () => import('../views/education/LessonPlanEditView.vue'),
