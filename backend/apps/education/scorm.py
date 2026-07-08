@@ -166,12 +166,12 @@ def _build_lom_xml(lom_data: Optional[dict]) -> str:
 # ``http://ltsc.ieee.org/xsd/LOM`` namespace, ``<string language="...">``
 # wrappers for LangString-typed elements, and ``<source>/<value>`` pairs for
 # vocabulary elements. It is bound to the *loose* schema (``lomLoose.xsd``) so
-# our Riobamba extensions and partial data validate.
+# our platform extensions and partial data validate.
 
 _LOM_NS = "http://ltsc.ieee.org/xsd/LOM"
 _XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
-# Namespace for the non-standard Riobamba pedagogical extension fields.
-_RIOBAMBA_NS = "https://heritageplatform.ddns.net/xsd/lom-ext"
+# Namespace for the non-standard platform pedagogical extension fields.
+_LOM_EXT_NS = "https://heritageplatform.ddns.net/xsd/lom-ext"
 
 # Map our stored vocabulary tokens (snake_case) to the LOM v1.0 vocabulary
 # values, which use spaces (e.g. "narrative text", "educational objective").
@@ -213,7 +213,7 @@ def build_ieee_lom_xml(lom_data: Optional[dict]) -> str:
 
     Vocabulary elements use ``<source>LOMv1.0</source><value>…</value>`` and
     LangString elements use ``<string language="…">…</string>``. Text is escaped
-    via ElementTree. The Riobamba pedagogical extension fields (§5 additions such
+    via ElementTree. The platform pedagogical extension fields (§5 additions such
     as learning_objectives, prerequisites, …) are NOT standard LOM: objectives
     are surfaced as a ``<classification>`` with purpose "educational objective",
     and the remainder go into a namespaced ``<ex:extension>`` block at the end.
@@ -224,7 +224,7 @@ def build_ieee_lom_xml(lom_data: Optional[dict]) -> str:
 
     ET.register_namespace("", _LOM_NS)
     ET.register_namespace("xsi", _XSI_NS)
-    ET.register_namespace("ex", _RIOBAMBA_NS)
+    ET.register_namespace("ex", _LOM_EXT_NS)
 
     root = ET.Element(
         f"{{{_LOM_NS}}}lom",
@@ -372,7 +372,7 @@ def build_ieee_lom_xml(lom_data: Optional[dict]) -> str:
             src = _sub(taxon_path, "source")
             ssrc = _sub(src, "string")
             ssrc.set("language", default_lang)
-            ssrc.text = "Riobamba Learning Objectives"
+            ssrc.text = "Heritage Platform Learning Objectives"
             taxon = _sub(taxon_path, "taxon")
             _langstring(taxon, "entry", obj)
         _langstring(cls, "description",
@@ -403,7 +403,7 @@ def build_ieee_lom_xml(lom_data: Optional[dict]) -> str:
         for kw in _keyword_list(cls_data.get("keywords")):
             _langstring(cls, "keyword", kw)
 
-    # --- Riobamba pedagogical extension (non-standard §5 additions) ---
+    # --- platform pedagogical extension (non-standard §5 additions) ---
     # Kept in a namespaced trailing block so the core document stays LOM-valid.
     ext_fields = ("prerequisites", "competencies", "pedagogical_approach",
                   "curriculum_alignment", "suggested_activities")
@@ -414,9 +414,9 @@ def build_ieee_lom_xml(lom_data: Optional[dict]) -> str:
             if val:
                 ext_payload[f] = val
     if ext_payload:
-        ext = ET.SubElement(root, f"{{{_RIOBAMBA_NS}}}extension")
+        ext = ET.SubElement(root, f"{{{_LOM_EXT_NS}}}extension")
         for key, value in ext_payload.items():
-            child = ET.SubElement(ext, f"{{{_RIOBAMBA_NS}}}{key}")
+            child = ET.SubElement(ext, f"{{{_LOM_EXT_NS}}}{key}")
             child.text = str(value)
 
     return _pretty_xml(root)

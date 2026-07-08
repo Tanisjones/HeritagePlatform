@@ -32,6 +32,8 @@ from .rate_limit import AIRateLimited, enforce_user_rate_limit
 from apps.moderation.permissions import IsTeacher
 from .budget import AIBudgetExceeded, enforce_budget
 from .models import AIUsageRecord
+from apps.cities.request import get_request_city
+
 from .usage import record_ai_usage
 
 
@@ -98,9 +100,18 @@ class BaseAssistView(APIView):
     rate_limit_per_minute: int | None = None
     permission_classes = [permissions.IsAuthenticated]
 
+    def city_prompt_variables(self) -> dict[str, Any]:
+        """{{city}}/{{country}} for prompt templates, from the request city.
+        Falls back to the founding city's identity so output stays stable for
+        pre-multi-city clients that send no city context."""
+        city = get_request_city(self.request)
+        if city is None:
+            return {"city": "Riobamba", "country": "Ecuador"}
+        return {"city": city.name, "country": city.country_name}
+
     def prompt_variables(self, data: dict[str, Any]) -> dict[str, Any]:
         """Variables substituted into the prompt template. Override as needed."""
-        return {"language": data.get("language", "es")}
+        return {"language": data.get("language", "es"), **self.city_prompt_variables()}
 
     def post(self, request):  # noqa: ANN001
         config = require_ai_available()
@@ -111,6 +122,7 @@ class BaseAssistView(APIView):
         # (success, provider error, or rate-limit). Recording never breaks the
         # request — see record_ai_usage.
         user_id = request.user.id
+        city = get_request_city(request)
         rate_kwargs = {}
         if self.rate_limit_per_minute is not None:
             rate_kwargs["limit_per_minute"] = self.rate_limit_per_minute
@@ -118,7 +130,7 @@ class BaseAssistView(APIView):
             enforce_user_rate_limit(user_id=user_id, operation=self.operation, **rate_kwargs)
         except AIRateLimited:
             record_ai_usage(
-                user_id=user_id, operation=self.operation, config=config, usage=None,
+                user_id=user_id, city=city, operation=self.operation, config=config, usage=None,
                 duration_ms=None, status=AIUsageRecord.STATUS_RATE_LIMITED,
             )
             raise
@@ -129,7 +141,7 @@ class BaseAssistView(APIView):
             enforce_budget(user_id=user_id, config=config)
         except AIBudgetExceeded:
             record_ai_usage(
-                user_id=user_id, operation=self.operation, config=config, usage=None,
+                user_id=user_id, city=city, operation=self.operation, config=config, usage=None,
                 duration_ms=None, status=AIUsageRecord.STATUS_RATE_LIMITED,
                 error_type="budget_exceeded",
             )
@@ -148,14 +160,14 @@ class BaseAssistView(APIView):
             result = client.chat_json(system_prompt=prompt, user_payload=data)
         except AIServiceUnavailable as exc:
             record_ai_usage(
-                user_id=user_id, operation=self.operation, config=config, usage=None,
+                user_id=user_id, city=city, operation=self.operation, config=config, usage=None,
                 duration_ms=int((time.monotonic() - t0) * 1000),
                 status=AIUsageRecord.STATUS_ERROR, error_type=type(exc).__name__,
             )
             raise
 
         record_ai_usage(
-            user_id=user_id, operation=self.operation, config=config, usage=result.usage,
+            user_id=user_id, city=city, operation=self.operation, config=config, usage=result.usage,
             duration_ms=int((time.monotonic() - t0) * 1000), status=AIUsageRecord.STATUS_OK,
         )
 
@@ -228,4 +240,5 @@ class LessonPlanDraftAssistView(BaseAssistView):
             # not be ignored (the frontend sends them and then overwrites objectives).
             "objectives": data.get("objectives") or [],
             "heritage_hints": data.get("heritage_hints") or [],
+            **self.city_prompt_variables(),
         }

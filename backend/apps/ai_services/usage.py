@@ -25,8 +25,12 @@ def record_ai_usage(
     duration_ms: int | None,
     status: str,
     error_type: str = "",
+    city=None,
 ) -> None:
-    """Persist one AIUsageRecord. Never raises."""
+    """Persist one AIUsageRecord. Never raises.
+
+    `city` (cities.City | None) is the request's city context, kept for the
+    per-city drill-down of the usage dashboards."""
     try:
         provider = config.provider if config else ""
         model = config.model if config else ""
@@ -38,6 +42,7 @@ def record_ai_usage(
         )
         AIUsageRecord.objects.create(
             user_id=user_id,
+            city=city,
             operation=operation or "",
             provider=provider,
             model=model,

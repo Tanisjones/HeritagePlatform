@@ -300,3 +300,35 @@ class PerCityCuratorTests(APITestCase):
         self.client.force_authenticate(user=self.label_only)
         response = self.client.get('/api/v1/users/me/')
         self.assertEqual(response.data['city_roles'], [])
+
+
+class AIPromptCityTests(APITestCase):
+    """AI prompt templates render the request city (no provider call)."""
+
+    def _view_with_request(self, **extra):
+        from rest_framework.test import APIRequestFactory
+        from apps.ai_services.assist_views import RouteMetadataAssistView
+
+        view = RouteMetadataAssistView()
+        view.request = APIRequestFactory().post('/api/v1/ai/assist/route-metadata/', **extra)
+        return view
+
+    def test_prompt_variables_render_request_city(self):
+        from apps.ai_services.assist_views import _render_prompt
+
+        make_city(slug='prompt-city', name='Cuenca')
+        view = self._view_with_request(HTTP_X_CITY='prompt-city')
+        variables = view.prompt_variables({'language': 'es'})
+        self.assertEqual(variables['city'], 'Cuenca')
+        self.assertEqual(variables['country'], 'Ecuador')
+        rendered = _render_prompt(
+            'Walking route in {{city}}, {{country}}. Language: {{language}}.',
+            variables=variables,
+        )
+        self.assertEqual(rendered, 'Walking route in Cuenca, Ecuador. Language: es.')
+
+    def test_prompt_variables_fall_back_to_founding_city(self):
+        view = self._view_with_request()
+        variables = view.prompt_variables({'language': 'es'})
+        self.assertEqual(variables['city'], 'Riobamba')
+        self.assertEqual(variables['country'], 'Ecuador')
