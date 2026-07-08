@@ -1,6 +1,8 @@
 from django.contrib.gis import admin
 from django.utils.translation import gettext_lazy as _
 
+from apps.cities.admin import CityMapWidgetMixin
+
 from .models import (
     HeritageCategory, HeritageType, Parish, MediaFile,
     HeritageItem, HeritageRelation, Annotation
@@ -24,17 +26,10 @@ class HeritageTypeAdmin(admin.ModelAdmin):
 
 
 @admin.register(Parish)
-class ParishAdmin(admin.GISModelAdmin):
-    list_display = ['name', 'canton', 'province', 'population', 'area_km2']
-    list_filter = ['canton', 'province']
+class ParishAdmin(CityMapWidgetMixin, admin.GISModelAdmin):
+    list_display = ['name', 'city', 'canton', 'province', 'population', 'area_km2']
+    list_filter = ['city', 'canton', 'province']
     search_fields = ['name']
-    gis_widget_kwargs = {
-        'attrs': {
-            'default_zoom': 11,
-            'default_lon': -78.65,
-            'default_lat': -1.67,
-        },
-    }
 
 
 @admin.register(MediaFile)
@@ -47,9 +42,9 @@ class MediaFileAdmin(admin.ModelAdmin):
 
 
 @admin.register(HeritageItem)
-class HeritageItemAdmin(admin.GISModelAdmin):
-    list_display = ['title', 'heritage_type', 'heritage_category', 'parish', 'status', 'contributor', 'created_at']
-    list_filter = ['status', 'heritage_type', 'heritage_category', 'historical_period', 'created_at']
+class HeritageItemAdmin(CityMapWidgetMixin, admin.GISModelAdmin):
+    list_display = ['title', 'city', 'heritage_type', 'heritage_category', 'parish', 'status', 'contributor', 'created_at']
+    list_filter = ['city', 'status', 'heritage_type', 'heritage_category', 'historical_period', 'created_at']
     search_fields = ['title', 'description', 'address']
     raw_id_fields = ['contributor', 'parish']
     readonly_fields = ['id', 'created_at', 'updated_at', 'view_count', 'favorite_count']
@@ -60,7 +55,9 @@ class HeritageItemAdmin(admin.GISModelAdmin):
             'fields': ('id', 'title', 'description', 'status')
         }),
         (_('Location'), {
-            'fields': ('location', 'address', 'parish')
+            # `city` is required — without it here, adding an item through the
+            # admin would crash on the NOT NULL constraint.
+            'fields': ('city', 'location', 'address', 'parish')
         }),
         (_('Classification'), {
             'fields': ('heritage_type', 'heritage_category', 'historical_period')
@@ -75,14 +72,6 @@ class HeritageItemAdmin(admin.GISModelAdmin):
             'fields': ('view_count', 'favorite_count')
         }),
     )
-
-    gis_widget_kwargs = {
-        'attrs': {
-            'default_zoom': 13,
-            'default_lon': -78.65,
-            'default_lat': -1.67,
-        },
-    }
 
 
 @admin.register(HeritageRelation)
