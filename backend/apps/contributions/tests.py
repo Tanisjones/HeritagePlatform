@@ -5,17 +5,19 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
 from apps.contributions.models import Contribution, ContributionReview
+from apps.cities.testing import make_city
 
 User = get_user_model()
 
 class ContributionModelTest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.user = User.objects.create_user(email='contributor@example.com', password='password')
         self.reviewer = User.objects.create_user(email='reviewer@example.com', password='password', is_staff=True)
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Parish')
-        self.item = HeritageItem.objects.create(
+        self.parish = Parish.objects.create(city=self.city, name='Parish')
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Item', description='Desc', 
             heritage_type=self.type, heritage_category=self.category, 
             parish=self.parish, location='POINT(0 0)'
@@ -55,12 +57,13 @@ class ContributionModelTest(TestCase):
 
 class ContributionAPITest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(email='user@example.com', password='password')
         self.curator = User.objects.create_user(email='curator@example.com', password='password', is_staff=True)
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Parish')
+        self.parish = Parish.objects.create(city=self.city, name='Parish')
 
     def test_submit_contribution(self):
         self.client.force_authenticate(user=self.user)
@@ -85,7 +88,7 @@ class ContributionAPITest(TestCase):
 
     def test_list_my_contributions(self):
         self.client.force_authenticate(user=self.user)
-        HeritageItem.objects.create(
+        HeritageItem.objects.create(city=self.city, 
             title='My Contr', 
             description='Desc', 
             heritage_type=self.type, 

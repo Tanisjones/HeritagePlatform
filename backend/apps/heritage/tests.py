@@ -5,21 +5,23 @@ from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient
 from rest_framework import status
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish, MediaFile
+from apps.cities.testing import make_city
 
 User = get_user_model()
 
 class HeritageModelTest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.user = User.objects.create_user(email='contributor@example.com', password='password')
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
         self.parent_cat = HeritageCategory.objects.create(name='Parent', slug='parent')
         self.category.parent = self.parent_cat
         self.category.save()
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
 
     def test_create_heritage_item(self):
-        item = HeritageItem.objects.create(
+        item = HeritageItem.objects.create(city=self.city, 
             title='Test Item',
             description='Test Description',
             heritage_type=self.type,
@@ -66,13 +68,14 @@ class HeritageModelTest(TestCase):
 
 class HeritageAPITest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(email='user@example.com', password='password')
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
         
-        self.item1 = HeritageItem.objects.create(
+        self.item1 = HeritageItem.objects.create(city=self.city, 
             title='Public Item',
             description='Public Desc',
             heritage_type=self.type,
@@ -81,7 +84,7 @@ class HeritageAPITest(TestCase):
             location=Point(0,0),
             status='published'
         )
-        self.item2 = HeritageItem.objects.create(
+        self.item2 = HeritageItem.objects.create(city=self.city, 
             title='Draft Item',
             description='Draft Desc',
             heritage_type=self.type,
@@ -134,6 +137,8 @@ class HeritageItemMassAssignmentTest(TestCase):
     contributor=<request.user>, and status transitions require staff."""
 
     def setUp(self):
+
+        self.city = make_city()
         from apps.users.models import UserProfile, UserRole
         self.client = APIClient()
         # A curator can reach the write endpoint (role slug 'curator').
@@ -145,7 +150,7 @@ class HeritageItemMassAssignmentTest(TestCase):
         self.victim = User.objects.create_user(email='victim@example.com', password='pw')
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
 
     def _payload(self, **extra):
         body = {
@@ -182,7 +187,7 @@ class HeritageItemMassAssignmentTest(TestCase):
     def test_non_staff_cannot_change_status_on_update(self):
         # A curator owns/reaches the item but is not staff — status stays locked.
         self.client.force_authenticate(user=self.curator)
-        item = HeritageItem.objects.create(
+        item = HeritageItem.objects.create(city=self.city, 
             title='Mine', description='x', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location=Point(-78.6, -1.6), contributor=self.curator, status='pending',

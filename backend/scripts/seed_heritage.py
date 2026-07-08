@@ -10,6 +10,12 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     requests = None
 
+
+def _default_city():
+    """Minimal multi-city shim: legacy seeders target Riobamba."""
+    from apps.cities.models import City
+    return City.objects.filter(slug='riobamba').first() or City.get_default()
+
 def ensure_django(settings_module: str = "config.settings.development") -> None:
     """
     Allow this file to be used both as a standalone script and from inside
@@ -308,7 +314,7 @@ def create_initial_data(*, download_remote_media: bool = True):
     ]
     parishes_objs = {}
     for p in parishes_data:
-        obj, _ = Parish.objects.get_or_create(name=p["name"], defaults=p)
+        obj, _ = Parish.objects.get_or_create(name=p["name"], city=_default_city(), defaults=p)
         parishes_objs[p["name"]] = obj
 
     # 4. Heritage Items with LOM Data
@@ -814,6 +820,7 @@ def create_initial_data(*, download_remote_media: bool = True):
     for item_data in items_data:
         # Create Heritage Item
         item = HeritageItem.objects.create(
+            city=_default_city(),
             title=item_data["title"],
             description=item_data["description"],
             location=item_data["location"],
@@ -1030,6 +1037,7 @@ def create_initial_data(*, download_remote_media: bool = True):
     
     if len(hist_items) >= 2:
         route1 = HeritageRoute.objects.create(
+            city=_default_city(),
             title="Paseo del Centro Histórico",
             description="Un recorrido por el corazón arquitectónico e histórico de Riobamba, visitando hitos republicanos y coloniales.",
             theme="Historia y Arquitectura",
@@ -1068,6 +1076,7 @@ def create_initial_data(*, download_remote_media: bool = True):
             
     if len(gastro_items) >= 2:
         route2 = HeritageRoute.objects.create(
+            city=_default_city(),
             title="Ruta Gastronómica de Riobamba",
             description="Saboree los sabores auténticos de la ciudad, desde el famoso Hornado hasta la tradicional Chicha.",
             theme="Gastronomía",

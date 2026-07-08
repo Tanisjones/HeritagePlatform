@@ -20,7 +20,21 @@ from .serializers import (
     HeritageItemGeoJSONSerializer, HeritageItemContributionSerializer,
     AnnotationSerializer
 )
+from apps.cities.request import get_request_city, get_request_city_or_default
 from apps.gamification.services import handle_contribution_created
+
+
+def resolve_city_for_new_item(request, serializer):
+    """City for a newly contributed heritage item: the explicit request city
+    (?city=/X-City) wins; otherwise the submitted parish implies it (legacy
+    clients without city context); otherwise the platform default city."""
+    city = get_request_city(request)
+    if city is not None:
+        return city
+    parish = serializer.validated_data.get('parish')
+    if parish is not None and parish.city_id:
+        return parish.city
+    return get_request_city_or_default(request)
 from apps.ai_services.services import get_ai_suggestions
 from apps.ai_services.models import AISuggestion
 
@@ -197,10 +211,12 @@ class HeritageItemViewSet(viewsets.ModelViewSet):
         """Pin server-controlled fields on create: the creator is the contributor
         and new items enter the moderation queue as 'pending'. status/contributor
         are read-only on the write serializer, so they can't be spoofed from the
-        request body; transitions out of 'pending' happen via moderation only."""
+        request body; transitions out of 'pending' happen via moderation only.
+        The city comes from the request context (?city=/X-City), never the body."""
         serializer.save(
             contributor=self.request.user if self.request.user.is_authenticated else None,
             status='pending',
+            city=resolve_city_for_new_item(self.request, serializer),
         )
 
     def update(self, request, *args, **kwargs):
@@ -382,7 +398,8 @@ class ContributionViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             contribution = serializer.save(
                 contributor=contributor,
-                status='pending'
+                status='pending',
+                city=resolve_city_for_new_item(self.request, serializer),
             )
 
             # 1. Create LOM General

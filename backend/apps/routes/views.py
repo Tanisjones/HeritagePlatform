@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.http import content_disposition_header
 from django_filters.rest_framework import DjangoFilterBackend
 
+from apps.cities.request import get_request_city, get_request_city_or_default
 from .exports import build_gpx, build_kml, slugify_filename, GPX_CONTENT_TYPE, KML_CONTENT_TYPE
 from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating, RouteTheme
 from .routing import haversine_m
@@ -92,8 +93,12 @@ class RouteViewSet(viewsets.ModelViewSet):
         return RouteDetailSerializer
 
     def perform_create(self, serializer):
-        """Set creator when creating a route."""
-        serializer.save(creator=self.request.user, status='draft')
+        """Set creator and request-context city when creating a route."""
+        serializer.save(
+            creator=self.request.user,
+            status='draft',
+            city=get_request_city_or_default(self.request),
+        )
 
     def retrieve(self, request, *args, **kwargs):
         """Retrieve route and increment view count."""

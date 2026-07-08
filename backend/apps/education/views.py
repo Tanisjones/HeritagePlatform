@@ -34,6 +34,7 @@ from .serializers import (
     LessonPlanSerializer, LessonPlanWriteSerializer,
     CurriculumStandardSerializer, RubricSerializer,
 )
+from apps.cities.request import get_request_city, get_request_city_or_default
 from apps.moderation.permissions import IsTeacher
 from apps.heritage.models import HeritageItem
 from apps.routes.models import HeritageRoute
@@ -275,7 +276,10 @@ class EducationalResourceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Attribute the resource to the creating user (author is read-only on the
         serializer, so it can't be spoofed via the request body)."""
-        serializer.save(author=self.request.user)
+        serializer.save(
+            author=self.request.user,
+            city=get_request_city_or_default(self.request),
+        )
 
 
 class LOMPackageViewSet(viewsets.ReadOnlyModelViewSet):
@@ -646,7 +650,10 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         return visible_lesson_plans(self.request.user, base_qs=base)
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        serializer.save(
+            author=self.request.user,
+            city=get_request_city_or_default(self.request),
+        )
 
     def _require_owner_or_curator(self, plan):
         user = self.request.user
@@ -686,6 +693,7 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
                 status=LessonPlan.STATUS_DRAFT,
                 visibility=LessonPlan.VISIBILITY_PRIVATE,
                 author=request.user,
+                city=source.city,
             )
             for activity in source.activities.all():
                 activity.pk = None

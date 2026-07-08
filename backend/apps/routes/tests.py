@@ -7,11 +7,13 @@ from datetime import timedelta
 from django.contrib.gis.geos import Point
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
 from apps.routes.models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating
+from apps.cities.testing import make_city
 
 User = get_user_model()
 
 class RouteViewSetTests(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         
         # Create users
@@ -23,18 +25,18 @@ class RouteViewSetTests(TestCase):
         # Create heritage item dependencies
         self.type = HeritageType.objects.create(name='Type', slug='type')
         self.category = HeritageCategory.objects.create(name='Category', slug='category')
-        self.parish = Parish.objects.create(name='Parish')
+        self.parish = Parish.objects.create(city=self.city, name='Parish')
         
         # Create HeritageItems for stops
-        self.item1 = HeritageItem.objects.create(
+        self.item1 = HeritageItem.objects.create(city=self.city, 
             title='Item 1', description='Desc 1', heritage_type=self.type, 
             heritage_category=self.category, parish=self.parish, location=Point(0, 0, srid=4326)
         )
-        self.item2 = HeritageItem.objects.create(
+        self.item2 = HeritageItem.objects.create(city=self.city, 
             title='Item 2', description='Desc 2', heritage_type=self.type, 
             heritage_category=self.category, parish=self.parish, location=Point(1, 1, srid=4326)
         )
-        self.item3 = HeritageItem.objects.create(
+        self.item3 = HeritageItem.objects.create(city=self.city, 
             title='Item 3', description='Desc 3', heritage_type=self.type, 
             heritage_category=self.category, parish=self.parish, location=Point(2, 2, srid=4326)
         )
@@ -66,7 +68,7 @@ class RouteViewSetTests(TestCase):
 
     def test_update_route(self):
         """Test updating route fields and modifying stops."""
-        route = HeritageRoute.objects.create(title='Old Title', creator=self.creator, status='draft')
+        route = HeritageRoute.objects.create(city=self.city, title='Old Title', creator=self.creator, status='draft')
         RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         
         self.client.force_authenticate(user=self.creator)
@@ -86,7 +88,7 @@ class RouteViewSetTests(TestCase):
 
     def test_delete_route(self):
         """Test deleting a route."""
-        route = HeritageRoute.objects.create(title='To Delete', creator=self.creator, status='draft')
+        route = HeritageRoute.objects.create(city=self.city, title='To Delete', creator=self.creator, status='draft')
         
         self.client.force_authenticate(user=self.creator)
         response = self.client.delete(f'/api/v1/routes/{route.id}/')
@@ -97,9 +99,9 @@ class RouteViewSetTests(TestCase):
     def test_list_routes_permissions(self):
         """Test valid visibility of routes."""
         # Published route (visible to all)
-        HeritageRoute.objects.create(title='Published', creator=self.user, status='published')
+        HeritageRoute.objects.create(city=self.city, title='Published', creator=self.user, status='published')
         # Draft route (visible only to creator)
-        HeritageRoute.objects.create(title='Draft', creator=self.creator, status='draft')
+        HeritageRoute.objects.create(city=self.city, title='Draft', creator=self.creator, status='draft')
         
         # Unauthenticated - see only published
         self.client.logout()
@@ -114,7 +116,7 @@ class RouteViewSetTests(TestCase):
 
     def test_increment_view_count_on_retrieve(self):
         """Test retrieving a route increments view_count."""
-        route = HeritageRoute.objects.create(title='Views', creator=self.creator, status='published', view_count=0)
+        route = HeritageRoute.objects.create(city=self.city, title='Views', creator=self.creator, status='published', view_count=0)
         response = self.client.get(f'/api/v1/routes/{route.id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         route.refresh_from_db()
@@ -123,7 +125,7 @@ class RouteViewSetTests(TestCase):
     # --- Governance Tests ---
     def test_submit_for_review(self):
         """Test submitting a draft route."""
-        route = HeritageRoute.objects.create(title='Draft', creator=self.creator, status='draft')
+        route = HeritageRoute.objects.create(city=self.city, title='Draft', creator=self.creator, status='draft')
         self.client.force_authenticate(user=self.creator)
         
         response = self.client.post(f'/api/v1/routes/{route.id}/submit_for_review/')
@@ -133,14 +135,14 @@ class RouteViewSetTests(TestCase):
 
     def test_submit_for_review_not_owner(self):
         """Test non-owner cannot submit route for review (not found due to queryset filtering)."""
-        route = HeritageRoute.objects.create(title='Draft', creator=self.creator, status='draft')
+        route = HeritageRoute.objects.create(city=self.city, title='Draft', creator=self.creator, status='draft')
         self.client.force_authenticate(user=self.other_user)
         response = self.client.post(f'/api/v1/routes/{route.id}/submit_for_review/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_approve_route(self):
         """Test curator approving a route."""
-        route = HeritageRoute.objects.create(title='Pending', creator=self.creator, status='pending')
+        route = HeritageRoute.objects.create(city=self.city, title='Pending', creator=self.creator, status='pending')
         self.client.force_authenticate(user=self.curator)
         
         response = self.client.post(f'/api/v1/routes/{route.id}/approve/')
@@ -151,14 +153,14 @@ class RouteViewSetTests(TestCase):
 
     def test_approve_requires_staff(self):
         """Test approve endpoint requires staff."""
-        route = HeritageRoute.objects.create(title='Pending', creator=self.creator, status='pending')
+        route = HeritageRoute.objects.create(city=self.city, title='Pending', creator=self.creator, status='pending')
         self.client.force_authenticate(user=self.user)
         response = self.client.post(f'/api/v1/routes/{route.id}/approve/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_reject_route(self):
         """Test curator rejecting a route."""
-        route = HeritageRoute.objects.create(title='Pending', creator=self.creator, status='pending')
+        route = HeritageRoute.objects.create(city=self.city, title='Pending', creator=self.creator, status='pending')
         self.client.force_authenticate(user=self.curator)
         
         response = self.client.post(f'/api/v1/routes/{route.id}/reject/', {'feedback': 'Bad quality'})
@@ -169,7 +171,7 @@ class RouteViewSetTests(TestCase):
 
     def test_request_changes(self):
         """Test curator requesting changes."""
-        route = HeritageRoute.objects.create(title='Pending', creator=self.creator, status='pending')
+        route = HeritageRoute.objects.create(city=self.city, title='Pending', creator=self.creator, status='pending')
         self.client.force_authenticate(user=self.curator)
         
         response = self.client.post(f'/api/v1/routes/{route.id}/request-changes/', {'feedback': 'Add more stops'})
@@ -181,7 +183,7 @@ class RouteViewSetTests(TestCase):
     # --- Progress Tests ---
     def test_start_route(self):
         """Test starting a route."""
-        route = HeritageRoute.objects.create(title='Walk', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Walk', creator=self.creator, status='published')
         self.client.force_authenticate(user=self.user)
         
         response = self.client.post(f'/api/v1/routes/{route.id}/start/')
@@ -190,7 +192,7 @@ class RouteViewSetTests(TestCase):
 
     def test_start_route_not_published(self):
         """Test starting a non-published route fails (not found for regular user)."""
-        route = HeritageRoute.objects.create(title='Draft', creator=self.creator, status='draft')
+        route = HeritageRoute.objects.create(city=self.city, title='Draft', creator=self.creator, status='draft')
         self.client.force_authenticate(user=self.user)
         
         response = self.client.post(f'/api/v1/routes/{route.id}/start/')
@@ -198,7 +200,7 @@ class RouteViewSetTests(TestCase):
 
     def test_check_in_stop(self):
         """Test checking in to a stop."""
-        route = HeritageRoute.objects.create(title='Walk', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Walk', creator=self.creator, status='published')
         stop1 = RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         UserRouteProgress.objects.create(user=self.user, route=route) # Started
         
@@ -212,7 +214,7 @@ class RouteViewSetTests(TestCase):
 
     def test_skip_stop(self):
         """Test skipping a stop."""
-        route = HeritageRoute.objects.create(title='Walk', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Walk', creator=self.creator, status='published')
         stop1 = RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         stop2 = RouteStop.objects.create(route=route, heritage_item=self.item2, order=2)
         progress = UserRouteProgress.objects.create(user=self.user, route=route)
@@ -228,7 +230,7 @@ class RouteViewSetTests(TestCase):
 
     def test_complete_route(self):
         """Test completing a route."""
-        route = HeritageRoute.objects.create(title='Walk', creator=self.creator, status='published', completion_count=0)
+        route = HeritageRoute.objects.create(city=self.city, title='Walk', creator=self.creator, status='published', completion_count=0)
         UserRouteProgress.objects.create(user=self.user, route=route)
         
         self.client.force_authenticate(user=self.user)
@@ -248,7 +250,7 @@ class RouteViewSetTests(TestCase):
 
     def test_restart_route_after_completion(self):
         """Test user can restart a route after completing it."""
-        route = HeritageRoute.objects.create(title='Restart', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Restart', creator=self.creator, status='published')
         stop1 = RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         progress = UserRouteProgress.objects.create(user=self.user, route=route, completed_at=timezone.now())
         progress.visited_stops.add(stop1)
@@ -262,8 +264,8 @@ class RouteViewSetTests(TestCase):
 
     def test_active_routes_filter(self):
         """Test filtering active routes."""
-        route1 = HeritageRoute.objects.create(title='Active', creator=self.creator, status='published')
-        route2 = HeritageRoute.objects.create(title='Completed', creator=self.creator, status='published')
+        route1 = HeritageRoute.objects.create(city=self.city, title='Active', creator=self.creator, status='published')
+        route2 = HeritageRoute.objects.create(city=self.city, title='Completed', creator=self.creator, status='published')
         
         # Active progress
         UserRouteProgress.objects.create(user=self.user, route=route1)
@@ -280,7 +282,7 @@ class RouteViewSetTests(TestCase):
     # --- Rating Tests ---
     def test_rate_route(self):
         """Test rating a route."""
-        route = HeritageRoute.objects.create(title='Rate Me', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Rate Me', creator=self.creator, status='published')
         
         self.client.force_authenticate(user=self.user)
         data = {'rating': 5, 'comment': 'Great route!'}
@@ -294,7 +296,7 @@ class RouteViewSetTests(TestCase):
 
     def test_average_rating_multiple_users(self):
         """Test average_rating is recalculated across users."""
-        route = HeritageRoute.objects.create(title='Average', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Average', creator=self.creator, status='published')
         self.client.force_authenticate(user=self.user)
         self.client.post(f'/api/v1/routes/{route.id}/rate/', {'rating': 5, 'comment': ''})
         self.client.force_authenticate(user=self.other_user)
@@ -304,7 +306,7 @@ class RouteViewSetTests(TestCase):
 
     def test_get_my_rating(self):
         """Test retrieving my own rating."""
-        route = HeritageRoute.objects.create(title='Rate Me', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Rate Me', creator=self.creator, status='published')
         RouteRating.objects.create(user=self.user, route=route, rating=4)
         
         self.client.force_authenticate(user=self.user)
@@ -315,7 +317,7 @@ class RouteViewSetTests(TestCase):
 
     def test_get_my_rating_none(self):
         """Test retrieving rating when none exists."""
-        route = HeritageRoute.objects.create(title='No Rate', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='No Rate', creator=self.creator, status='published')
         
         self.client.force_authenticate(user=self.user)
         response = self.client.get(f'/api/v1/routes/{route.id}/rate/')
@@ -326,29 +328,31 @@ class RouteF3Tests(TestCase):
     """F3: non-destructive stop diff, geometry generation, exports, nearby, archive, geo check-in."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         self.creator = User.objects.create_user(username='c', password='pw', email='c@example.com')
         self.user = User.objects.create_user(username='u', password='pw', email='u@example.com')
         self.type = HeritageType.objects.create(name='T', slug='t')
         self.category = HeritageCategory.objects.create(name='C', slug='c')
-        self.parish = Parish.objects.create(name='P')
+        self.parish = Parish.objects.create(city=self.city, name='P')
         # Riobamba-ish coordinates so distances are realistic (metres, not degrees).
-        self.item1 = HeritageItem.objects.create(
+        self.item1 = HeritageItem.objects.create(city=self.city, 
             title='Catedral', description='d', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location=Point(-78.6483, -1.6742, srid=4326))
-        self.item2 = HeritageItem.objects.create(
+        self.item2 = HeritageItem.objects.create(city=self.city, 
             title='Parque', description='d', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location=Point(-78.6470, -1.6738, srid=4326))
-        self.item3 = HeritageItem.objects.create(
+        self.item3 = HeritageItem.objects.create(city=self.city, 
             title='Museo', description='d', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location=Point(-78.6455, -1.6725, srid=4326))
 
     def test_update_preserves_progress_on_surviving_stops(self):
         """The crux: editing stops must NOT orphan an in-progress user's FKs."""
-        route = HeritageRoute.objects.create(title='R', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='R', creator=self.creator, status='published')
         s1 = RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         s2 = RouteStop.objects.create(route=route, heritage_item=self.item2, order=2)
         s3 = RouteStop.objects.create(route=route, heritage_item=self.item3, order=3)
@@ -450,7 +454,7 @@ class RouteF3Tests(TestCase):
         self.assertEqual(route.distance, 9.9)
 
     def test_export_gpx(self):
-        route = HeritageRoute.objects.create(title='Ruta GPX', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Ruta GPX', creator=self.creator, status='published')
         RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         RouteStop.objects.create(route=route, heritage_item=self.item2, order=2)
         resp = self.client.get(f'/api/v1/routes/{route.id}/export-gpx/')
@@ -462,7 +466,7 @@ class RouteF3Tests(TestCase):
         self.assertTrue(root.tag.endswith('gpx'))
 
     def test_export_kml(self):
-        route = HeritageRoute.objects.create(title='Ruta KML', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Ruta KML', creator=self.creator, status='published')
         RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         RouteStop.objects.create(route=route, heritage_item=self.item2, order=2)
         resp = self.client.get(f'/api/v1/routes/{route.id}/export-kml/')
@@ -472,12 +476,12 @@ class RouteF3Tests(TestCase):
         ET.fromstring(resp.content)  # parses => well-formed
 
     def test_nearby_returns_route_with_close_stop(self):
-        route = HeritageRoute.objects.create(title='Near', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Near', creator=self.creator, status='published')
         RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         RouteStop.objects.create(route=route, heritage_item=self.item2, order=2)
         # A far-away route should be excluded.
-        far = HeritageRoute.objects.create(title='Far', creator=self.creator, status='published')
-        far_item = HeritageItem.objects.create(
+        far = HeritageRoute.objects.create(city=self.city, title='Far', creator=self.creator, status='published')
+        far_item = HeritageItem.objects.create(city=self.city, 
             title='Far item', description='d', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish, location=Point(10, 10, srid=4326))
         RouteStop.objects.create(route=far, heritage_item=far_item, order=1)
@@ -489,7 +493,7 @@ class RouteF3Tests(TestCase):
         self.assertNotIn('Far', titles)
 
     def test_archive_by_creator(self):
-        route = HeritageRoute.objects.create(title='Arch', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Arch', creator=self.creator, status='published')
         self.client.force_authenticate(user=self.creator)
         resp = self.client.post(f'/api/v1/routes/{route.id}/archive/')
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -497,13 +501,13 @@ class RouteF3Tests(TestCase):
         self.assertEqual(route.status, 'archived')
 
     def test_archive_rejected_for_draft(self):
-        route = HeritageRoute.objects.create(title='Draft', creator=self.creator, status='draft')
+        route = HeritageRoute.objects.create(city=self.city, title='Draft', creator=self.creator, status='draft')
         self.client.force_authenticate(user=self.creator)
         resp = self.client.post(f'/api/v1/routes/{route.id}/archive/')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_check_in_far_coords_warns_but_succeeds(self):
-        route = HeritageRoute.objects.create(title='Geo', creator=self.creator, status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='Geo', creator=self.creator, status='published')
         stop = RouteStop.objects.create(route=route, heritage_item=self.item1, order=1)
         UserRouteProgress.objects.create(user=self.user, route=route)
         self.client.force_authenticate(user=self.user)
@@ -521,10 +525,11 @@ class RouteF3Tests(TestCase):
 
 class RouteProgressViewSetTests(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(username='user', password='password', email='user@example.com')
         self.other = User.objects.create_user(username='other', password='password', email='other@example.com')
-        self.route = HeritageRoute.objects.create(title='Route', status='published')
+        self.route = HeritageRoute.objects.create(city=self.city, title='Route', status='published')
         
     def test_list_my_progress(self):
         """Test user can only see their own progress."""
@@ -543,6 +548,8 @@ class RouteThemeTaxonomyTest(TestCase):
     """H.2 — curated RouteTheme vocabulary + FK on routes."""
 
     def setUp(self):
+
+        self.city = make_city()
         from rest_framework.test import APIClient
         self.client = APIClient()
 
@@ -584,6 +591,8 @@ class RouteThemeDenormalizeTest(TestCase):
     """H.2 code-review regression: theme string stays in sync when category changes."""
 
     def setUp(self):
+
+        self.city = make_city()
         from rest_framework.test import APIClient
         from django.contrib.auth import get_user_model
         User = get_user_model()

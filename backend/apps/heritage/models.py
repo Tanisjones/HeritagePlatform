@@ -76,8 +76,16 @@ class Parish(models.Model):
     Administrative divisions (parishes) within the canton.
     """
     name = models.CharField(_('name'), max_length=200)
-    canton = models.CharField(_('canton'), max_length=200, default='Riobamba')
-    province = models.CharField(_('province'), max_length=200, default='Chimborazo')
+    city = models.ForeignKey(
+        'cities.City',
+        on_delete=models.PROTECT,
+        related_name='parishes',
+        verbose_name=_('city'),
+    )
+    # Optional descriptive administrative context; the authoritative geographic
+    # anchor is the `city` FK.
+    canton = models.CharField(_('canton'), max_length=200, blank=True)
+    province = models.CharField(_('province'), max_length=200, blank=True)
     boundary = models.MultiPolygonField(_('boundary'), null=True, blank=True)
 
     # Additional metadata
@@ -87,11 +95,11 @@ class Parish(models.Model):
     class Meta:
         verbose_name = _('parish')
         verbose_name_plural = _('parishes')
-        ordering = ['canton', 'name']
-        unique_together = [['name', 'canton']]
+        ordering = ['city', 'name']
+        unique_together = [['name', 'city']]
 
     def __str__(self):
-        return f"{self.name}, {self.canton}"
+        return f"{self.name}, {self.canton}" if self.canton else self.name
 
 
 class MediaFile(models.Model):
@@ -229,6 +237,12 @@ class HeritageItem(models.Model):
     )
 
     # Geospatial data
+    city = models.ForeignKey(
+        'cities.City',
+        on_delete=models.PROTECT,
+        related_name='heritage_items',
+        verbose_name=_('city'),
+    )
     location = models.PointField(_('location'), help_text=_('Geographic coordinates'))
     address = models.CharField(_('address'), max_length=500, blank=True)
     parish = models.ForeignKey(
@@ -355,6 +369,7 @@ class HeritageItem(models.Model):
             models.Index(fields=['status', '-submission_date']),
             models.Index(fields=['curator', 'status']),
             models.Index(fields=['priority', '-submission_date']),
+            models.Index(fields=['city', 'status']),
         ]
 
     def __str__(self):

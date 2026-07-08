@@ -24,6 +24,7 @@ from apps.education.scorm import (
 )
 from apps.education.qti import build_qti_21_zip
 from apps.routes.models import HeritageRoute, RouteStop
+from apps.cities.testing import make_city
 
 User = get_user_model()
 
@@ -31,10 +32,11 @@ _LOM_NS = 'http://ltsc.ieee.org/xsd/LOM'
 
 class EducationLOMTest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Parish')
-        self.item = HeritageItem.objects.create(
+        self.parish = Parish.objects.create(city=self.city, name='Parish')
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Education Item', 
             description='Desc', 
             heritage_type=self.type, 
@@ -96,7 +98,7 @@ class EducationLOMTest(TestCase):
 
     def test_lom_relation_creation_target_item(self):
         lom = LOMGeneral.objects.create(heritage_item=self.item, title='LO')
-        other = HeritageItem.objects.create(
+        other = HeritageItem.objects.create(city=self.city, 
             title='Other Item',
             description='Other Desc',
             heritage_type=self.type,
@@ -115,14 +117,15 @@ class EducationLOMTest(TestCase):
 
 class EducationLOMAPITest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(email='lom_api_user@example.com', password='password')
 
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
 
-        self.item = HeritageItem.objects.create(
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Item With LOM',
             description='Desc',
             heritage_type=self.type,
@@ -185,14 +188,15 @@ class EducationLOMAPITest(TestCase):
 
 class EducationSCORMExportAPITest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(email='scorm_user@example.com', password='password')
 
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
 
-        self.item = HeritageItem.objects.create(
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='SCORM Item',
             description='SCORM export test',
             heritage_type=self.type,
@@ -598,13 +602,15 @@ class EducationAssessmentQuestionNestedWriteTest(TestCase):
     """Nested write of questions through LOMGeneralWriteSerializer (replace-all)."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         # LOM/question authoring now requires teacher/curator/staff (answer-key gate).
         self.user = User.objects.create_user(email='q_user@example.com', password='password', is_staff=True)
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
-        self.item = HeritageItem.objects.create(
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Quiz Item', description='Desc',
             heritage_type=self.type, heritage_category=self.category,
             parish=self.parish, location='POINT(0 0)', status='published',
@@ -679,18 +685,20 @@ class EducationRoutePackageAPITest(TestCase):
     """API test: route-package export returns a collection zip for an auth user."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(email='route_pkg@example.com', password='password')
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
 
-        self.item_a = HeritageItem.objects.create(
+        self.item_a = HeritageItem.objects.create(city=self.city, 
             title='Stop A', description='A', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location='POINT(0 0)', status='published',
         )
-        self.item_b = HeritageItem.objects.create(
+        self.item_b = HeritageItem.objects.create(city=self.city, 
             title='Stop B', description='B', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location='POINT(0 0)', status='published',
@@ -698,7 +706,7 @@ class EducationRoutePackageAPITest(TestCase):
         LOMGeneral.objects.create(heritage_item=self.item_a, title='LO A', language='es', description='da')
         LOMGeneral.objects.create(heritage_item=self.item_b, title='LO B', language='es', description='db')
 
-        self.route = HeritageRoute.objects.create(
+        self.route = HeritageRoute.objects.create(city=self.city, 
             title='Ruta Colonial', description='Recorrido por el centro', creator=self.user,
             status='published',
         )
@@ -741,17 +749,19 @@ class EducationCollectionPackageAPITest(TestCase):
     """API test: query-param collection export for arbitrary item ids."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(email='coll_pkg@example.com', password='password')
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
-        self.item_a = HeritageItem.objects.create(
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
+        self.item_a = HeritageItem.objects.create(city=self.city, 
             title='Item A', description='A', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location='POINT(0 0)', status='published',
         )
-        self.item_b = HeritageItem.objects.create(
+        self.item_b = HeritageItem.objects.create(city=self.city, 
             title='Item B', description='B', heritage_type=self.type,
             heritage_category=self.category, parish=self.parish,
             location='POINT(0 0)', status='published',
@@ -787,13 +797,15 @@ class EducationReviewFixesTest(TestCase):
     """Regression tests for the F2 code-review fixes."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         # LOM/question authoring now requires teacher/curator/staff (answer-key gate).
         self.user = User.objects.create_user(email='rev_user@example.com', password='password', is_staff=True)
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
-        self.item = HeritageItem.objects.create(
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Rev Item', description='Desc',
             heritage_type=self.type, heritage_category=self.category,
             parish=self.parish, location='POINT(0 0)', status='published',
@@ -957,7 +969,7 @@ class EducationReviewFixesTest(TestCase):
         self.assertEqual(survivor.taxon_entry, 'Arquitectura colonial')
 
     def test_route_package_rejects_cmi5(self):
-        route = HeritageRoute.objects.create(title='R', description='d', status='published')
+        route = HeritageRoute.objects.create(city=self.city, title='R', description='d', status='published')
         RouteStop.objects.create(route=route, heritage_item=self.item, order=1)
         self.client.force_authenticate(user=self.user)
         resp = self.client.get(f'/api/v1/education/route-packages/{route.id}/download/?variant=cmi5')
@@ -969,11 +981,13 @@ class EducationContributionEducationalTest(TestCase):
     values surface as a 400 instead of being silently dropped."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(email='contrib@example.com', password='password')
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+        self.parish = Parish.objects.create(city=self.city, name='Test Parish', canton='Riobamba')
 
     def _base_payload(self):
         return {
@@ -1016,6 +1030,8 @@ class EducationalResourceContentSanitizeTest(TestCase):
     create resources or spoof the author) — see the authz assertions below."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         # IsTeacher allows staff; use staff as a stand-in teacher for the slice.
         self.teacher = User.objects.create_user(
@@ -1088,6 +1104,8 @@ class LessonPlanAPITest(TestCase):
     reconciliation, and visibility-filtered reads."""
 
     def setUp(self):
+
+        self.city = make_city()
         from apps.education.models import LessonPlan
         self.LessonPlan = LessonPlan
         self.client = APIClient()
@@ -1152,11 +1170,11 @@ class LessonPlanAPITest(TestCase):
         self.assertEqual(kept.title, 'Introducción (editada)')
 
     def test_visibility_hides_unpublished_from_anon(self):
-        plan = self.LessonPlan.objects.create(
+        plan = self.LessonPlan.objects.create(city=self.city, 
             title='Borrador', author=self.teacher,
             status=self.LessonPlan.STATUS_DRAFT, visibility=self.LessonPlan.VISIBILITY_PRIVATE,
         )
-        published = self.LessonPlan.objects.create(
+        published = self.LessonPlan.objects.create(city=self.city, 
             title='Publicado', author=self.teacher,
             status=self.LessonPlan.STATUS_PUBLISHED, visibility=self.LessonPlan.VISIBILITY_PUBLIC,
         )
@@ -1181,6 +1199,8 @@ class LessonPlanExportStateTest(TestCase):
     """P.2b — LessonPlan SCORM export + state-machine actions."""
 
     def setUp(self):
+
+        self.city = make_city()
         import io, zipfile  # noqa: F401
         from apps.education.models import LessonPlan, LessonActivity, LOMGeneral
         from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
@@ -1191,14 +1211,14 @@ class LessonPlanExportStateTest(TestCase):
 
         htype = HeritageType.objects.create(name='Tangible', slug='tangible-pe')
         hcat = HeritageCategory.objects.create(name='Arch', slug='arch-pe')
-        parish = Parish.objects.create(name='Parish PE', canton='Riobamba')
-        self.item = HeritageItem.objects.create(
+        parish = Parish.objects.create(city=self.city, name='Parish PE', canton='Riobamba')
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Catedral', description='d', heritage_type=htype, heritage_category=hcat,
             parish=parish, location='POINT(0 0)', status='published',
         )
         LOMGeneral.objects.create(heritage_item=self.item, title='LO Cat', language='es', description='x')
 
-        self.plan = LessonPlan.objects.create(
+        self.plan = LessonPlan.objects.create(city=self.city, 
             title='Plan Colonial', summary='s', author=self.teacher,
             status=LessonPlan.STATUS_DRAFT, visibility=LessonPlan.VISIBILITY_PRIVATE,
         )
@@ -1239,7 +1259,7 @@ class LessonPlanExportStateTest(TestCase):
 
     def test_export_empty_plan_400(self):
         from apps.education.models import LessonPlan
-        empty = LessonPlan.objects.create(
+        empty = LessonPlan.objects.create(city=self.city, 
             title='Vacío', author=self.teacher,
             status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC,
         )
@@ -1266,7 +1286,7 @@ class LessonPlanExportStateTest(TestCase):
         role, _ = UserRole.objects.get_or_create(name='Teacher', slug='teacher')
         plain_teacher = User.objects.create_user(email='plain_t@example.com', password='pw')
         UserProfile.objects.create(user=plain_teacher, role=role)
-        plan = self.LessonPlan.objects.create(
+        plan = self.LessonPlan.objects.create(city=self.city, 
             title='P2', author=plain_teacher, status=self.LessonPlan.STATUS_REVIEW,
         )
         from apps.education.models import LessonActivity
@@ -1277,7 +1297,7 @@ class LessonPlanExportStateTest(TestCase):
 
     def test_curator_publish_requires_activities(self):
         from apps.education.models import LessonPlan
-        empty = LessonPlan.objects.create(title='NoAct', author=self.teacher, status=LessonPlan.STATUS_REVIEW)
+        empty = LessonPlan.objects.create(city=self.city, title='NoAct', author=self.teacher, status=LessonPlan.STATUS_REVIEW)
         self.client.force_authenticate(user=self.teacher)  # staff == curator-equivalent
         resp = self.client.post(f'/api/v1/lesson-plans/{empty.id}/publish/')
         self.assertEqual(resp.status_code, 400, resp.content)
@@ -1312,7 +1332,7 @@ class LessonPlanExportStateTest(TestCase):
         role, _ = UserRole.objects.get_or_create(name='Teacher', slug='teacher')
         plain_teacher = User.objects.create_user(email='pt_pub@example.com', password='pw')
         UserProfile.objects.create(user=plain_teacher, role=role)
-        plan = self.LessonPlan.objects.create(title='mine', author=plain_teacher, status='draft')
+        plan = self.LessonPlan.objects.create(city=self.city, title='mine', author=plain_teacher, status='draft')
         self.client.force_authenticate(user=plain_teacher)
         resp = self.client.patch(f'/api/v1/lesson-plans/{plan.id}/', {'status': 'published'}, format='json')
         self.assertEqual(resp.status_code, 200, resp.content)
@@ -1332,13 +1352,15 @@ class LessonPlanP6Test(TestCase):
     """P.6 — PDF export, curriculum standards catalog, rubric CRUD."""
 
     def setUp(self):
+
+        self.city = make_city()
         from apps.education.models import LessonPlan, LessonActivity, CurriculumStandard
         self.LessonPlan = LessonPlan
         self.CurriculumStandard = CurriculumStandard
         self.client = APIClient()
         self.teacher = User.objects.create_user(email='p6_t@example.com', password='pw', is_staff=True)
         self.tourist = User.objects.create_user(email='p6_tour@example.com', password='pw')
-        self.plan = LessonPlan.objects.create(
+        self.plan = LessonPlan.objects.create(city=self.city, 
             title='Plan P6', summary='s', author=self.teacher,
             status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC,
             objectives=['O1'],
@@ -1412,6 +1434,8 @@ class RubricSecurityTest(TestCase):
     """P.6 code-review regressions: rubric ownership + visibility scoping."""
 
     def setUp(self):
+
+        self.city = make_city()
         from apps.education.models import LessonPlan, Rubric
         from apps.users.models import UserRole, UserProfile
         self.LessonPlan = LessonPlan
@@ -1423,7 +1447,7 @@ class RubricSecurityTest(TestCase):
         self.teacher_b = User.objects.create_user(email='rb@example.com', password='pw')
         UserProfile.objects.create(user=self.teacher_b, role=role)
         # A's private draft plan.
-        self.plan_a = LessonPlan.objects.create(
+        self.plan_a = LessonPlan.objects.create(city=self.city, 
             title='A private', author=self.teacher_a,
             status=LessonPlan.STATUS_DRAFT, visibility=LessonPlan.VISIBILITY_PRIVATE,
         )
@@ -1478,11 +1502,13 @@ class LessonPlanReviewFix2Test(TestCase):
     an unlisted plan public; PDF filename uses the shared slug helper."""
 
     def setUp(self):
+
+        self.city = make_city()
         from apps.education.models import LessonPlan, LessonActivity, Rubric, RubricCriterion, CurriculumStandard
         self.LessonPlan = LessonPlan
         self.client = APIClient()
         self.teacher = User.objects.create_user(email='rf2@example.com', password='pw', is_staff=True)
-        self.plan = LessonPlan.objects.create(
+        self.plan = LessonPlan.objects.create(city=self.city, 
             title='Fuente', author=self.teacher, subject='CS', objectives=['O'],
         )
         LessonActivity.objects.create(lesson=self.plan, order=0, title='A', activity_type='hook')

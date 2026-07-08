@@ -7,11 +7,13 @@ from unittest.mock import patch
 from apps.users.models import UserRole
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory
 from apps.moderation.models import ContributionVersion, QualityScore, ContributionFlag, ReviewChecklist, ReviewChecklistItem
+from apps.cities.testing import make_city
 
 User = get_user_model()
 
 class ModerationTests(APITestCase):
     def setUp(self):
+        self.city = make_city()
         # Create Roles
         self.curator_role, _ = UserRole.objects.get_or_create(name='Curator', slug='curator')
         self.contributor_role, _ = UserRole.objects.get_or_create(name='Contributor', slug='contributor')
@@ -28,7 +30,7 @@ class ModerationTests(APITestCase):
         self.h_type = HeritageType.objects.create(name='Type 1', slug='type-1')
         self.h_cat = HeritageCategory.objects.create(name='Cat 1', slug='cat-1')
         
-        self.item = HeritageItem.objects.create(
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Test Item',
             description='Test Description',
             location=Point(0, 0),
@@ -84,7 +86,7 @@ class ModerationTests(APITestCase):
         self.assertIn(str(self.item.id), ids)
 
         # Create approved item
-        approved_item = HeritageItem.objects.create(
+        approved_item = HeritageItem.objects.create(city=self.city, 
             title='Approved Item',
             heritage_type=self.h_type,
             heritage_category=self.h_cat,

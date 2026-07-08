@@ -33,6 +33,12 @@ from pathlib import Path
 import django
 
 
+
+def _default_city():
+    """Minimal multi-city shim: legacy seeders target Riobamba."""
+    from apps.cities.models import City
+    return City.objects.filter(slug='riobamba').first() or City.get_default()
+
 def _setup_django() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     backend_dir = repo_root / "backend"
@@ -161,9 +167,10 @@ def main() -> int:
             slug="architecture",
             defaults={"name": "Architecture"},
         )
-        parish, _ = Parish.objects.get_or_create(name="Seed Parish", canton="Riobamba")
+        parish, _ = Parish.objects.get_or_create(name="Seed Parish", city=_default_city(), defaults={"canton": "Riobamba"})
 
         item = HeritageItem.objects.create(
+            city=_default_city(),
             title="Seeded Item (Test Resources)",
             description="Automatically generated item for resource playback tests.",
             heritage_type=ht,

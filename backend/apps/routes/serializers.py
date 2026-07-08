@@ -8,6 +8,7 @@ from rest_framework_gis.serializers import GeometryField
 
 from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating, RouteTheme
 from .routing import build_path_for_stops
+from apps.cities.serializers import CityRefSerializer
 from apps.heritage.serializers import HeritageItemListSerializer
 
 
@@ -70,6 +71,7 @@ class RouteListSerializer(serializers.ModelSerializer):
     stop_count = serializers.SerializerMethodField()
     is_active = serializers.SerializerMethodField()
     theme_category_detail = RouteThemeSerializer(source='theme_category', read_only=True)
+    city = CityRefSerializer(read_only=True)
 
     class Meta:
         model = HeritageRoute
@@ -77,7 +79,7 @@ class RouteListSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'theme', 'theme_category', 'theme_category_detail',
             'difficulty',
             'estimated_duration', 'distance', 'is_official', 'status',
-            'creator', 'stop_count', 'view_count', 'completion_count',
+            'creator', 'city', 'stop_count', 'view_count', 'completion_count',
             'average_rating', 'wheelchair_accessible', 'best_season',
             'created_at', 'is_active'
         ]
@@ -141,6 +143,7 @@ class RouteDetailSerializer(serializers.ModelSerializer):
     user_progress = serializers.SerializerMethodField()
     user_rating = serializers.SerializerMethodField()
     theme_category_detail = RouteThemeSerializer(source='theme_category', read_only=True)
+    city = CityRefSerializer(read_only=True)
 
     class Meta:
         model = HeritageRoute
@@ -173,6 +176,8 @@ class RouteCreateSerializer(serializers.ModelSerializer):
     # Accept a client-supplied path as GeoJSON. When omitted, it is auto-generated
     # from the ordered stops on save (see _apply_generated_geometry).
     path = GeometryField(required=False, allow_null=True)
+    # Server-assigned from the request city context (see perform_create).
+    city = CityRefSerializer(read_only=True)
 
     class Meta:
         model = HeritageRoute
@@ -181,7 +186,7 @@ class RouteCreateSerializer(serializers.ModelSerializer):
             'estimated_duration', 'distance', 'path',
             'wheelchair_accessible', 'public_transit_accessible',
             'accessibility_notes', 'best_season', 'estimated_cost',
-            'cost_notes', 'available_languages', 'stops'
+            'cost_notes', 'available_languages', 'stops', 'city'
         ]
 
     @staticmethod

@@ -70,6 +70,16 @@ class AIUsageRecord(models.Model):
         related_name='ai_usage_records',
         verbose_name=_('user'),
     )
+    # Optional city context of the request (dashboard filtering). Nullable
+    # forever: historical rows and city-less operations (e.g. translate).
+    city = models.ForeignKey(
+        'cities.City',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name=_('city'),
+    )
     operation = models.CharField(_('operation'), max_length=60)
     provider = models.CharField(_('provider'), max_length=40)
     model = models.CharField(_('model'), max_length=120)
@@ -92,6 +102,7 @@ class AIUsageRecord(models.Model):
             models.Index(fields=['user', 'created_at']),
             models.Index(fields=['operation']),
             models.Index(fields=['provider', 'model']),
+            models.Index(fields=['city', 'created_at']),
         ]
 
     def __str__(self):

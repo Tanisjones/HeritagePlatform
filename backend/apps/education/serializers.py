@@ -9,6 +9,7 @@ from .models import (
     CurriculumStandard, Rubric, RubricCriterion,
 )
 from .sanitize import sanitize_html
+from apps.cities.serializers import CityRefSerializer
 
 
 def _model_has_field(model, field_name):
@@ -273,6 +274,8 @@ class ResourceCategorySerializer(serializers.ModelSerializer):
 class EducationalResourceSerializer(serializers.ModelSerializer):
     resource_type = ResourceTypeSerializer(read_only=True)
     category = ResourceCategorySerializer(read_only=True)
+    # Server-assigned from the request city context (see perform_create).
+    city = CityRefSerializer(read_only=True)
 
     class Meta:
         model = EducationalResource
@@ -322,7 +325,7 @@ class CurriculumStandardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CurriculumStandard
-        fields = ['id', 'code', 'subject', 'grade_level', 'description']
+        fields = ['id', 'code', 'country', 'framework', 'subject', 'grade_level', 'description']
 
 
 class RubricCriterionSerializer(serializers.ModelSerializer):
@@ -381,6 +384,7 @@ class LessonPlanSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     rubrics = RubricSerializer(many=True, read_only=True)
     standards_detail = CurriculumStandardSerializer(source='standards', many=True, read_only=True)
+    city = CityRefSerializer(read_only=True)
 
     class Meta:
         model = LessonPlan
@@ -389,7 +393,7 @@ class LessonPlanSerializer(serializers.ModelSerializer):
             'audience', 'curriculum_alignment', 'pedagogical_approach',
             'estimated_total_minutes', 'status', 'visibility', 'related_route',
             'standards', 'standards_detail', 'rubrics',
-            'author', 'author_name', 'activities', 'created_at', 'updated_at',
+            'author', 'author_name', 'city', 'activities', 'created_at', 'updated_at',
         ]
         read_only_fields = ['author', 'created_at', 'updated_at']
 
@@ -406,6 +410,8 @@ class LessonPlanWriteSerializer(serializers.ModelSerializer):
     single PATCH, matching activities by id (preserving UUIDs on reorder)."""
 
     activities = LessonActivitySerializer(many=True, required=False)
+    # Server-assigned from the request city context (see perform_create).
+    city = CityRefSerializer(read_only=True)
 
     class Meta:
         model = LessonPlan
@@ -413,7 +419,7 @@ class LessonPlanWriteSerializer(serializers.ModelSerializer):
             'id', 'title', 'summary', 'objectives', 'subject', 'grade_level',
             'audience', 'curriculum_alignment', 'pedagogical_approach',
             'estimated_total_minutes', 'status', 'visibility', 'related_route',
-            'standards', 'activities',
+            'standards', 'activities', 'city',
         ]
         # `status` is a state machine — it must ONLY change via the submit/publish/
         # archive actions (which enforce the curator gate + required activities).

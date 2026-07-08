@@ -805,6 +805,12 @@ class EducationalResource(models.Model):
         verbose_name=_('author')
     )
     content = models.TextField(_('content'))
+    city = models.ForeignKey(
+        'cities.City',
+        on_delete=models.PROTECT,
+        related_name='educational_resources',
+        verbose_name=_('city'),
+    )
     related_heritage_items = models.ManyToManyField(
         'heritage.HeritageItem',
         blank=True,
@@ -905,6 +911,12 @@ class LessonPlan(models.Model):
         related_name='lesson_plans',
         verbose_name=_('related route'),
     )
+    city = models.ForeignKey(
+        'cities.City',
+        on_delete=models.PROTECT,
+        related_name='lesson_plans',
+        verbose_name=_('city'),
+    )
     # P.6: curated curriculum standards this plan aligns to (beyond the free-text
     # curriculum_alignment). Optional.
     standards = models.ManyToManyField(
@@ -918,6 +930,9 @@ class LessonPlan(models.Model):
         verbose_name = _('lesson plan')
         verbose_name_plural = _('lesson plans')
         ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['city', 'status']),
+        ]
 
     def __str__(self):
         return self.title
@@ -988,9 +1003,25 @@ class CurriculumStandard(models.Model):
     governed catalog instead of only free text. `code` is the official identifier
     (e.g. "CS.4.1.1"); `subject`/`grade_level` scope it; `description` is the
     competency text (translatable, es-first).
+
+    Standards are scoped per (country, framework) so several national curricula
+    can coexist on the multi-city platform; codes only need to be unique within
+    their framework.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.CharField(_('code'), max_length=40, unique=True)
+    code = models.CharField(_('code'), max_length=40)
+    country = models.CharField(
+        _('country code'),
+        max_length=2,
+        default='EC',
+        help_text=_('ISO 3166-1 alpha-2 country the framework belongs to'),
+    )
+    framework = models.CharField(
+        _('framework'),
+        max_length=80,
+        default='MinEduc',
+        help_text=_('Curriculum framework/authority, e.g. MinEduc'),
+    )
     subject = models.CharField(_('subject'), max_length=120, blank=True)
     grade_level = models.CharField(_('grade level'), max_length=60, blank=True)
     description = models.TextField(_('description'))
@@ -1000,6 +1031,12 @@ class CurriculumStandard(models.Model):
         verbose_name = _('curriculum standard')
         verbose_name_plural = _('curriculum standards')
         ordering = ['subject', 'grade_level', 'code']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['country', 'framework', 'code'],
+                name='unique_standard_per_framework',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.code} — {self.subject}"

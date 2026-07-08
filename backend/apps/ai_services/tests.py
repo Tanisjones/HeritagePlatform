@@ -7,15 +7,17 @@ from django.contrib.auth import get_user_model
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
 from apps.ai_services.models import AISuggestion, AIUsageRecord
 from rest_framework.test import APIClient
+from apps.cities.testing import make_city
 
 User = get_user_model()
 
 class AISuggestionModelTest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Parish')
-        self.item = HeritageItem.objects.create(
+        self.parish = Parish.objects.create(city=self.city, name='Parish')
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Item', description='Desc', 
             heritage_type=self.type, heritage_category=self.category, 
             parish=self.parish, location='POINT(0 0)'
@@ -45,14 +47,15 @@ class _MockHTTPXResponse:
 
 class AISuggestionApproveTest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.staff = User.objects.create_user(
             username="mod", email="mod@example.com", password="pw", is_staff=True
         )
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
-        self.parish = Parish.objects.create(name='Parish')
-        self.item = HeritageItem.objects.create(
+        self.parish = Parish.objects.create(city=self.city, name='Parish')
+        self.item = HeritageItem.objects.create(city=self.city, 
             title='Item', description='Desc',
             heritage_type=self.type, heritage_category=self.category,
             parish=self.parish, location='POINT(0 0)',
@@ -144,6 +147,7 @@ class AISuggestionApproveTest(TestCase):
 
 class AIAssistEndpointsTest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(username="u1", email="u1@example.com", password="pw")
         self.staff = User.objects.create_user(
@@ -475,6 +479,7 @@ ai:
 
 class GeminiProviderTest(TestCase):
     def setUp(self):
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(username="g1", email="g1@example.com", password="pw")
         # Write a temp ai.yaml configured for the Gemini provider.
@@ -553,6 +558,8 @@ class AIUsageRecordingTest(TestCase):
     exactly one AIUsageRecord, with tokens/cost when the provider reports them."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         self.user = User.objects.create_user(username="ru", email="ru@example.com", password="pw")
 
@@ -633,6 +640,8 @@ class AIUsageAggregationTest(TestCase):
     """
 
     def setUp(self):
+
+        self.city = make_city()
         from decimal import Decimal
         from datetime import timedelta
         from django.utils import timezone
@@ -820,6 +829,8 @@ class AIBudgetEnforcementTest(TestCase):
     """G.6 — enforce_budget / budget_status over month-to-date AIUsageRecord."""
 
     def setUp(self):
+
+        self.city = make_city()
         from django.core.cache import cache
         cache.clear()
         self.addCleanup(cache.clear)
@@ -903,6 +914,8 @@ class AIBudgetEndpointTest(TestCase):
     """G.6 — a budget-exceeded call returns 429 and never reaches the provider."""
 
     def setUp(self):
+
+        self.city = make_city()
         from django.core.cache import cache
         cache.clear()
         self.addCleanup(cache.clear)
@@ -937,6 +950,8 @@ class LessonPlanDraftAssistTest(TestCase):
     """P.3 — /ai/assist/lesson-plan-draft/ (teacher-gated; response not persisted)."""
 
     def setUp(self):
+
+        self.city = make_city()
         self.client = APIClient()
         self.teacher = User.objects.create_user(
             username="lpTeacher", email="lpt@example.com", password="pw", is_staff=True

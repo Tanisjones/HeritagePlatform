@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.gis.geos import Point
+from apps.cities.models import City
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
 from apps.users.models import User
 from django.utils.text import slugify
@@ -73,19 +74,24 @@ class Command(BaseCommand):
             defaults={'name': 'Traditional Knowledge', 'order': 9}
         )
 
+        city = City.objects.filter(slug='riobamba').first() or City.get_default()
+
         # Parish (Defaulting to Maldonado for Riobamba center)
         parish_maldonado, _ = Parish.objects.get_or_create(
             name='Maldonado',
+            city=city,
             canton='Riobamba',
             defaults={'province': 'Chimborazo'}
         )
         parish_veloz, _ = Parish.objects.get_or_create(
             name='Veloz',
+            city=city,
             canton='Riobamba',
             defaults={'province': 'Chimborazo'}
         )
         parish_lizarzaburu, _ = Parish.objects.get_or_create(
             name='Lizarzaburu',
+            city=city,
             canton='Riobamba',
             defaults={'province': 'Chimborazo'}
         )
@@ -300,6 +306,7 @@ class Command(BaseCommand):
             item, created = HeritageItem.objects.get_or_create(
                 title=item_data['title'],
                 defaults={
+                    'city': city,
                     'description': item_data['description'],
                     'location': item_data['location'],
                     'parish': item_data['parish'],

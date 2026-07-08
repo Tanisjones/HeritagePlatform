@@ -21,6 +21,7 @@ from apps.education.models import (
     ResourceType,
 )
 from apps.heritage.models import Annotation, HeritageCategory, HeritageItem, HeritageType, Parish
+from apps.cities.models import City
 from apps.routes.models import HeritageRoute, RouteStop
 from apps.users.models import UserProfile, UserRole
 
@@ -98,17 +99,21 @@ class Command(BaseCommand):
         }
 
     def _create_parishes(self):
+        city = City.objects.filter(slug='riobamba').first() or City.get_default()
         central, _ = Parish.objects.get_or_create(
             name="Riobamba Centro",
+            city=city,
             defaults={"canton": "Riobamba", "province": "Chimborazo"},
         )
         san_luis, _ = Parish.objects.get_or_create(
             name="San Luis",
+            city=city,
             defaults={"canton": "Riobamba", "province": "Chimborazo"},
         )
         return {"central": central, "san_luis": san_luis}
 
     def _create_heritage_items(self, users, taxonomy, parishes):
+        city = City.objects.filter(slug='riobamba').first() or City.get_default()
         contributor = users["contributor"]
         items = []
         seed_data = [
@@ -151,6 +156,7 @@ class Command(BaseCommand):
             item, _ = HeritageItem.objects.get_or_create(
                 title=data["title"],
                 defaults={
+                    "city": city,
                     "description": data["description"],
                     "location": Point(data["coords"][0], data["coords"][1], srid=4326),
                     "address": data["address"],
@@ -271,9 +277,11 @@ class Command(BaseCommand):
             return
 
         creator = users["educator"]
+        city = City.objects.filter(slug='riobamba').first() or City.get_default()
         route, _ = HeritageRoute.objects.get_or_create(
             title="Recorrido Centro Histórico",
             defaults={
+                "city": city,
                 "description": "Ruta corta por puntos emblemáticos.",
                 "theme": "Historia y cultura",
                 "difficulty": "easy",
@@ -314,6 +322,7 @@ class Command(BaseCommand):
             resource, _ = EducationalResource.objects.get_or_create(
                 title=f"Secuencia de aprendizaje {idx} - {item.title}",
                 defaults={
+                    "city": City.objects.filter(slug='riobamba').first() or City.get_default(),
                     "description": "Actividades para aula y visita guiada.",
                     "resource_type": resource_type,
                     "category": category,

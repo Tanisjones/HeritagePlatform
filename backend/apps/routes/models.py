@@ -60,6 +60,12 @@ class HeritageRoute(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(_('title'), max_length=200)
     description = models.TextField(_('description'))
+    city = models.ForeignKey(
+        'cities.City',
+        on_delete=models.PROTECT,
+        related_name='routes',
+        verbose_name=_('city'),
+    )
     # Legacy free-text theme, kept for backward-compat + as a denormalized display/
     # gamification key. New authoring sets `theme_category` (curated); the string is
     # backfilled from it. See H.2.
@@ -161,6 +167,7 @@ class HeritageRoute(models.Model):
             models.Index(fields=['-view_count']),
             models.Index(fields=['-completion_count']),
             models.Index(fields=['is_official', 'status']),
+            models.Index(fields=['city', 'status']),
         ]
 
     def __str__(self):
