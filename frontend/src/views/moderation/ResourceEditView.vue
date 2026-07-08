@@ -6,6 +6,7 @@ import api from '@/services/api';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@/composables/useDialogs';
 import { useFileUpload } from '@/composables/useFileUpload';
+import { useCityStore } from '@/stores/city';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import LocationPickerMap from '@/components/map/LocationPickerMap.vue';
@@ -22,6 +23,16 @@ const loading = ref(false);
 const saving = ref(false);
 const error = ref<string | null>(null);
 
+const cityStore = useCityStore();
+const cityDefaultLngLat = (): [number, number] => {
+  const c = cityStore.activeCity?.center?.coordinates;
+  return Array.isArray(c) ? [c[0], c[1]] : [-78.65, -1.67];
+};
+const cityDefaultLatLng = () => {
+  const [lng, lat] = cityDefaultLngLat();
+  return { lat, lng };
+};
+
 const form = reactive({
   title: '',
   description: '',
@@ -32,11 +43,11 @@ const form = reactive({
   historical_period: '',
   external_registry_url: '',
   video_url: '', // Some items might have this locally
-  location: { type: 'Point', coordinates: [-78.65, -1.67] },
+  location: { type: 'Point', coordinates: cityDefaultLngLat() },
   main_image: null as string | null
 });
 
-const formLocation = ref({ lat: -1.67, lng: -78.65 });
+const formLocation = ref(cityDefaultLatLng());
 const zoom = ref(13);
 const main_image_url = ref<string | null>(null);
 

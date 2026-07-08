@@ -1,8 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useCityStore } from '@/stores/city'
 
 const { t } = useI18n()
+const cityStore = useCityStore()
 const currentYear = new Date().getFullYear()
+
+// "Riobamba, Chimborazo, Ecuador"-style contact line from the active city.
+const addressLine = computed(() => {
+  const city = cityStore.activeCity
+  if (!city) return t('footer.address', { city: 'Riobamba', country: 'Ecuador' })
+  const parts = [city.name, city.region, city.country_name].filter(Boolean)
+  return parts.join(', ')
+})
 </script>
 
 <template>
@@ -43,7 +54,7 @@ const currentYear = new Date().getFullYear()
         <div>
           <h3 class="font-semibold text-lg mb-3">{{ t('footer.contact') }}</h3>
           <p class="text-gray-300 text-sm">
-            {{ t('footer.address') }}
+            {{ addressLine }}
           </p>
         </div>
       </div>

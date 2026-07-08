@@ -2,13 +2,20 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useCityStore } from '@/stores/city'
 import NotificationBell from '@/components/notifications/NotificationBell.vue'
 import { useI18n } from 'vue-i18n'
 
 const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)
 const authStore = useAuthStore()
+const cityStore = useCityStore()
 const { t, locale } = useI18n()
+
+const onCityChange = (event: Event) => {
+  const slug = (event.target as HTMLSelectElement).value
+  cityStore.setCity(slug)
+}
 
 // Single source of truth for the primary nav, rendered in both the desktop bar
 // and the mobile menu — no more two hand-maintained copies that drift apart.
@@ -101,10 +108,24 @@ onUnmounted(() => {
 
         <!-- Auth Buttons / User Menu -->
         <div class="hidden md:flex items-center space-x-3 md:justify-self-end">
+          <!-- City Switcher (only when the platform hosts more than one city) -->
+          <div v-if="cityStore.hasMultipleCities" class="flex items-center border-r border-gray-300 pr-3 mr-2">
+            <select
+              :value="cityStore.activeCity?.slug"
+              @change="onCityChange"
+              :aria-label="t('common.citySwitcher')"
+              class="bg-transparent border-none text-gray-700 font-medium focus:ring-0 cursor-pointer py-1"
+            >
+              <option v-for="city in cityStore.cities" :key="city.slug" :value="city.slug">
+                {{ city.name }}
+              </option>
+            </select>
+          </div>
+
           <!-- Language Switcher -->
           <div class="flex items-center border-r border-gray-300 pr-3 mr-2">
-            <select 
-              v-model="locale" 
+            <select
+              v-model="locale"
               class="bg-transparent border-none text-gray-700 font-medium focus:ring-0 cursor-pointer py-1"
             >
               <option value="es">ES</option>
@@ -254,6 +275,21 @@ onUnmounted(() => {
 
       <!-- Mobile Menu -->
       <div v-if="mobileMenuOpen" class="md:hidden mt-4 pb-4 space-y-3">
+        <div
+          v-if="cityStore.hasMultipleCities"
+          class="px-2 pb-2 mb-2 border-b border-gray-100 flex items-center space-x-3"
+        >
+          <span class="text-gray-500 font-medium text-sm">{{ t('common.citySwitcher') }}:</span>
+          <select
+            :value="cityStore.activeCity?.slug"
+            @change="onCityChange"
+            class="bg-transparent border border-gray-200 rounded text-gray-700 font-medium text-sm py-1"
+          >
+            <option v-for="city in cityStore.cities" :key="city.slug" :value="city.slug">
+              {{ city.name }}
+            </option>
+          </select>
+        </div>
         <div class="px-2 pb-2 mb-2 border-b border-gray-100 flex items-center space-x-4">
           <span class="text-gray-500 font-medium text-sm">{{ t('learn.filters.language') }}:</span>
             <button 

@@ -8,6 +8,7 @@ import AnnotationList from '@/components/annotations/AnnotationList.vue';
 import LomEditor from '@/components/education/LomEditor.vue';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import { useAuthStore } from '@/stores/auth';
+import { useCityStore } from '@/stores/city';
 import { useLomLabels } from '@/composables/useLomLabels';
 import LocationPickerMap from '@/components/map/LocationPickerMap.vue';
 import { useI18n } from 'vue-i18n';
@@ -36,7 +37,8 @@ interface ViewableResource {
 const item = ref<HeritageItem | null>(null);
 const loading = ref(true);
 const zoom = ref(15);
-const center = ref<[number, number]>([-1.67, -78.65]);
+const cityStore = useCityStore();
+const center = ref<[number, number]>(cityStore.mapCenter ?? [-1.67, -78.65]);
 
 type RelationTargetType = 'media' | 'item' | 'url';
 

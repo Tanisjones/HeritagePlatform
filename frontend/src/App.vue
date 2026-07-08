@@ -4,11 +4,14 @@ import { RouterView } from 'vue-router'
 import AppHeader from './components/layout/AppHeader.vue'
 import AppDialogHost from './components/common/AppDialogHost.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useCityStore } from '@/stores/city'
 
 const authStore = useAuthStore()
+const cityStore = useCityStore()
 
 onMounted(() => {
   authStore.loadUserIfNeeded()
+  cityStore.load()
 })
 </script>
 

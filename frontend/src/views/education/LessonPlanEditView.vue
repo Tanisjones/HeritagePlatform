@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useCityStore } from '@/stores/city'
 import { lessonPlanService, aiService, educationService, curriculumService } from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useToast, useConfirm } from '@/composables/useDialogs'
@@ -22,6 +23,7 @@ import QuizEditor from '@/components/education/QuizEditor.vue'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const cityStore = useCityStore()
 const toast = useToast()
 const { confirm } = useConfirm()
 const { applyAIError } = useAiError()
@@ -360,7 +362,7 @@ onMounted(load)
       <section class="bg-white rounded-lg shadow-sm p-5 space-y-4">
         <div class="flex items-start justify-between gap-3">
           <div class="flex-grow">
-            <AppInput v-model="form.title" :label="t('lessonPlans.fields.title')" :placeholder="t('lessonPlans.fields.titlePlaceholder')" />
+            <AppInput v-model="form.title" :label="t('lessonPlans.fields.title')" :placeholder="t('lessonPlans.fields.titlePlaceholder', { city: cityStore.activeCity?.name ?? 'Riobamba' })" />
           </div>
           <div class="pt-6">
             <AiActionButton

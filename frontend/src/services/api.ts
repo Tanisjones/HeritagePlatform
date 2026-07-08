@@ -1,5 +1,6 @@
 import axios, { AxiosHeaders } from 'axios';
 import type { RouteCreateData, LessonPlanWriteData } from '@/types/heritage';
+import type { City } from '@/types/city';
 import type {
   AiUsageSummaryResponse,
   AiUsageTimeseriesResponse,
@@ -9,6 +10,9 @@ import type {
 
 const LOCALE_STORAGE_KEY = 'hp_locale';
 const DEFAULT_LOCALE = 'es';
+/** Active-city slug persisted by the city store; read here (not via Pinia —
+ * same constraint as the locale) and sent as X-City on every request. */
+export const CITY_STORAGE_KEY = 'hp_city';
 
 /** Login/register request bodies (the API returns `{ tokens, user }`). */
 export interface LoginCredentials {
@@ -41,6 +45,12 @@ api.interceptors.request.use(config => {
 
   const locale = localStorage.getItem(LOCALE_STORAGE_KEY) || DEFAULT_LOCALE;
   headers.set('Accept-Language', locale);
+
+  // Active-city scope: list endpoints filter by it, writes are assigned to it.
+  const citySlug = localStorage.getItem(CITY_STORAGE_KEY);
+  if (citySlug) {
+    headers.set('X-City', citySlug);
+  }
 
   // When sending FormData, do not force JSON content type (let the browser set the multipart boundary).
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
@@ -87,6 +97,12 @@ export interface HeritageGeoJSON {
     }>;
   };
 }
+
+export const cityService = {
+  /** Active cities catalog for the switcher; unpaginated. */
+  list: () => api.get<City[]>('/cities/'),
+  get: (slug: string) => api.get<City>(`/cities/${slug}/`),
+};
 
 export const heritageService = {
   getHeritageGeoJSON: async (): Promise<HeritageGeoJSON> => {

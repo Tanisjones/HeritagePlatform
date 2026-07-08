@@ -4,7 +4,10 @@ import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { parseLineString } from '@/utils/geo'
+import { useCityStore } from '@/stores/city'
 import type { HeritageRoute, RouteStop } from '@/types/heritage'
+
+const cityStore = useCityStore()
 
 const props = defineProps<{
   route: HeritageRoute
@@ -107,7 +110,7 @@ function render() {
     const bounds = L.latLngBounds(boundsSource)
     map.fitBounds(bounds, { padding: [24, 24] })
   } else {
-    map.setView([-1.6735, -78.6479], 13)
+    map.setView(cityStore.mapCenter ?? [-1.6735, -78.6479], cityStore.mapZoom)
   }
 
   updatePositionMarker()

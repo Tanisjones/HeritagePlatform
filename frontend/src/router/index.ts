@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { pinia } from '@/pinia'
 import { useAuthStore } from '@/stores/auth'
+import { useCityStore } from '@/stores/city'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -207,6 +208,16 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore(pinia)
+
+  // ?city=<slug> deep-link: adopt it as the active city and strip the param
+  // (URLs stay clean; the slug is validated when the city catalog loads).
+  if (typeof to.query.city === 'string' && to.query.city) {
+    const cityStore = useCityStore(pinia)
+    cityStore.adoptSlug(to.query.city)
+    const query = { ...to.query }
+    delete query.city
+    return { path: to.path, query, replace: true }
+  }
 
   const hasToken = !!authStore.token
   if (hasToken && !authStore.user) {

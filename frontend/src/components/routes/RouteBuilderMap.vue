@@ -5,6 +5,9 @@ import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Point } from '@/types/heritage'
+import { useCityStore } from '@/stores/city'
+
+const cityStore = useCityStore()
 
 /**
  * Interactive authoring map for the route builder (raw Leaflet, matching
@@ -98,7 +101,7 @@ function render() {
   if (latLngs.length) {
     map.fitBounds(L.latLngBounds(latLngs), { padding: [24, 24] })
   } else {
-    map.setView([-1.6735, -78.6479], 13)
+    map.setView(cityStore.mapCenter ?? [-1.6735, -78.6479], cityStore.mapZoom)
   }
 }
 

@@ -9,9 +9,10 @@
  * - Map preview showing heritage item locations
  * - Feature highlights (Learn, Explore, Contribute)
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import MapContainer from '../components/map/MapContainer.vue'
+import { useCityStore } from '@/stores/city'
 import AppCard from '../components/common/AppCard.vue'
 import AppButton from '../components/common/AppButton.vue'
 import BaseSpinner from '../components/common/BaseSpinner.vue'
@@ -30,6 +31,10 @@ interface HeritageMarker {
 
 const { t } = useI18n()
 const router = useRouter()
+const cityStore = useCityStore()
+const cityName = computed(() => cityStore.activeCity?.name ?? 'Riobamba')
+// Per-city hero when the city has one; the bundled asset is the fallback.
+const heroImage = computed(() => cityStore.heroImageUrl || '/img/main_hero.jpg')
 const markers = ref<HeritageMarker[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -118,14 +123,14 @@ onMounted(() => {
     <section class="relative py-16 md:py-24 overflow-hidden z-0">
       <!-- Background Image -->
       <div class="absolute inset-0 z-0">
-        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-1000 hover:scale-105" style="background-image: url('/img/main_hero.jpg')"></div>
+        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-1000 hover:scale-105" :style="{ backgroundImage: `url('${heroImage}')` }"></div>
         <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent"></div>
       </div>
 
       <div class="container mx-auto px-4 relative z-10 text-white">
         <div class="max-w-3xl">
           <h1 class="text-4xl md:text-5xl font-display font-bold mb-6 leading-tight">
-            {{ t('home.hero.title') }}
+            {{ t('home.hero.title', { city: cityName }) }}
           </h1>
           <p class="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed font-light">
             {{ t('home.hero.subtitle') }}
@@ -193,7 +198,7 @@ onMounted(() => {
             {{ t('home.map.title') }}
           </h2>
           <p class="text-gray-600 mt-1">
-            {{ t('home.map.subtitle') }}
+            {{ t('home.map.subtitle', { city: cityName }) }}
           </p>
         </div>
 
@@ -228,8 +233,8 @@ onMounted(() => {
           <div v-else style="height: 600px">
             <MapContainer
               :markers="markers"
-              :center="[-1.6735, -78.6479]"
-              :zoom="13"
+              :center="cityStore.mapCenter ?? [-1.6735, -78.6479]"
+              :zoom="cityStore.mapZoom"
               :details-label="t('home.map.viewDetails')"
               @view-details="goToHeritage"
             />
@@ -254,7 +259,7 @@ onMounted(() => {
             </div>
             <h3 class="text-xl font-semibold mb-2">{{ t('home.features.learn.title') }}</h3>
             <p class="text-gray-600">
-              {{ t('home.features.learn.desc') }}
+              {{ t('home.features.learn.desc', { city: cityName }) }}
             </p>
           </div>
         </AppCard>

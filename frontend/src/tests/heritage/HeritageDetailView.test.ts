@@ -43,6 +43,15 @@ vi.mock('@/stores/auth', () => ({
   }),
 }))
 
+// The detail view seeds its initial map center from the city store.
+vi.mock('@/stores/city', () => ({
+  useCityStore: () => ({
+    mapCenter: null,
+    mapZoom: 13,
+    activeCity: null,
+  }),
+}))
+
 import HeritageDetailView from '@/views/heritage/HeritageDetailView.vue'
 
 describe('HeritageDetailView media viewers', () => {

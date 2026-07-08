@@ -12,6 +12,7 @@
  * 6. Review & Submit
  */
 import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { useCityStore } from '@/stores/city';
 import type { HeritageItemContribution, Parish, HeritageType, HeritageCategory } from '@/types/heritage';
 import api, { aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability'
@@ -48,10 +49,21 @@ const queuedOffline = ref(false);
 type ContributionResourceType = 'image' | 'audio' | 'video' | 'document' | 'text';
 const resourceType = ref<ContributionResourceType>('text');
 
+const cityStore = useCityStore();
+// Default new-contribution point: the active city's center (Riobamba fallback).
+const cityDefaultLngLat = (): [number, number] => {
+  const c = cityStore.activeCity?.center?.coordinates;
+  return Array.isArray(c) ? [c[0], c[1]] : [-78.65, -1.67];
+};
+const cityDefaultLatLng = () => {
+  const [lng, lat] = cityDefaultLngLat();
+  return { lat, lng };
+};
+
 const contribution = reactive<Partial<HeritageItemContribution>>({
   title: '',
   description: '',
-  location: { type: 'Point', coordinates: [-78.65, -1.67] }, // Default to Riobamba
+  location: { type: 'Point', coordinates: cityDefaultLngLat() }, // Default to the active city
   address: '',
   parish: null,
   heritage_type: null,
@@ -99,7 +111,7 @@ const resourceTypeOptions = LOM_RESOURCE_TYPES;
 const difficultyOptions = LOM_DIFFICULTIES;
 const contextOptions = LOM_CONTEXTS;
 
-const formLocation = ref({ lat: -1.67, lng: -78.65 }); // Helper for map binding
+const formLocation = ref(cityDefaultLatLng()); // Helper for map binding
 
 const files = reactive<{ images: File[], audio: File[], video: File[], documents: File[] }>({
   images: [],
@@ -512,7 +524,7 @@ const resetForm = () => {
 
   contribution.title = '';
   contribution.description = '';
-  contribution.location = { type: 'Point', coordinates: [-78.65, -1.67] };
+  contribution.location = { type: 'Point', coordinates: cityDefaultLngLat() };
   contribution.address = '';
   contribution.parish = null;
   contribution.heritage_type = null;
@@ -520,7 +532,7 @@ const resetForm = () => {
   contribution.historical_period = '';
   contribution.external_registry_url = '';
 
-  formLocation.value = { lat: -1.67, lng: -78.65 };
+  formLocation.value = cityDefaultLatLng();
 
   aiDraftLoading.value = false;
   aiDraftError.value = '';

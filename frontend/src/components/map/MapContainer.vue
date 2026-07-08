@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { useCityStore } from '@/stores/city'
 
 interface HeritageMarker {
   id: string
@@ -30,9 +31,10 @@ const mapContainer = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
 const markerLayer = ref<L.LayerGroup | null>(null)
 
-// Default center on Riobamba, Ecuador
+// Last-resort fallback (founding city) — the active city's framing wins.
 const defaultCenter: [number, number] = [-1.6735, -78.6479]
 const defaultZoom = 13
+const cityStore = useCityStore()
 
 // Custom icon for heritage markers
 const createMarkerIcon = (type?: string) => {
@@ -71,8 +73,8 @@ const createMarkerIcon = (type?: string) => {
 const initMap = () => {
   if (!mapContainer.value || map) return
 
-  const center = props.center || defaultCenter
-  const zoom = props.zoom || defaultZoom
+  const center = props.center || cityStore.mapCenter || defaultCenter
+  const zoom = props.zoom || cityStore.mapZoom || defaultZoom
 
   // Initialize map
   map = L.map(mapContainer.value).setView(center, zoom)

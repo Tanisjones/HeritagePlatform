@@ -1,6 +1,7 @@
 {
     "common": {
         "brand": "Heritage Platform",
+        "citySwitcher": "City",
         "search": "Search",
         "allStatus": "All Status",
         "title": "Title",
@@ -67,13 +68,13 @@
         "about": "About Us",
         "contact": "Contact",
         "privacy": "Privacy Policy",
-        "address": "Riobamba, Chimborazo, Ecuador",
+        "address": "{city}, {country}",
         "copyright": "© {year} {brand}.",
         "rights": "All rights reserved."
     },
     "home": {
         "hero": {
-            "title": "Discover Riobamba's Cultural Heritage",
+            "title": "Discover the Cultural Heritage of {city}",
             "subtitle": "Explore, learn, and contribute to preserving our cultural treasures through collaborative digital innovation."
         },
         "search": {
@@ -92,7 +93,7 @@
         },
         "map": {
             "title": "Interactive Heritage Map",
-            "subtitle": "Click on markers to explore heritage sites in Riobamba",
+            "subtitle": "Click on markers to explore heritage sites in {city}",
             "loading": "Loading heritage items...",
             "error": "Failed to load heritage items",
             "tryAgain": "Try Again",
@@ -102,7 +103,7 @@
             "title": "Why Use Heritage Platform?",
             "learn": {
                 "title": "Learn",
-                "desc": "Discover educational content about Riobamba's rich cultural heritage"
+                "desc": "Discover educational content about the rich cultural heritage of {city}"
             },
             "explore": {
                 "title": "Explore",
@@ -1180,7 +1181,7 @@
         },
         "fields": {
             "title": "Title",
-            "titlePlaceholder": "e.g. Colonial architecture of Riobamba",
+            "titlePlaceholder": "e.g. Colonial architecture of {city}",
             "summary": "Summary",
             "subject": "Subject",
             "gradeLevel": "Grade / level",

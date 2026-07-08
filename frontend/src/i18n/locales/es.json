@@ -1,6 +1,7 @@
 {
     "common": {
         "brand": "Plataforma de Patrimonio",
+        "citySwitcher": "Ciudad",
         "search": "Buscar",
         "allStatus": "Todos los estados",
         "title": "Título",
@@ -67,13 +68,13 @@
         "about": "Sobre Nosotros",
         "contact": "Contacto",
         "privacy": "Política de Privacidad",
-        "address": "Riobamba, Chimborazo, Ecuador",
+        "address": "{city}, {country}",
         "copyright": "© {year} {brand}.",
         "rights": "Todos los derechos reservados."
     },
     "home": {
         "hero": {
-            "title": "Descubre el Patrimonio Cultural de Riobamba",
+            "title": "Descubre el Patrimonio Cultural de {city}",
             "subtitle": "Explora, aprende y contribuye a preservar nuestros tesoros culturales a través de innovación digital colaborativa."
         },
         "search": {
@@ -92,7 +93,7 @@
         },
         "map": {
             "title": "Mapa Patrimonial Interactivo",
-            "subtitle": "Haga clic en los marcadores para explorar sitios patrimoniales en Riobamba",
+            "subtitle": "Haga clic en los marcadores para explorar sitios patrimoniales en {city}",
             "loading": "Cargando elementos patrimoniales...",
             "error": "Error al cargar elementos patrimoniales",
             "tryAgain": "Intentar de nuevo",
@@ -102,7 +103,7 @@
             "title": "¿Por qué usar Heritage Platform?",
             "learn": {
                 "title": "Aprender",
-                "desc": "Descubre contenido educativo sobre el rico patrimonio cultural de Riobamba"
+                "desc": "Descubre contenido educativo sobre el rico patrimonio cultural de {city}"
             },
             "explore": {
                 "title": "Explorar",
@@ -1180,7 +1181,7 @@
         },
         "fields": {
             "title": "Título",
-            "titlePlaceholder": "p. ej. Arquitectura colonial de Riobamba",
+            "titlePlaceholder": "p. ej. Arquitectura colonial de {city}",
             "summary": "Resumen",
             "subject": "Asignatura",
             "gradeLevel": "Grado / nivel",

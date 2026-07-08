@@ -3,10 +3,13 @@ export interface Point {
   coordinates: [number, number];
 }
 
+import type { CityRef } from './city';
+
 export interface Parish {
   id: number;
   name: string;
   canton?: string;
+  city?: CityRef | null;
 }
 
 export interface HeritageType {
@@ -129,6 +132,7 @@ export interface LOMResource {
 }
 
 export interface HeritageItem {
+  city?: CityRef;
   id: string;
   status: string;
   contributor: {
@@ -227,6 +231,7 @@ export interface RouteRating {
 }
 
 export interface HeritageRoute {
+  city?: CityRef;
   id: string;
   title: string;
   description: string;
@@ -326,6 +331,7 @@ export interface ResourceCategory {
 }
 
 export interface EducationalResource {
+  city?: CityRef;
   id: number;
   title: string;
   description: string;
@@ -369,6 +375,8 @@ export type LessonPlanStatus = 'draft' | 'review' | 'published' | 'archived';
 export type LessonPlanVisibility = 'private' | 'unlisted' | 'public';
 
 export interface CurriculumStandard {
+  country?: string;
+  framework?: string;
   id: string;
   code: string;
   subject?: string;
@@ -393,6 +401,7 @@ export interface Rubric {
 }
 
 export interface LessonPlan {
+  city?: CityRef;
   id: string;
   title: string;
   summary?: string;

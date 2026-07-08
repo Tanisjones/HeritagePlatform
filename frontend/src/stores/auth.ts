@@ -15,9 +15,33 @@ export const useAuthStore = defineStore('auth', () => {
     const roleSlug = computed(() => user.value?.profile?.role?.slug as string | undefined);
     const rolePermissions = computed<Record<string, any>>(() => user.value?.profile?.role?.permissions || {});
 
-    const isCurator = computed(() => isAuthenticated.value && roleSlug.value === 'curator');
+    /** Per-city governance grants from /users/me (multi-city). */
+    const cityRoles = computed<Array<{ city: { id: number; slug: string; name: string }; role: string }>>(
+        () => user.value?.city_roles ?? []
+    );
+
+    // Curator = a CityRole grant in ANY city (or staff). Gates the curator nav;
+    // the server enforces the per-city scope on every request. The legacy
+    // profile.role 'curator' slug is kept as a fallback for stale cached users
+    // (it degrades safely: the API rejects what the grant doesn't cover).
+    const isCurator = computed(() =>
+        isAuthenticated.value && (
+            !!user.value?.is_staff ||
+            cityRoles.value.some((assignment) => assignment.role === 'curator') ||
+            roleSlug.value === 'curator'
+        )
+    );
     const isTeacher = computed(() => isAuthenticated.value && roleSlug.value === 'teacher');
     const isContributor = computed(() => isAuthenticated.value);
+
+    function isCuratorOf(citySlug: string | null | undefined): boolean {
+        if (!isAuthenticated.value) return false;
+        if (user.value?.is_staff) return true;
+        if (!citySlug) return false;
+        return cityRoles.value.some(
+            (assignment) => assignment.role === 'curator' && assignment.city?.slug === citySlug
+        );
+    }
     const displayName = computed(() => {
         const profileName = user.value?.profile?.display_name;
         if (typeof profileName === 'string' && profileName.trim()) return profileName.trim();
@@ -80,7 +104,9 @@ export const useAuthStore = defineStore('auth', () => {
         token,
         user,
         isAuthenticated,
+        cityRoles,
         isCurator,
+        isCuratorOf,
         isTeacher,
         isContributor,
         hasPermission,
