@@ -277,6 +277,10 @@ class EducationalResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = EducationalResource
         fields = '__all__'
+        # `author` is set from the request user in the view; it must not be
+        # settable from the payload (would let a client attribute a resource to
+        # anyone). created/updated are auto timestamps.
+        read_only_fields = ['author', 'created_at', 'updated_at']
 
     def validate_content(self, value):
         # `content` is rendered as raw HTML (v-html) in the SPA; sanitize on

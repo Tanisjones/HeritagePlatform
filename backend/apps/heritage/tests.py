@@ -117,7 +117,79 @@ class HeritageAPITest(TestCase):
         response = self.client.get('/api/v1/heritage-items/nearby/?latitude=0&longitude=0&radius=10')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
-        
+
         # Query far away
         response = self.client.get('/api/v1/heritage-items/nearby/?latitude=50&longitude=50&radius=10')
         self.assertEqual(len(response.data['results']), 0)
+
+
+class HeritageItemMassAssignmentTest(TestCase):
+    """Regression guard for the HeritageItem write serializer field-pinning
+    (Vuln 3, defense-in-depth).
+
+    The /heritage-items/ write endpoint is already curator/staff-gated
+    (IsModeratorOrReadOnly) — a plain tourist is 403 and uses /contributions/
+    instead. But even the privileged actor who *can* reach it must not be able to
+    spoof server-controlled fields: create forces status='pending' and
+    contributor=<request.user>, and status transitions require staff."""
+
+    def setUp(self):
+        from apps.users.models import UserProfile, UserRole
+        self.client = APIClient()
+        # A curator can reach the write endpoint (role slug 'curator').
+        self.curator_role, _ = UserRole.objects.get_or_create(
+            slug='curator', defaults={'name': 'Curator'}
+        )
+        self.curator = User.objects.create_user(email='curator@example.com', password='pw')
+        UserProfile.objects.create(user=self.curator, role=self.curator_role)
+        self.victim = User.objects.create_user(email='victim@example.com', password='pw')
+        self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
+        self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')
+        self.parish = Parish.objects.create(name='Test Parish', canton='Riobamba')
+
+    def _payload(self, **extra):
+        body = {
+            'title': 'Injected',
+            'description': 'x',
+            'heritage_type': self.type.id,
+            'heritage_category': self.category.id,
+            'parish': self.parish.id,
+            'location': {'type': 'Point', 'coordinates': [-78.6, -1.6]},
+        }
+        body.update(extra)
+        return body
+
+    def test_tourist_cannot_write_to_heritage_items_endpoint(self):
+        """The direct write endpoint is curator/staff-only; tourists use /contributions/."""
+        tourist = User.objects.create_user(email='tourist@example.com', password='pw')
+        self.client.force_authenticate(user=tourist)
+        resp = self.client.post('/api/v1/heritage-items/', self._payload(), format='json')
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+
+    def test_privileged_create_pins_status_and_contributor(self):
+        self.client.force_authenticate(user=self.curator)
+        resp = self.client.post(
+            '/api/v1/heritage-items/',
+            self._payload(status='published', contributor=str(self.victim.id)),
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        item = HeritageItem.objects.get(id=resp.data['id'])
+        # Server-controlled fields ignore the injected values, even for a curator.
+        self.assertEqual(item.status, 'pending')
+        self.assertEqual(item.contributor_id, self.curator.id)
+
+    def test_non_staff_cannot_change_status_on_update(self):
+        # A curator owns/reaches the item but is not staff — status stays locked.
+        self.client.force_authenticate(user=self.curator)
+        item = HeritageItem.objects.create(
+            title='Mine', description='x', heritage_type=self.type,
+            heritage_category=self.category, parish=self.parish,
+            location=Point(-78.6, -1.6), contributor=self.curator, status='pending',
+        )
+        resp = self.client.patch(
+            f'/api/v1/heritage-items/{item.id}/', {'status': 'published'}, format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+        item.refresh_from_db()
+        self.assertEqual(item.status, 'pending')

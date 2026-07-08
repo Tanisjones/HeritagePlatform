@@ -263,12 +263,19 @@ class EducationalResourceViewSet(viewsets.ModelViewSet):
     """
     queryset = EducationalResource.objects.all()
     serializer_class = EducationalResourceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # Public reads; authoring is a teacher/curator/staff action (mirrors the
+    # frontend gate). A plain tourist must not be able to create resources.
+    permission_classes = [IsTeacherOrCuratorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['resource_type', 'category']
     search_fields = ['title', 'description', 'content']
     ordering_fields = ['created_at', 'updated_at', 'title']
     ordering = ['-created_at']
+
+    def perform_create(self, serializer):
+        """Attribute the resource to the creating user (author is read-only on the
+        serializer, so it can't be spoofed via the request body)."""
+        serializer.save(author=self.request.user)
 
 
 class LOMPackageViewSet(viewsets.ReadOnlyModelViewSet):

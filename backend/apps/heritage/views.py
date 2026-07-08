@@ -193,14 +193,33 @@ class HeritageItemViewSet(viewsets.ModelViewSet):
             return HeritageItemGeoJSONSerializer
         return HeritageItemDetailSerializer
 
+    def perform_create(self, serializer):
+        """Pin server-controlled fields on create: the creator is the contributor
+        and new items enter the moderation queue as 'pending'. status/contributor
+        are read-only on the write serializer, so they can't be spoofed from the
+        request body; transitions out of 'pending' happen via moderation only."""
+        serializer.save(
+            contributor=self.request.user if self.request.user.is_authenticated else None,
+            status='pending',
+        )
+
     def update(self, request, *args, **kwargs):
+        # `status` is read-only on the write serializer (so ordinary users can't
+        # self-publish). Status transitions are a staff/moderator action and are
+        # applied here explicitly rather than through the serializer body.
         instance = self.get_object()
-        if 'status' in request.data and instance.status != request.data['status']:
-            if request.user.is_staff:
-                instance.moderator = request.user
-                if 'moderator_feedback' in request.data:
-                    instance.moderator_feedback = request.data['moderator_feedback']
-                instance.save()
+        new_status = request.data.get('status')
+        if new_status is not None and new_status != instance.status:
+            if not request.user.is_staff:
+                return Response(
+                    {'status': _('Only moderators can change the status of an item.')},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            instance.status = new_status
+            instance.moderator = request.user
+            if 'moderator_feedback' in request.data:
+                instance.moderator_feedback = request.data['moderator_feedback']
+            instance.save(update_fields=['status', 'moderator', 'moderator_feedback', 'updated_at'])
         return super().update(request, *args, **kwargs)
 
     def get_queryset(self):

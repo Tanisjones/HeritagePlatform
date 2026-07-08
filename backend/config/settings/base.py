@@ -16,11 +16,22 @@ env = environ.Env(
 # Read .env file if it exists
 environ.Env.read_env(BASE_DIR / '.env')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-pwlzd#&b6fu7fqnbrver$ov^(f2ppw(p7ms*kv4+6y02(shvhq')
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# SECRET_KEY also signs JWT access/refresh tokens (SimpleJWT falls back to it
+# when SIGNING_KEY is unset), so a predictable key means anyone can forge tokens
+# for any user. We therefore only allow the throw-away insecure default in DEBUG:
+# outside DEBUG a missing SECRET_KEY is a hard error (fail closed) rather than a
+# silent fall-back to a public, committed key.
+if DEBUG:
+    SECRET_KEY = env(
+        'SECRET_KEY',
+        default='django-insecure-pwlzd#&b6fu7fqnbrver$ov^(f2ppw(p7ms*kv4+6y02(shvhq',
+    )
+else:
+    SECRET_KEY = env('SECRET_KEY')  # raises ImproperlyConfigured if unset
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 

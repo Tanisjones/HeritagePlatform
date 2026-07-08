@@ -1011,12 +1011,17 @@ class EducationContributionEducationalTest(TestCase):
 class EducationalResourceContentSanitizeTest(TestCase):
     """EducationalResource.content is rendered with v-html in the SPA, so the
     serializer must strip script/handler payloads on write (stored-XSS guard).
-    The write endpoint is only IsAuthenticatedOrReadOnly, so a plain tourist is
-    the threat model here."""
+
+    Authoring is teacher/curator/staff-only (a plain tourist must not be able to
+    create resources or spoof the author) — see the authz assertions below."""
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(email='tourist@example.com', password='password')
+        # IsTeacher allows staff; use staff as a stand-in teacher for the slice.
+        self.teacher = User.objects.create_user(
+            email='teacher@example.com', password='password', is_staff=True
+        )
+        self.tourist = User.objects.create_user(email='tourist@example.com', password='password')
 
     def test_sanitize_html_helper_strips_scripts_keeps_formatting(self):
         from apps.education.sanitize import sanitize_html
@@ -1039,7 +1044,7 @@ class EducationalResourceContentSanitizeTest(TestCase):
         self.assertNotIn('javascript:', clean)
 
     def test_create_resource_sanitizes_content(self):
-        self.client.force_authenticate(user=self.user)
+        self.client.force_authenticate(user=self.teacher)
         payload = {
             'title': 'Evil',
             'description': 'x',
@@ -1051,6 +1056,31 @@ class EducationalResourceContentSanitizeTest(TestCase):
         self.assertIn('<p>ok</p>', res.content)
         self.assertNotIn('<script', res.content)
         self.assertNotIn('document.cookie', res.content)
+        # Author is pinned to the creating user, never the payload.
+        self.assertEqual(res.author_id, self.teacher.id)
+
+    def test_tourist_cannot_create_resource(self):
+        """Authoring is teacher/curator/staff-only (Vuln 2 fix)."""
+        self.client.force_authenticate(user=self.tourist)
+        resp = self.client.post(
+            '/api/v1/educational-resources/',
+            {'title': 'x', 'description': 'x', 'content': '<p>hi</p>'},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+
+    def test_author_cannot_be_spoofed_via_payload(self):
+        """Even a legitimate teacher can't attribute a resource to another user."""
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(
+            '/api/v1/educational-resources/',
+            {'title': 'x', 'description': 'x', 'content': '<p>hi</p>',
+             'author': str(self.tourist.id)},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        res = EducationalResource.objects.get(id=resp.data['id'])
+        self.assertEqual(res.author_id, self.teacher.id)
 
 
 class LessonPlanAPITest(TestCase):

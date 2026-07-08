@@ -129,6 +129,14 @@ class HeritageItemCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeritageItem
         fields = '__all__'
+        # These are driven by the moderation workflow / server, never the client.
+        # Without this, a plain authenticated user could POST status='published'
+        # (bypassing draft→pending→published) or set contributor to another user.
+        read_only_fields = [
+            'status', 'contributor', 'curator', 'curator_feedback',
+            'moderator', 'moderator_feedback', 'submission_date',
+            'last_review_date', 'view_count', 'favorite_count',
+        ]
 
 
 class HeritageItemContributionSerializer(serializers.ModelSerializer):
@@ -148,6 +156,13 @@ class HeritageItemContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeritageItem
         fields = '__all__'
+        # The wizard view (ContributionViewSet.perform_create) sets contributor and
+        # status server-side; the client must not be able to spoof them here either.
+        read_only_fields = [
+            'status', 'contributor', 'curator', 'curator_feedback',
+            'moderator', 'moderator_feedback', 'submission_date',
+            'last_review_date', 'view_count', 'favorite_count',
+        ]
 
 
 class HeritageRelationSerializer(serializers.ModelSerializer):

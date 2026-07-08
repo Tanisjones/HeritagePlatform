@@ -8,6 +8,29 @@ from apps.gamification.serializers import LevelSerializer
 from apps.gamification.services import handle_registration, handle_profile_completion
 
 
+# Roles that grant elevated authorization (the permission classes key off
+# profile.role.slug). Clients must never be able to self-assign these via
+# registration or profile update — doing so is a privilege escalation. Only
+# staff may grant them (through the admin or a staff-gated flow).
+PRIVILEGED_ROLE_SLUGS = frozenset({"curator", "teacher", "moderator"})
+
+
+def _reject_privileged_role(role, *, requesting_user=None):
+    """Raise ValidationError if ``role`` is privileged and the requesting user is
+    not staff. ``requesting_user`` is None for anonymous flows (registration),
+    where privileged roles are always rejected."""
+    if role is None:
+        return role
+    if role.slug in PRIVILEGED_ROLE_SLUGS:
+        is_staff = bool(getattr(requesting_user, "is_staff", False))
+        if not is_staff:
+            raise serializers.ValidationError(
+                _('You are not allowed to assign the "%(role)s" role.')
+                % {'role': role.slug}
+            )
+    return role
+
+
 class UserRoleSerializer(serializers.ModelSerializer):
     """Serializer for UserRole model"""
 
@@ -98,6 +121,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             'first_name': {'required': False},
             'last_name': {'required': False},
         }
+
+    def validate_role_id(self, value):
+        """Block self-assignment of privileged roles at registration. A new,
+        unauthenticated account may only pick a non-privileged role (or none)."""
+        return _reject_privileged_role(value, requesting_user=None)
 
     def validate(self, attrs):
         """Validate password matching"""
@@ -243,6 +271,13 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
             'preferred_language', 'role_id', 'notification_preferences', 'interests',
             'first_name', 'last_name'
         ]
+
+    def validate_role_id(self, value):
+        """Only staff may change a profile to a privileged role. Ordinary users
+        editing their own profile cannot escalate themselves to curator/teacher/
+        moderator (the permission classes trust profile.role.slug)."""
+        requesting_user = getattr(self.context.get('request'), 'user', None)
+        return _reject_privileged_role(value, requesting_user=requesting_user)
 
     def update(self, instance, validated_data):
         """Update profile and user fields"""

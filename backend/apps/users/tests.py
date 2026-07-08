@@ -81,4 +81,67 @@ class UserAPITest(TestCase):
         # Assuming endpoint exists at /api/v1/users/me/ or similar, typically provided by Djoser or custom view
         # If specific endpoint unknown, we test typical Djoser /me endpoint or custom profile view
         # Checking urls.py would be ideal, but for now assuming standard convention or skip if unsure route
-        pass 
+        pass
+
+
+class RolePrivilegeEscalationTest(TestCase):
+    """Regression guard for the writable-role_id privilege escalation (Vuln 1):
+    a user must not be able to self-assign a privileged role (curator/teacher/
+    moderator) via registration or `PATCH /users/me/`. Only staff may grant them.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        # The core roles are already created by migration 0003_seed_core_roles,
+        # so fetch-or-create rather than create (name/slug are unique).
+        self.curator_role, _ = UserRole.objects.get_or_create(
+            slug='curator', defaults={'name': 'Curator'}
+        )
+        self.contributor_role, _ = UserRole.objects.get_or_create(
+            slug='contributor', defaults={'name': 'Contributor'}
+        )
+
+    def _register(self, **extra):
+        body = {
+            'email': extra.pop('email', 'newbie@example.com'),
+            'password': 'S3curePass!234',
+            'password_confirm': 'S3curePass!234',
+        }
+        body.update(extra)
+        return self.client.post('/api/v1/users/register/', body, format='json')
+
+    def test_registration_cannot_self_assign_curator(self):
+        resp = self._register(role_id=self.curator_role.id)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.content)
+        self.assertFalse(
+            UserProfile.objects.filter(role=self.curator_role).exists(),
+            'A privileged role must not be assignable at registration.',
+        )
+
+    def test_registration_allows_non_privileged_role(self):
+        resp = self._register(role_id=self.contributor_role.id)
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        profile = UserProfile.objects.get(user__email='newbie@example.com')
+        self.assertEqual(profile.role_id, self.contributor_role.id)
+
+    def test_me_patch_cannot_self_assign_curator(self):
+        user = User.objects.create_user(email='u@example.com', password='pw')
+        UserProfile.objects.create(user=user)
+        self.client.force_authenticate(user=user)
+        resp = self.client.patch(
+            '/api/v1/users/me/', {'role_id': self.curator_role.id}, format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.content)
+        user.profile.refresh_from_db()
+        self.assertNotEqual(user.profile.role_id, self.curator_role.id)
+
+    def test_staff_may_assign_privileged_role_via_me(self):
+        staff = User.objects.create_user(email='staff@example.com', password='pw', is_staff=True)
+        UserProfile.objects.create(user=staff)
+        self.client.force_authenticate(user=staff)
+        resp = self.client.patch(
+            '/api/v1/users/me/', {'role_id': self.curator_role.id}, format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
+        staff.profile.refresh_from_db()
+        self.assertEqual(staff.profile.role_id, self.curator_role.id)
