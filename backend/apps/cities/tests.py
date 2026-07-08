@@ -291,6 +291,36 @@ class PerCityCuratorTests(APITestCase):
         response = self.client.get('/api/v1/moderation/queue/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_city_curator_can_publish_lesson_plan(self):
+        # Regression: publish/edit actions were IsTeacher-gated at the view
+        # level, so a non-staff city curator could never reach the curator-only
+        # publish transition. View gate now admits curators; the object checks
+        # keep it per-city.
+        from apps.education.models import LessonActivity, LessonPlan
+
+        teacher_role, _ = UserRole.objects.get_or_create(slug='teacher', defaults={'name': 'Teacher'})
+        teacher = User.objects.create_user(email='gov-teacher@example.com', password='pw12345!')
+        UserProfile.objects.create(user=teacher, role=teacher_role)
+        plan = LessonPlan.objects.create(
+            title='Plan Gov A', city=self.city_a, author=teacher,
+            status=LessonPlan.STATUS_REVIEW,
+        )
+        LessonActivity.objects.create(lesson=plan, order=1, title='Act', activity_type='explore')
+
+        # Curator of ANOTHER city: not the author, not this city's curator.
+        curator_b = User.objects.create_user(email='gov-cur-b@example.com', password='pw12345!')
+        make_city_curator(curator_b, self.city_b)
+        self.client.force_authenticate(user=curator_b)
+        denied = self.client.post(f'/api/v1/lesson-plans/{plan.id}/publish/')
+        self.assertIn(denied.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+
+        # THIS city's (non-staff) curator publishes.
+        self.client.force_authenticate(user=self.curator_a)
+        allowed = self.client.post(f'/api/v1/lesson-plans/{plan.id}/publish/')
+        self.assertEqual(allowed.status_code, status.HTTP_200_OK)
+        plan.refresh_from_db()
+        self.assertEqual(plan.status, LessonPlan.STATUS_PUBLISHED)
+
     def test_me_exposes_city_roles(self):
         self.client.force_authenticate(user=self.curator_a)
         response = self.client.get('/api/v1/users/me/')

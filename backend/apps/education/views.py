@@ -654,13 +654,20 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         # Reading is open (list/retrieve filtered by visibility). Exporting a
         # package is available to any authenticated user (matches the other
-        # /education/*-packages exports). Everything else (create/update/state
-        # transitions/duplicate) is teacher-gated.
+        # /education/*-packages exports). Authoring a new plan (create/
+        # duplicate) is teacher-gated. Edit/delete/state transitions admit
+        # teachers AND curators at the view level — the object-level checks
+        # (_require_owner_or_curator, the publish gate in _transition) then
+        # enforce owner-or-THIS-city's-curator, so a non-staff city curator
+        # can review/publish their city's plans (they could not reach these
+        # actions at all when everything was IsTeacher-gated).
         if self.action in ('list', 'retrieve'):
             return [permissions.AllowAny()]
         if self.action in ('export_scorm', 'export_pdf'):
             return [permissions.IsAuthenticated()]
-        return [IsTeacher()]
+        if self.action in ('create', 'duplicate'):
+            return [IsTeacher()]
+        return [IsTeacherOrCuratorOrReadOnly()]
 
     def get_queryset(self):
         # Prefetch activities WITH their bound content so the serializer's
