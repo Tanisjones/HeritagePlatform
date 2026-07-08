@@ -113,6 +113,26 @@ const contextOptions = LOM_CONTEXTS;
 
 const formLocation = ref(cityDefaultLatLng()); // Helper for map binding
 
+// On a direct page load the city catalog resolves AFTER this component seeds
+// its default pin, so the fallback coordinates would stick. Re-seed once the
+// active city arrives — but only while the pin still sits on a seeded default
+// (never clobber a location the user already picked on the map).
+watch(() => cityStore.activeCity, (city, previous) => {
+  if (!city) return;
+  const seeded = [
+    { lat: -1.67, lng: -78.65 }, // hardcoded fallback
+    ...(previous?.center?.coordinates
+      ? [{ lat: previous.center.coordinates[1], lng: previous.center.coordinates[0] }]
+      : []),
+  ];
+  const current = formLocation.value;
+  const untouched = seeded.some(p => p.lat === current.lat && p.lng === current.lng);
+  if (untouched) {
+    contribution.location = { type: 'Point', coordinates: cityDefaultLngLat() };
+    formLocation.value = cityDefaultLatLng();
+  }
+});
+
 const files = reactive<{ images: File[], audio: File[], video: File[], documents: File[] }>({
   images: [],
   audio: [],
