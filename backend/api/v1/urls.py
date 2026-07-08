@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.users.views import UserViewSet, UserRoleViewSet
+from apps.cities.views import CityViewSet
 from apps.heritage.views import (
     HeritageCategoryViewSet, HeritageTypeViewSet, ParishViewSet,
     MediaFileViewSet, HeritageItemViewSet, HeritageRelationViewSet,
@@ -50,6 +51,9 @@ router = DefaultRouter()
 # User endpoints
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'roles', UserRoleViewSet, basename='role')
+
+# City endpoints (multi-city catalog; content scoping via ?city= / X-City)
+router.register(r'cities', CityViewSet, basename='city')
 
 # Heritage endpoints
 router.register(r'categories', HeritageCategoryViewSet, basename='category')

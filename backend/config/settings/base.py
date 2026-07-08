@@ -58,6 +58,7 @@ THIRD_PARTY_APPS = [
 
 PROJECT_APPS = [
     'apps.users',
+    'apps.cities',
     'apps.heritage',
     'apps.education',
     'apps.routes',
@@ -127,7 +128,10 @@ LANGUAGES = [
     ('en', 'English'),
 ]
 
-TIME_ZONE = 'America/Guayaquil'  # Ecuador timezone
+# Server-wide timezone (env-overridable). Note: AI-usage day buckets and any
+# timezone.localdate() aggregation follow this global setting; City.timezone
+# is informational/display-only and deliberately NOT applied to aggregation.
+TIME_ZONE = env('DJANGO_TIME_ZONE', default='America/Guayaquil')
 
 USE_I18N = True
 USE_TZ = True
@@ -198,6 +202,13 @@ SPECTACULAR_SETTINGS = {
 
 # CORS settings (will be configured per environment)
 CORS_ALLOW_ALL_ORIGINS = False
+
+# The SPA sends the active city on every request; the default allow-list of
+# django-cors-headers does not include custom headers, so preflights from the
+# Vite dev server (:5173 → :8000) would fail without this.
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = (*default_headers, 'x-city')
 
 # AI configuration. The active provider, model and prompts live in ai.yaml
 # (path below). Provider API keys are read from the environment by the AI config
