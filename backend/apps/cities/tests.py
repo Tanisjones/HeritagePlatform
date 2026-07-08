@@ -211,6 +211,18 @@ class CityScopingTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['city']['slug'], 'city-b')
 
+    def test_lom_catalog_scoped_by_city(self):
+        # /learn lists LOM records; they scope via their parent heritage item.
+        from apps.education.models import LOMGeneral
+
+        LOMGeneral.objects.create(heritage_item=self.item_a, title='LOM A', language='es')
+        LOMGeneral.objects.create(heritage_item=self.item_b, title='LOM B', language='es')
+        response = self.client.get('/api/v1/lom/', HTTP_X_CITY='city-a')
+        data = response.data['results'] if 'results' in response.data else response.data
+        titles = {row['title'] for row in data}
+        self.assertIn('LOM A', titles)
+        self.assertNotIn('LOM B', titles)
+
     def test_moderation_queue_and_stats_scoped(self):
         self.client.force_authenticate(user=self.staff)
         titles = self._titles(self.client.get('/api/v1/moderation/queue/', HTTP_X_CITY='city-a'))

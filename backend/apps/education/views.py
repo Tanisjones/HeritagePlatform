@@ -142,6 +142,17 @@ class LOMGeneralViewSet(viewsets.ModelViewSet):
     }
     search_fields = ['title', 'description', 'keywords']
     ordering_fields = ['created_at', 'updated_at', 'title']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Multi-city scope via the parent heritage item (LOM has no city of its
+        # own) — list-only, so /learn is city-local while LOM detail/downloads
+        # keep working across cities.
+        if getattr(self, 'action', None) == 'list':
+            city = get_request_city(self.request)
+            if city is not None:
+                queryset = queryset.filter(heritage_item__city=city)
+        return queryset
     ordering = ['-created_at']
 
     def get_serializer_class(self):
