@@ -19,9 +19,14 @@ clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// SPA navigation fallback to index.html
+// SPA navigation fallback to index.html — but NEVER for backend-owned paths
+// (Django admin, API, static/media), which nginx proxies to the backend.
+// Without the denylist the fallback serves the SPA shell for /admin/.
+const BACKEND_PATH_PREFIXES = ['/admin', '/api', '/static', '/media']
 registerRoute(
-  ({ request }) => request.mode === 'navigate',
+  ({ request, url }) =>
+    request.mode === 'navigate' &&
+    !BACKEND_PATH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix)),
   createHandlerBoundToURL('/index.html'),
 )
 
