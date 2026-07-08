@@ -53,17 +53,24 @@ def _role_slug(user):
     return getattr(role, "slug", None)
 
 
-def visible_lesson_plans(user, base_qs=None):
+def visible_lesson_plans(user, base_qs=None, city=None):
     """LessonPlans `user` may see — the ONE source of truth for plan visibility.
 
     Curator/staff → all; authenticated → own (any state) OR published-public;
     anonymous → published-public only. Shared by LessonPlanViewSet.get_queryset and
     RubricViewSet so a rubric can never leak the assessment of a plan the caller
     can't see, and the two never drift.
+
+    `city` is a BROWSE filter (multi-city catalog scoping), applied on top of
+    the security rule. RubricViewSet deliberately calls this WITHOUT a city:
+    rubric access is a security question, and a mismatched city header must
+    not lock a teacher out of their own rubric.
     """
     from .models import LessonPlan  # local import: module also imported early
 
     qs = LessonPlan.objects.all() if base_qs is None else base_qs
+    if city is not None:
+        qs = qs.filter(city=city)
     if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
         return qs
     published_public = qs.filter(
@@ -272,6 +279,15 @@ class EducationalResourceViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description', 'content']
     ordering_fields = ['created_at', 'updated_at', 'title']
     ordering = ['-created_at']
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('city')
+        # List-only city scope (deep links to a resource keep working).
+        if getattr(self, 'action', None) == 'list':
+            city = get_request_city(self.request)
+            if city is not None:
+                queryset = queryset.filter(city=city)
+        return queryset
 
     def perform_create(self, serializer):
         """Attribute the resource to the creating user (author is read-only on the
@@ -642,12 +658,15 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         activities_qs = LessonActivity.objects.select_related(
             'heritage_item', 'route', 'educational_resource'
         )
-        base = LessonPlan.objects.all().prefetch_related(
+        base = LessonPlan.objects.select_related('city').prefetch_related(
             Prefetch('activities', queryset=activities_qs),
             'standards',
             'rubrics__criteria',
         )
-        return visible_lesson_plans(self.request.user, base_qs=base)
+        # City scope is list-only: a deep link to a public plan in another
+        # city must keep working whatever the visitor's active city is.
+        city = get_request_city(self.request) if self.action == 'list' else None
+        return visible_lesson_plans(self.request.user, base_qs=base, city=city)
 
     def perform_create(self, serializer):
         serializer.save(

@@ -5,6 +5,7 @@ from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.cities.request import get_request_city
 from apps.heritage.models import HeritageItem
 from apps.notifications.models import UserNotification
 from apps.gamification.services import handle_contribution_approved, reward_moderation_review
@@ -30,7 +31,7 @@ class ModerationViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsCurator]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'heritage_type', 'heritage_category', 'parish', 'curator']
+    filterset_fields = ['status', 'heritage_type', 'heritage_category', 'parish', 'curator', 'city']
     search_fields = ['title', 'description', 'address']
     ordering_fields = ['created_at', 'updated_at', 'submission_date', 'priority']
     ordering = ['submission_date', 'created_at']
@@ -43,13 +44,22 @@ class ModerationViewSet(viewsets.ModelViewSet):
                 'parish',
                 'heritage_type',
                 'heritage_category',
+                'city',
             )
             .prefetch_related('images', 'audio', 'video', 'documents')
         )
+        qs = self._scope_to_request_city(qs)
         status_filter = self.request.query_params.get('status')
         if status_filter:
             return qs
         return qs.filter(status__in=['pending', 'changes_requested']).order_by('priority', 'submission_date', 'created_at')
+
+    def _scope_to_request_city(self, qs):
+        """Queue scope: the active request city, when one is set."""
+        city = get_request_city(self.request)
+        if city is not None:
+            qs = qs.filter(city=city)
+        return qs
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -314,12 +324,16 @@ class ModerationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        qs = HeritageItem.objects.all()
+        qs = self._scope_to_request_city(HeritageItem.objects.all())
+        flags = ContributionFlag.objects.filter(status__in=['open', 'under_review'])
+        city = get_request_city(request)
+        if city is not None:
+            flags = flags.filter(heritage_item__city=city)
         return Response(
             {
                 'pending': qs.filter(status='pending').count(),
                 'changes_requested': qs.filter(status='changes_requested').count(),
-                'flagged_open': ContributionFlag.objects.filter(status__in=['open', 'under_review']).count(),
+                'flagged_open': flags.count(),
                 'reviewed_total': qs.filter(status__in=['published', 'rejected']).count(),
             }
         )

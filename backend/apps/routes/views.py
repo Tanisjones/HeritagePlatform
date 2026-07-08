@@ -55,6 +55,13 @@ class RouteViewSet(viewsets.ModelViewSet):
             )
         return qs
 
+    def _city_filter(self, qs):
+        """Multi-city scope: filter by the request city when one is set."""
+        city = get_request_city(self.request)
+        if city is not None:
+            qs = qs.filter(city=city)
+        return qs
+
     # Actions rendered by the lightweight RouteListSerializer (stop COUNT only).
     _LIST_ACTIONS = {'list', 'my_routes', 'active_routes', 'nearby', 'similar'}
 
@@ -66,13 +73,15 @@ class RouteViewSet(viewsets.ModelViewSet):
         if getattr(self, 'action', None) in self._LIST_ACTIONS:
             return self.list_queryset()
         qs = HeritageRoute.objects.select_related(
-            'creator', 'curator'
+            'creator', 'curator', 'city'
         ).prefetch_related(
             'stops__heritage_item',
             'stops__heritage_item__images',
             # audio backs RouteStopSerializer.audio_url; without this it's an N+1.
             'stops__heritage_item__audio',
         )
+        # No city filter here: detail/write must work for deep links to any
+        # city's route regardless of the visitor's active city header.
         return self._visibility_filter(qs)
 
     def list_queryset(self):
@@ -81,8 +90,8 @@ class RouteViewSet(viewsets.ModelViewSet):
         similar) served by RouteListSerializer, which only needs a stop COUNT —
         so the heavy stops→heritage_item→media prefetch is skipped.
         """
-        qs = HeritageRoute.objects.select_related('creator', 'curator')
-        return self._visibility_filter(qs)
+        qs = HeritageRoute.objects.select_related('creator', 'curator', 'city')
+        return self._city_filter(self._visibility_filter(qs))
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""

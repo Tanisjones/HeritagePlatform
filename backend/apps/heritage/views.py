@@ -127,13 +127,21 @@ class HeritageTypeViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ParishViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for viewing parishes.
+    ViewSet for viewing parishes, scoped to the request city when one is set
+    (this is what keeps every parish dropdown in the SPA city-local).
     """
     queryset = Parish.objects.all()
     serializer_class = ParishSerializer
     permission_classes = [permissions.AllowAny]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'canton']
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('city')
+        city = get_request_city(self.request)
+        if city is not None:
+            queryset = queryset.filter(city=city)
+        return queryset
 
 
 class MediaFileViewSet(viewsets.ModelViewSet):
@@ -244,6 +252,17 @@ class HeritageItemViewSet(viewsets.ModelViewSet):
         Non-authenticated users only see published items.
         """
         queryset = super().get_queryset()
+
+        # Multi-city scope: filter LIST-style actions by the request city when
+        # one is set (?city= / X-City); absent city context = unfiltered
+        # (backwards compatible). geojson/nearby reuse this queryset and
+        # inherit it. Detail/write actions are deliberately NOT city-filtered:
+        # a deep link to another city's item must keep working whatever the
+        # visitor's active city is.
+        if getattr(self, 'action', None) in ('list', 'geojson', 'nearby'):
+            city = get_request_city(self.request)
+            if city is not None:
+                queryset = queryset.filter(city=city)
 
         # Optional media presence filters (boolean query params)
         has_images = self.request.query_params.get('has_images')

@@ -25,6 +25,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.cities.request import get_request_city
 from apps.moderation.permissions import IsCurator
 
 from .models import AIUsageRecord
@@ -87,7 +88,13 @@ class _UsageRangeMixin:
 
     def base_queryset(self, request):
         start_dt, end_dt = self.get_range(request)
-        return AIUsageRecord.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
+        qs = AIUsageRecord.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
+        # Optional per-city drill-down (?city=/X-City); no city = global totals,
+        # which keeps the pre-multi-city dashboard behavior.
+        city = get_request_city(request)
+        if city is not None:
+            qs = qs.filter(city=city)
+        return qs
 
 
 class AIUsageSummaryView(_UsageRangeMixin, APIView):
