@@ -46,11 +46,13 @@ from .scorm import (
 from .qti import build_qti_21_zip
 
 
-def _role_slug(user):
-    """Role slug ('curator'/'teacher'/…) for a user, or None. Mirrors moderation.permissions."""
-    profile = getattr(user, "profile", None)
-    role = getattr(profile, "role", None)
-    return getattr(role, "slug", None)
+# Consolidated role helpers (city-aware since the multi-city refactor).
+from apps.users.permissions import (
+    get_role_slug as _role_slug,
+    is_city_curator,
+    is_curator_anywhere,
+    user_city_ids,
+)
 
 
 def visible_lesson_plans(user, base_qs=None, city=None):
@@ -68,16 +70,23 @@ def visible_lesson_plans(user, base_qs=None, city=None):
     """
     from .models import LessonPlan  # local import: module also imported early
 
+    from apps.cities.models import CityRole
+
     qs = LessonPlan.objects.all() if base_qs is None else base_qs
     if city is not None:
         qs = qs.filter(city=city)
-    if user and user.is_authenticated and (user.is_staff or _role_slug(user) == 'curator'):
+    if user and user.is_authenticated and user.is_staff:
         return qs
     published_public = qs.filter(
         status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC
     )
     if user and user.is_authenticated:
-        return (qs.filter(author=user) | published_public).distinct()
+        visible = qs.filter(author=user) | published_public
+        # Curators review unpublished plans — but only for their own cities.
+        curator_city_ids = user_city_ids(user, CityRole.ROLE_CURATOR)
+        if curator_city_ids:
+            visible = visible | qs.filter(city_id__in=curator_city_ids)
+        return visible.distinct()
     return published_public
 
 
@@ -104,9 +113,11 @@ class IsTeacherOrCuratorOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         user = request.user
+        # Teacher is a global capability; the curator leg is any-city on this
+        # authoring surface (documented scope rule in apps.users.permissions).
         return bool(
             user and user.is_authenticated
-            and (user.is_staff or _role_slug(user) in ('teacher', 'curator'))
+            and (user.is_staff or _role_slug(user) == 'teacher' or is_curator_anywhere(user))
         )
 
 
@@ -676,7 +687,7 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
 
     def _require_owner_or_curator(self, plan):
         user = self.request.user
-        if user.is_staff or _role_slug(user) == 'curator' or plan.author_id == user.id:
+        if user.is_staff or is_city_curator(user, plan.city_id) or plan.author_id == user.id:
             return
         from rest_framework.exceptions import PermissionDenied
         raise PermissionDenied('You can only edit your own lesson plans.')
@@ -758,7 +769,8 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         plan = self.get_object()
         self._require_owner_or_curator(plan)
         user = request.user
-        is_curator = user.is_staff or _role_slug(user) == 'curator'
+        # Publishing is gatekeeping: it takes THIS plan's city curatorship.
+        is_curator = user.is_staff or is_city_curator(user, plan.city_id)
         if require_curator and not is_curator:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Only a curator can publish a lesson plan.')
@@ -908,7 +920,7 @@ class RubricViewSet(viewsets.ModelViewSet):
 
     def _require_lesson_owner(self, lesson):
         user = self.request.user
-        if user.is_staff or _role_slug(user) == 'curator' or lesson.author_id == user.id:
+        if user.is_staff or is_city_curator(user, lesson.city_id) or lesson.author_id == user.id:
             return
         from rest_framework.exceptions import PermissionDenied
         raise PermissionDenied('You can only edit rubrics on your own lesson plans.')

@@ -5,7 +5,9 @@ from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.cities.models import CityRole
 from apps.cities.request import get_request_city
+from apps.users.permissions import user_city_ids
 from apps.heritage.models import HeritageItem
 from apps.notifications.models import UserNotification
 from apps.gamification.services import handle_contribution_approved, reward_moderation_review
@@ -55,10 +57,14 @@ class ModerationViewSet(viewsets.ModelViewSet):
         return qs.filter(status__in=['pending', 'changes_requested']).order_by('priority', 'submission_date', 'created_at')
 
     def _scope_to_request_city(self, qs):
-        """Queue scope: the active request city, when one is set."""
+        """Queue scope: the active request city (when set), intersected with
+        the cities where a non-staff curator actually holds the role."""
         city = get_request_city(self.request)
         if city is not None:
             qs = qs.filter(city=city)
+        user = self.request.user
+        if user.is_authenticated and not user.is_staff:
+            qs = qs.filter(city_id__in=user_city_ids(user, CityRole.ROLE_CURATOR))
         return qs
 
     def get_serializer_class(self):

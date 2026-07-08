@@ -125,6 +125,8 @@ class AISuggestionApproveTest(TestCase):
             username='cur', email='cur@example.com', password='pw'
         )
         UserProfile.objects.create(user=curator, role=role)
+        from apps.cities.testing import make_city_curator
+        make_city_curator(curator, self.city)
         suggestion = AISuggestion.objects.create(
             heritage_item=self.item, suggester='gemini',
             suggestion_type='historical_period', content='colonial', confidence=None,
@@ -704,6 +706,8 @@ class AIUsageAggregationTest(TestCase):
         role, _ = UserRole.objects.get_or_create(name="Curator", slug="curator")
         curator = User.objects.create_user(username="cur2", email="cur2@example.com", password="pw")
         UserProfile.objects.create(user=curator, role=role)
+        from apps.cities.testing import make_city_curator
+        make_city_curator(curator, self.city)
         self.client.force_authenticate(user=curator)
         resp = self.client.get("/api/v1/ai/usage/summary/")
         self.assertEqual(resp.status_code, 200)

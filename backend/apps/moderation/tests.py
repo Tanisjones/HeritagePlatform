@@ -22,6 +22,8 @@ class ModerationTests(APITestCase):
         self.curator = User.objects.create_user(email='curator@example.com', password='password123')
         from apps.users.models import UserProfile
         UserProfile.objects.create(user=self.curator, role=self.curator_role)
+        from apps.cities.testing import make_city_curator
+        make_city_curator(self.curator, self.city)
 
         self.contributor = User.objects.create_user(email='contributor@example.com', password='password123')
         UserProfile.objects.create(user=self.contributor, role=self.contributor_role)

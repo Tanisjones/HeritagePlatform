@@ -10,7 +10,9 @@ from django.utils import timezone
 from django.utils.http import content_disposition_header
 from django_filters.rest_framework import DjangoFilterBackend
 
+from apps.cities.models import CityRole
 from apps.cities.request import get_request_city, get_request_city_or_default
+from apps.users.permissions import IsCurator, user_city_ids
 from .exports import build_gpx, build_kml, slugify_filename, GPX_CONTENT_TYPE, KML_CONTENT_TYPE
 from .models import HeritageRoute, RouteStop, UserRouteProgress, RouteRating, RouteTheme
 from .routing import haversine_m
@@ -43,16 +45,23 @@ class RouteViewSet(viewsets.ModelViewSet):
 
     def _visibility_filter(self, qs):
         """Restrict routes by the requesting user's role."""
-        if not self.request.user.is_authenticated:
+        user = self.request.user
+        if not user.is_authenticated:
             return qs.filter(status='published')
-        if not self.request.user.is_staff:
+        if not user.is_staff:
             # Authenticated users see published + own routes (incl. their archived
             # ones, which are hidden from the public listing).
-            return qs.filter(
+            visible = (
                 Q(status='published') |
-                Q(creator=self.request.user,
+                Q(creator=user,
                   status__in=['draft', 'pending', 'rejected', 'changes_requested', 'archived'])
             )
+            # City curators additionally see every state in THEIR cities (they
+            # review pending routes — the approve/reject actions need this).
+            curator_cities = user_city_ids(user, CityRole.ROLE_CURATOR)
+            if curator_cities:
+                visible = visible | Q(city_id__in=curator_cities)
+            return qs.filter(visible)
         return qs
 
     def _city_filter(self, qs):
@@ -117,7 +126,7 @@ class RouteViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     # Governance actions
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsCurator])
     def approve(self, request, pk=None):
         """Curator approves route."""
         route = self.get_object()
@@ -134,7 +143,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 
         return Response({'status': 'approved'}, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsCurator])
     def reject(self, request, pk=None):
         """Curator rejects route."""
         route = self.get_object()
@@ -150,7 +159,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 
         return Response({'status': 'rejected'}, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser], url_path='request-changes')
+    @action(detail=True, methods=['post'], permission_classes=[IsCurator], url_path='request-changes')
     def request_changes(self, request, pk=None):
         """Curator requests changes to route."""
         route = self.get_object()

@@ -8,10 +8,16 @@ from apps.gamification.serializers import LevelSerializer
 from apps.gamification.services import handle_registration, handle_profile_completion
 
 
-# Roles that grant elevated authorization (the permission classes key off
-# profile.role.slug). Clients must never be able to self-assign these via
-# registration or profile update — doing so is a privilege escalation. Only
-# staff may grant them (through the admin or a staff-gated flow).
+# Roles that grant elevated authorization. Clients must never be able to
+# self-assign these via registration or profile update — doing so is a
+# privilege escalation. Only staff may grant them (through the admin or a
+# staff-gated flow).
+#
+# Multi-city note: 'teacher' is still live authorization keyed off
+# profile.role.slug, while curator/moderator ENFORCEMENT moved to per-city
+# cities.CityRole assignments (see apps.users.permissions). The curator/
+# moderator slugs stay blocked here anyway — defense in depth, and a profile
+# label must not misleadingly claim a governance role it doesn't grant.
 PRIVILEGED_ROLE_SLUGS = frozenset({"curator", "teacher", "moderator"})
 
 
@@ -73,14 +79,30 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model with profile"""
     profile = UserProfileSerializer(read_only=True)
+    city_roles = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
-            'is_active', 'date_joined', 'profile'
+            'is_active', 'date_joined', 'profile', 'city_roles'
         ]
         read_only_fields = ['id', 'date_joined']
+
+    def get_city_roles(self, obj):
+        """Per-city governance grants (curator/moderator), for the SPA to gate
+        curator navigation and show which cities the user moderates."""
+        return [
+            {
+                'city': {
+                    'id': assignment.city_id,
+                    'slug': assignment.city.slug,
+                    'name': assignment.city.name,
+                },
+                'role': assignment.role,
+            }
+            for assignment in obj.city_roles.select_related('city').all()
+        ]
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

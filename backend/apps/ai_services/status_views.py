@@ -4,7 +4,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.moderation.permissions import _get_role_slug as _role_slug
+from apps.users.permissions import is_curator_anywhere
 
 from .ai_config import AIConfigError, load_ai_config
 from .budget import budget_status
@@ -50,7 +50,7 @@ class AIStatusView(APIView):
         # anonymously — this endpoint is AllowAny).
         user = request.user if request.user and request.user.is_authenticated else None
         user_id = user.id if user else None
-        is_curator = bool(user and (user.is_staff or _role_slug(user) == "curator"))
+        is_curator = is_curator_anywhere(user)
         budgets = budget_status(user_id=user_id, config=config, include_global=is_curator)
         if budgets is not None:
             body["budget"] = budgets

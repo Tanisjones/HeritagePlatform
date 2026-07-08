@@ -147,6 +147,8 @@ class HeritageItemMassAssignmentTest(TestCase):
         )
         self.curator = User.objects.create_user(email='curator@example.com', password='pw')
         UserProfile.objects.create(user=self.curator, role=self.curator_role)
+        from apps.cities.testing import make_city_curator
+        make_city_curator(self.curator, self.city)
         self.victim = User.objects.create_user(email='victim@example.com', password='pw')
         self.type = HeritageType.objects.create(name='Tangible', slug='tangible')
         self.category = HeritageCategory.objects.create(name='Architecture', slug='architecture')

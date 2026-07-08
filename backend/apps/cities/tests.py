@@ -217,3 +217,86 @@ class CityScopingTests(APITestCase):
         self.assertEqual(titles, {'Pending A'})
         response = self.client.get('/api/v1/moderation/queue/stats/', HTTP_X_CITY='city-a')
         self.assertEqual(response.data['pending'], 1)
+
+
+class PerCityCuratorTests(APITestCase):
+    """Curator/moderator powers are per-city CityRole grants; profile.role
+    curator alone grants nothing (the enforcement flip of the refactor)."""
+
+    def setUp(self):
+        from django.contrib.gis.geos import Point
+        from apps.heritage.models import HeritageCategory, HeritageItem, HeritageType
+        from apps.routes.models import HeritageRoute
+
+        self.city_a = make_city(slug='gov-a', name='Gov A')
+        self.city_b = make_city(slug='gov-b', name='Gov B')
+        self.h_type = HeritageType.objects.create(name='Gov T', slug='gov-t')
+        self.h_cat = HeritageCategory.objects.create(name='Gov C', slug='gov-c')
+
+        def pending_item(city, title):
+            return HeritageItem.objects.create(
+                city=city, title=title, description='d',
+                location=Point(-78.6, -1.6, srid=4326),
+                heritage_type=self.h_type, heritage_category=self.h_cat,
+                status='pending',
+            )
+
+        self.pending_a = pending_item(self.city_a, 'Gov Pending A')
+        self.pending_b = pending_item(self.city_b, 'Gov Pending B')
+        self.route_a = HeritageRoute.objects.create(
+            city=self.city_a, title='Gov Route A', description='d', status='pending')
+        self.route_b = HeritageRoute.objects.create(
+            city=self.city_b, title='Gov Route B', description='d', status='pending')
+
+        role, _ = UserRole.objects.get_or_create(slug='curator', defaults={'name': 'Curator'})
+        self.curator_a = User.objects.create_user(email='gov-cur-a@example.com', password='pw12345!')
+        UserProfile.objects.create(user=self.curator_a, role=role)
+        make_city_curator(self.curator_a, self.city_a)
+
+        # Curator label on the profile but NO CityRole grant anywhere.
+        self.label_only = User.objects.create_user(email='gov-label@example.com', password='pw12345!')
+        UserProfile.objects.create(user=self.label_only, role=role)
+
+    def test_queue_limited_to_assigned_cities(self):
+        self.client.force_authenticate(user=self.curator_a)
+        response = self.client.get('/api/v1/moderation/queue/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data['results'] if 'results' in response.data else response.data
+        titles = {row['title'] for row in data}
+        self.assertIn('Gov Pending A', titles)
+        self.assertNotIn('Gov Pending B', titles)
+
+    def test_cross_city_approve_denied_own_city_allowed(self):
+        self.client.force_authenticate(user=self.curator_a)
+        denied = self.client.post(f'/api/v1/moderation/queue/{self.pending_b.id}/approve/')
+        self.assertIn(denied.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+        allowed = self.client.post(f'/api/v1/moderation/queue/{self.pending_a.id}/approve/')
+        self.assertEqual(allowed.status_code, status.HTTP_200_OK)
+        self.pending_a.refresh_from_db()
+        self.assertEqual(self.pending_a.status, 'published')
+
+    def test_route_governance_is_city_scoped_for_non_staff_curator(self):
+        # Regression for the old IsAdminUser gate: a (non-staff) city curator
+        # can now approve routes — but only in their own city.
+        self.client.force_authenticate(user=self.curator_a)
+        allowed = self.client.post(f'/api/v1/routes/{self.route_a.id}/approve/')
+        self.assertEqual(allowed.status_code, status.HTTP_200_OK)
+        self.route_a.refresh_from_db()
+        self.assertEqual(self.route_a.status, 'published')
+        denied = self.client.post(f'/api/v1/routes/{self.route_b.id}/approve/')
+        self.assertIn(denied.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+
+    def test_profile_role_label_alone_grants_nothing(self):
+        self.client.force_authenticate(user=self.label_only)
+        response = self.client.get('/api/v1/moderation/queue/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_me_exposes_city_roles(self):
+        self.client.force_authenticate(user=self.curator_a)
+        response = self.client.get('/api/v1/users/me/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        grants = {(g['city']['slug'], g['role']) for g in response.data['city_roles']}
+        self.assertIn(('gov-a', 'curator'), grants)
+        self.client.force_authenticate(user=self.label_only)
+        response = self.client.get('/api/v1/users/me/')
+        self.assertEqual(response.data['city_roles'], [])

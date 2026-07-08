@@ -21,6 +21,7 @@ from .serializers import (
     AnnotationSerializer
 )
 from apps.cities.request import get_request_city, get_request_city_or_default
+from apps.users.permissions import is_city_curator, is_curator_anywhere
 from apps.gamification.services import handle_contribution_created
 
 
@@ -62,11 +63,16 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        # Staff users (moderators) and curators can manage objects during moderation.
-        profile = getattr(user, "profile", None)
-        role = getattr(profile, "role", None)
-        role_slug = getattr(role, "slug", None)
-        if user.is_staff or role_slug == "curator":
+        # Staff (global) and the object's own city curators can manage objects
+        # during moderation; objects without a city (e.g. media files) accept
+        # any city's curator.
+        if user.is_staff:
+            return True
+        city_id = getattr(obj, 'city_id', None)
+        if city_id is not None:
+            if is_city_curator(user, city_id):
+                return True
+        elif is_curator_anywhere(user):
             return True
 
         # Check if object has contributor field
@@ -90,11 +96,9 @@ class IsModeratorOrReadOnly(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        # Staff users are moderators; curators are identified via profile.role.slug == "curator".
-        profile = getattr(user, "profile", None)
-        role = getattr(profile, "role", None)
-        role_slug = getattr(role, "slug", None)
-        return bool(user.is_staff or role_slug == "curator")
+        # View-level gate only: any-city curators pass here, and the paired
+        # object-level check (IsOwnerOrReadOnly) enforces the object's city.
+        return bool(user.is_staff or is_curator_anywhere(user))
 
 
 class HeritageCategoryViewSet(viewsets.ReadOnlyModelViewSet):
