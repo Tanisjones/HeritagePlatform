@@ -940,6 +940,12 @@
       "changesRequested": "Cambios solicitados",
       "flaggedOpen": "Marcadas (abiertas)",
       "reviewedTotal": "Revisadas (total)"
+    },
+    "moderating": "Estás moderando:",
+    "byCity": {
+      "title": "Trabajo pendiente por ciudad",
+      "city": "Ciudad",
+      "moderate": "Moderar"
     }
   },
   "aiSuggestions": {
@@ -1152,7 +1158,8 @@
       "search": "Buscar",
       "searchPlaceholder": "Título, descripción…",
       "status": "Estado",
-      "apply": "Aplicar"
+      "apply": "Aplicar",
+      "mine": "Solo los míos"
     },
     "table": {
       "title": "Título",
@@ -1161,7 +1168,25 @@
       "score": "Puntuación",
       "submitted": "Enviado",
       "loading": "Cargando…",
-      "empty": "No se encontraron elementos."
+      "empty": "No se encontraron elementos.",
+      "assignee": "Asignado a",
+      "assignToMe": "Asignarme",
+      "you": "Tú",
+      "age": "{days} d"
+    },
+    "bulk": {
+      "selectAll": "Seleccionar todo",
+      "selected": "{count} seleccionados",
+      "approve": "Aprobar ({count})",
+      "reject": "Rechazar ({count})",
+      "confirmReject": "Confirmar rechazo ({count})",
+      "confirmApprove": "¿Aprobar y publicar {count} contribuciones seleccionadas?",
+      "clear": "Quitar selección",
+      "feedbackLabel": "Comentario para quienes contribuyen (compartido)",
+      "feedbackPlaceholder": "p. ej. Faltan fuentes o imágenes de apoyo",
+      "done": "{done} contribuciones procesadas.",
+      "doneWithSkipped": "{done} procesadas, {skipped} omitidas.",
+      "error": "La operación no se pudo completar. Inténtelo de nuevo."
     }
   },
   "periods": {
@@ -1471,7 +1496,8 @@
     "empty": {
       "title": "Sin actividad de IA",
       "message": "No se han registrado llamadas de IA en el periodo seleccionado."
-    }
+    },
+    "cityFilter": "Ciudad"
   },
   "education": {
     "resourcesTitle": "Recursos educativos",

@@ -940,6 +940,12 @@
       "changesRequested": "Changes requested",
       "flaggedOpen": "Flagged (open)",
       "reviewedTotal": "Reviewed total"
+    },
+    "moderating": "You are moderating:",
+    "byCity": {
+      "title": "Pending work by city",
+      "city": "City",
+      "moderate": "Moderate"
     }
   },
   "aiSuggestions": {
@@ -1152,7 +1158,8 @@
       "search": "Search",
       "searchPlaceholder": "Title, description…",
       "status": "Status",
-      "apply": "Apply"
+      "apply": "Apply",
+      "mine": "Only mine"
     },
     "table": {
       "title": "Title",
@@ -1161,7 +1168,25 @@
       "score": "Score",
       "submitted": "Submitted",
       "loading": "Loading…",
-      "empty": "No items found."
+      "empty": "No items found.",
+      "assignee": "Assignee",
+      "assignToMe": "Assign to me",
+      "you": "You",
+      "age": "{days} d"
+    },
+    "bulk": {
+      "selectAll": "Select all",
+      "selected": "{count} selected",
+      "approve": "Approve ({count})",
+      "reject": "Reject ({count})",
+      "confirmReject": "Confirm rejection ({count})",
+      "confirmApprove": "Approve and publish {count} selected contributions?",
+      "clear": "Clear selection",
+      "feedbackLabel": "Feedback for the contributors (shared)",
+      "feedbackPlaceholder": "e.g. Missing sources or supporting images",
+      "done": "{done} contributions processed.",
+      "doneWithSkipped": "{done} processed, {skipped} skipped.",
+      "error": "The operation could not be completed. Please try again."
     }
   },
   "periods": {
@@ -1471,7 +1496,8 @@
     "empty": {
       "title": "No AI activity",
       "message": "No AI calls were recorded in the selected period."
-    }
+    },
+    "cityFilter": "City"
   },
   "education": {
     "resourcesTitle": "Educational resources",

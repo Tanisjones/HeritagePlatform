@@ -10,8 +10,10 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { aiUsageService, aiService } from '@/services/api'
+import { aiUsageService, aiService, ALL_CITIES } from '@/services/api'
 import type { AIBudgetStatus } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
+import { useCityStore } from '@/stores/city'
 import { withLoading } from '@/composables/useAsyncAction'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -24,12 +26,36 @@ import type {
 } from '@/types/aiUsage'
 
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+const cityStore = useCityStore()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
 
 const rangeDays = ref<number>(30)
 const RANGE_OPTIONS = [7, 30, 90]
+
+// D4 — per-city drill-down. Defaults to the city being moderated (the active
+// city); the ?city= param wins over the X-City header, and the ALL_CITIES
+// sentinel (an unknown slug server-side) yields global totals.
+const citySlug = ref<string>(cityStore.isAllCities ? ALL_CITIES : cityStore.activeCitySlug || ALL_CITIES)
+
+const cityOptions = computed(() => {
+  if (authStore.user?.is_staff) return cityStore.cities.map((c) => ({ slug: c.slug, name: c.name }))
+  const curated = (authStore.user?.city_roles ?? [])
+    .filter((r: any) => r.role === 'curator')
+    .map((r: any) => ({ slug: r.city.slug, name: r.city.name }))
+  // Fallback for the odd non-curator staff-adjacent viewer: the active city.
+  if (!curated.length && cityStore.activeCity) {
+    return [{ slug: cityStore.activeCity.slug, name: cityStore.activeCity.name }]
+  }
+  return curated
+})
+
+function setCityFilter(event: Event) {
+  citySlug.value = (event.target as HTMLSelectElement).value
+  loadAll()
+}
 
 const byOperation = ref<AiUsageSummaryResponse | null>(null)
 const byModel = ref<AiUsageSummaryResponse | null>(null)
@@ -56,12 +82,13 @@ function sinceParam(): string {
 async function loadAll() {
   await withLoading(loading, error, async () => {
     const since = sinceParam()
+    const city = citySlug.value
     const [op, model, user, ts, rec] = await Promise.all([
-      aiUsageService.summary({ since, group_by: 'operation' }),
-      aiUsageService.summary({ since, group_by: 'model' }),
-      aiUsageService.summary({ since, group_by: 'user' }),
-      aiUsageService.timeseries({ since }),
-      aiUsageService.recent({ since, limit: 50 }),
+      aiUsageService.summary({ since, group_by: 'operation', city }),
+      aiUsageService.summary({ since, group_by: 'model', city }),
+      aiUsageService.summary({ since, group_by: 'user', city }),
+      aiUsageService.timeseries({ since, city }),
+      aiUsageService.recent({ since, limit: 50, city }),
     ])
     byOperation.value = op
     byModel.value = model
@@ -209,17 +236,30 @@ function statusClass(status: string): string {
         <h1 class="text-3xl font-bold text-gray-900">{{ t('aiUsage.title') }}</h1>
         <p class="text-sm text-gray-600 mt-1">{{ t('aiUsage.subtitle') }}</p>
       </div>
-      <!-- range selector -->
-      <div class="inline-flex rounded-lg border border-gray-300 bg-white overflow-hidden">
-        <button
-          v-for="opt in RANGE_OPTIONS"
-          :key="opt"
-          class="px-3 py-1.5 text-sm"
-          :class="rangeDays === opt ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-primary-50'"
-          @click="setRange(opt)"
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- D4: per-city drill-down (defaults to the city being moderated) -->
+        <select
+          v-if="cityOptions.length"
+          :value="citySlug"
+          class="rounded-lg border-gray-300 bg-white text-sm py-1.5"
+          :aria-label="t('aiUsage.cityFilter')"
+          @change="setCityFilter"
         >
-          {{ t('aiUsage.lastNDays', { n: opt }) }}
-        </button>
+          <option v-for="c in cityOptions" :key="c.slug" :value="c.slug">{{ c.name }}</option>
+          <option :value="ALL_CITIES">{{ t('common.allCities') }}</option>
+        </select>
+        <!-- range selector -->
+        <div class="inline-flex rounded-lg border border-gray-300 bg-white overflow-hidden">
+          <button
+            v-for="opt in RANGE_OPTIONS"
+            :key="opt"
+            class="px-3 py-1.5 text-sm"
+            :class="rangeDays === opt ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-primary-50'"
+            @click="setRange(opt)"
+          >
+            {{ t('aiUsage.lastNDays', { n: opt }) }}
+          </button>
+        </div>
       </div>
     </div>
 

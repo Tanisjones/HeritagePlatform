@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   modelValue: Record<string, any>
@@ -12,6 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 const status = computed({
   get: () => props.modelValue.status ?? 'pending',
@@ -21,6 +23,17 @@ const status = computed({
 const search = computed({
   get: () => props.modelValue.search ?? '',
   set: (value: string) => emit('update:modelValue', { ...props.modelValue, search: value }),
+})
+
+// D2 — "solo los míos": filters by the assignee (the API's ?curator= filter).
+const onlyMine = computed({
+  get: () => !!props.modelValue.curator,
+  set: (value: boolean) => {
+    const next = { ...props.modelValue }
+    if (value && authStore.user?.id) next.curator = authStore.user.id
+    else delete next.curator
+    emit('update:modelValue', next)
+  },
 })
 </script>
 
@@ -47,6 +60,11 @@ const search = computed({
         <option value="rejected">{{ t('curatorReview.statusMap.rejected') }}</option>
       </select>
     </div>
+    <!-- D2: only items assigned to me -->
+    <label class="flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap pb-2 md:pb-2.5">
+      <input v-model="onlyMine" type="checkbox" class="rounded border-gray-300" />
+      {{ t('curatorQueue.filters.mine') }}
+    </label>
     <button
       type="button"
       class="inline-flex justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"

@@ -57,6 +57,20 @@ export const useModerationStore = defineStore('moderation', () => {
     await fetchQueue()
   }
 
+  /** D2 — claim an item; updates the row in place (no full refetch needed). */
+  async function assign(id: string) {
+    const response = await curatorService.assign(id)
+    const row = queue.value.find((q) => q.id === id)
+    if (row) row.curator_email = response.data?.curator_email ?? null
+  }
+
+  /** D2 — bulk approve/reject; returns the API report {processed, skipped}. */
+  async function bulkDecide(ids: string[], decision: 'approve' | 'reject', feedback = '') {
+    const response = await curatorService.bulk({ ids, decision, feedback })
+    await fetchQueue()
+    return response.data as { decision: string; processed: string[]; skipped: string[] }
+  }
+
   return {
     queue,
     currentItem,
@@ -71,6 +85,8 @@ export const useModerationStore = defineStore('moderation', () => {
     approve,
     reject,
     requestChanges,
+    assign,
+    bulkDecide,
   }
 })
 

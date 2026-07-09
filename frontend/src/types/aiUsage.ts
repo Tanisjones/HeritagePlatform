@@ -72,4 +72,7 @@ export interface AiUsageQuery {
   until?: string
   group_by?: AiUsageGroupBy
   limit?: number
+  /** D4 — per-city drill-down; ?city= wins over the X-City header, and an
+   * unknown slug (the ALL_CITIES sentinel) yields global totals. */
+  city?: string
 }

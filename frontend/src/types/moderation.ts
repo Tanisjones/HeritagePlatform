@@ -111,6 +111,8 @@ export interface CuratorQueueItem {
   last_review_date?: string | null;
   /** C1 — present on queue rows (CityRef); shown as a badge when unscoped. */
   city?: { id: number; slug: string; name: string } | null;
+  /** D2 — who claimed the item; null when unassigned. */
+  curator_email?: string | null;
   parish?: unknown;
   heritage_type?: unknown;
   heritage_category?: unknown;
@@ -162,6 +164,8 @@ export interface CuratorStats {
   changes_requested: number;
   flagged_open: number;
   reviewed_total: number;
+  /** D1 — per-city workload across the cities this curator governs. */
+  cities?: Array<{ slug: string; name: string; pending: number; changes_requested: number }>;
 }
 
 export interface ContributorFeedback {

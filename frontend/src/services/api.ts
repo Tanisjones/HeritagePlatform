@@ -130,6 +130,11 @@ export const curatorService = {
     api.post(`/moderation/queue/${id}/reject/`, payload),
   requestChanges: (id: string, payload: { feedback?: string; curator_feedback?: string }) =>
     api.post(`/moderation/queue/${id}/request-changes/`, payload),
+  /** D2 — claim an item so other curators see it's being handled. */
+  assign: (id: string) => api.post(`/moderation/queue/${id}/assign/`),
+  /** D2 — bulk approve/reject with an optional shared feedback text. */
+  bulk: (payload: { ids: string[]; decision: 'approve' | 'reject'; feedback?: string }) =>
+    api.post('/moderation/queue/bulk/', payload),
   getScore: (id: string) => api.get(`/moderation/queue/${id}/score/`),
   setScore: (id: string, payload: Record<string, unknown>) => api.post(`/moderation/queue/${id}/score/`, payload),
   flag: (id: string, payload: Record<string, unknown>) => api.post(`/moderation/queue/${id}/flag/`, payload),
