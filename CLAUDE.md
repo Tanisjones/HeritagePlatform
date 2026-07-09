@@ -56,6 +56,7 @@ $B python manage.py makemigrations && $B python manage.py migrate
 $B python manage.py createsuperuser
 $B python manage.py seed_heritage [--reset] [--skip-media-downloads]   # legacy wrapper = seed_city riobamba
 $B python manage.py seed_city <slug> [--reset] [--skip-media-downloads] # per-city dataset from data/cities/<slug>.py
+$B python manage.py seed_curriculum [--dataset ec_mineduc]  # curriculum-standard catalog from data/curriculum/ (idempotent)
 $B python manage.py sync_translation_fields      # after adding a translated field
 $B python manage.py check
 ```
