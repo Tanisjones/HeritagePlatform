@@ -305,6 +305,8 @@ class LessonActivitySerializer(serializers.ModelSerializer):
     educational_resource_title = serializers.CharField(
         source='educational_resource.title', read_only=True, default=None
     )
+    lom_general_title = serializers.CharField(source='lom_general.title', read_only=True, default=None)
+    quiz_question_count = serializers.SerializerMethodField()
 
     class Meta:
         model = LessonActivity
@@ -313,7 +315,16 @@ class LessonActivitySerializer(serializers.ModelSerializer):
             'duration_minutes', 'materials',
             'heritage_item', 'route', 'educational_resource', 'lom_general',
             'heritage_item_title', 'route_title', 'educational_resource_title',
+            'lom_general_title', 'quiz_question_count',
         ]
+
+    def get_quiz_question_count(self, obj):
+        # Bound quiz size, for "Cuestionario: X (N preguntas)" labels. Cheap:
+        # the viewset prefetches activities' lom_general; questions only load
+        # for activities that actually bind a quiz (rare per plan).
+        if obj.lom_general_id is None:
+            return None
+        return obj.lom_general.questions.count()
 
     def validate_instructions(self, value):
         # Rendered as HTML in the lesson view — sanitize on write. See sanitize.py.

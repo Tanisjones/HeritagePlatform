@@ -3,6 +3,7 @@ Views for education app (IEEE LOM metadata API endpoints).
 """
 
 import json
+import uuid
 
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -152,6 +153,10 @@ class LOMGeneralViewSet(viewsets.ModelViewSet):
             city = get_request_city(self.request)
             if city is not None:
                 queryset = queryset.filter(heritage_item__city=city)
+            # ?has_questions=1 — only learning objects that carry a quiz. Powers
+            # the plan editor's "Cuestionario" content tab (A.5).
+            if self.request.query_params.get('has_questions') in ('1', 'true'):
+                queryset = queryset.filter(questions__isnull=False).distinct()
         return queryset
     ordering = ['-created_at']
 
@@ -685,7 +690,7 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         # heritage_item_title / route_title / educational_resource_title reads don't
         # trigger a query per activity (N+1 on every list/retrieve).
         activities_qs = LessonActivity.objects.select_related(
-            'heritage_item', 'route', 'educational_resource'
+            'heritage_item', 'route', 'educational_resource', 'lom_general'
         )
         base = LessonPlan.objects.select_related('city').prefetch_related(
             Prefetch('activities', queryset=activities_qs),
@@ -695,7 +700,24 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         # City scope is list-only: a deep link to a public plan in another
         # city must keep working whatever the visitor's active city is.
         city = get_request_city(self.request) if self.action == 'list' else None
-        return visible_lesson_plans(self.request.user, base_qs=base, city=city)
+        qs = visible_lesson_plans(self.request.user, base_qs=base, city=city)
+        if self.action == 'list':
+            params = self.request.query_params
+            # ?mine=1 — only the caller's own plans (teacher dashboard, A.3).
+            user = self.request.user
+            if params.get('mine') in ('1', 'true') and user.is_authenticated:
+                qs = qs.filter(author=user)
+            # ?standard=<uuid or code prefix> — plans aligned to a curriculum
+            # standard (A.6). A code prefix matches whole families ("ECA.3").
+            standard = (params.get('standard') or '').strip()
+            if standard:
+                try:
+                    uuid.UUID(standard)
+                    qs = qs.filter(standards__id=standard)
+                except ValueError:
+                    qs = qs.filter(standards__code__istartswith=standard)
+                qs = qs.distinct()
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(
@@ -718,17 +740,73 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         self._require_owner_or_curator(instance)
         instance.delete()
 
+    @staticmethod
+    def _equivalent_in_city(model, title, city):
+        """Best-effort 'same content in another city': exact title match (case-
+        insensitive) within the target city, preferring published records when
+        the model has a status field. Returns None when nothing matches."""
+        qs = model.objects.filter(city=city, title__iexact=title)
+        try:
+            model._meta.get_field('status')
+        except Exception:
+            return qs.first()
+        return qs.filter(status='published').first() or qs.first()
+
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
         """Clone a plan — its activities, curriculum standards, AND rubrics (with
-        criteria) — as a fresh draft owned by the caller."""
+        criteria) — as a fresh draft owned by the caller.
+
+        Duplicate-and-adapt (A.7): pass ``{"city": "<slug>"}`` to re-home the copy
+        in another city. Each activity's bound content (heritage item / route /
+        resource / quiz) is re-linked to the target city's equivalent, matched by
+        title; content with no local equivalent is unlinked. The response then
+        carries an ``adaptation`` report so the teacher sees what needs re-binding.
+        """
         from django.db import transaction as _txn
-        from .models import Rubric, RubricCriterion
+        from apps.cities.models import City
 
         source = self.get_object()
+
+        target_city = None
+        payload = request.data if isinstance(request.data, dict) else {}
+        city_param = payload.get('city')
+        if city_param:
+            target_city = City.objects.filter(slug=city_param, is_active=True).first()
+            if target_city is None:
+                return Response(
+                    {'detail': f"Unknown or inactive city '{city_param}'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        adapting = target_city is not None and target_city.pk != source.city_id
+        clone_city = target_city if adapting else source.city
+
+        relinked, dropped, details = 0, 0, []
+
+        def _adapt(field_label, model, bound):
+            """Re-link `bound` to its target-city equivalent; record the outcome."""
+            nonlocal relinked, dropped
+            if bound is None:
+                return None
+            match = self._equivalent_in_city(model, bound.title, target_city)
+            if match is not None:
+                relinked += 1
+            else:
+                dropped += 1
+            details.append({
+                'field': field_label,
+                'source_title': bound.title,
+                'matched_title': match.title if match is not None else None,
+            })
+            return match
+
         with _txn.atomic():
+            related_route = source.related_route
+            if adapting:
+                related_route = _adapt('related_route', HeritageRoute, source.related_route)
             clone = LessonPlan.objects.create(
-                title=f"{source.title} (copy)",
+                title=f"{source.title} ({target_city.name})" if adapting
+                      else f"{source.title} (copy)",
                 summary=source.summary,
                 objectives=list(source.objectives or []),
                 subject=source.subject,
@@ -737,18 +815,42 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
                 curriculum_alignment=source.curriculum_alignment,
                 pedagogical_approach=source.pedagogical_approach,
                 estimated_total_minutes=source.estimated_total_minutes,
-                related_route=source.related_route,
+                related_route=related_route,
                 status=LessonPlan.STATUS_DRAFT,
                 visibility=LessonPlan.VISIBILITY_PRIVATE,
                 author=request.user,
-                city=source.city,
+                city=clone_city,
             )
             for activity in source.activities.all():
                 activity.pk = None
                 activity.id = None
                 activity.lesson = clone
+                if adapting:
+                    activity.heritage_item = _adapt(
+                        'heritage_item', HeritageItem, activity.heritage_item)
+                    activity.route = _adapt('route', HeritageRoute, activity.route)
+                    activity.educational_resource = _adapt(
+                        'educational_resource', EducationalResource,
+                        activity.educational_resource)
+                    if activity.lom_general_id:
+                        # A quiz lives on a heritage item's LOM record — the
+                        # equivalent quiz is the matched item's LOM (if any).
+                        src_item = activity.lom_general.heritage_item
+                        matched_item = self._equivalent_in_city(
+                            HeritageItem, src_item.title, target_city)
+                        target_lom = getattr(matched_item, 'lom_general', None)
+                        if target_lom is not None:
+                            relinked += 1
+                        else:
+                            dropped += 1
+                        details.append({
+                            'field': 'quiz',
+                            'source_title': activity.lom_general.title,
+                            'matched_title': target_lom.title if target_lom else None,
+                        })
+                        activity.lom_general = target_lom
                 activity.save()
-            # Carry over the curated standards (M2M) and the assessment rubrics.
+            # Standards are platform-level (country/framework) — always carried.
             clone.standards.set(source.standards.all())
             for rubric in source.rubrics.prefetch_related('criteria'):
                 criteria = list(rubric.criteria.all())
@@ -761,8 +863,15 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
                     crit.id = None
                     crit.rubric = rubric
                     crit.save()
-        return Response(LessonPlanSerializer(clone, context={'request': request}).data,
-                        status=status.HTTP_201_CREATED)
+        data = LessonPlanSerializer(clone, context={'request': request}).data
+        if adapting:
+            data['adaptation'] = {
+                'city': target_city.slug,
+                'relinked': relinked,
+                'dropped': dropped,
+                'details': details,
+            }
+        return Response(data, status=status.HTTP_201_CREATED)
 
     # ---- state machine: draft → review → published → archived --------------
     #
@@ -909,7 +1018,7 @@ class CurriculumStandardViewSet(viewsets.ReadOnlyModelViewSet):
     # isn't silently capped at the default page size (20).
     pagination_class = None
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['subject', 'grade_level']
+    filterset_fields = ['subject', 'grade_level', 'country', 'framework']
     search_fields = ['code', 'description', 'subject']
     ordering = ['subject', 'grade_level', 'code']
 

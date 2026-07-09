@@ -1539,3 +1539,227 @@ class LessonPlanReviewFix2Test(TestCase):
         # Now reachable anonymously.
         self.client.force_authenticate(user=None)
         self.assertEqual(self.client.get(f'/api/v1/lesson-plans/{self.plan.id}/').status_code, 200)
+
+
+class LessonPlanTeachingFiltersTest(TestCase):
+    """A.3/A.6 — teacher-dashboard and discovery filters on the plan list
+    (?mine=, ?standard=<uuid|code prefix>)."""
+
+    def setUp(self):
+        from apps.education.models import LessonPlan, CurriculumStandard
+        self.LessonPlan = LessonPlan
+        self.CurriculumStandard = CurriculumStandard
+        self.city = make_city()
+        self.client = APIClient()
+        # Two staff users (stand-in teachers) so both see everything on list —
+        # isolating what ?mine= actually filters.
+        self.t1 = User.objects.create_user(email='t1@example.com', password='pw', is_staff=True)
+        self.t2 = User.objects.create_user(email='t2@example.com', password='pw', is_staff=True)
+        self.mine_draft = LessonPlan.objects.create(
+            city=self.city, title='Mío borrador', author=self.t1,
+            status=LessonPlan.STATUS_DRAFT, visibility=LessonPlan.VISIBILITY_PRIVATE,
+        )
+        self.mine_pub = LessonPlan.objects.create(
+            city=self.city, title='Mío publicado', author=self.t1,
+            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC,
+        )
+        self.other_pub = LessonPlan.objects.create(
+            city=self.city, title='Ajeno publicado', author=self.t2,
+            status=LessonPlan.STATUS_PUBLISHED, visibility=LessonPlan.VISIBILITY_PUBLIC,
+        )
+
+    def _ids(self, resp):
+        rows = resp.data['results'] if 'results' in resp.data else resp.data
+        return {row['id'] for row in rows}
+
+    def test_mine_returns_only_own_plans(self):
+        self.client.force_authenticate(user=self.t1)
+        ids = self._ids(self.client.get('/api/v1/lesson-plans/?mine=1'))
+        self.assertEqual(ids, {str(self.mine_draft.id), str(self.mine_pub.id)})
+        # Without ?mine= the other teacher's published plan is present too.
+        ids = self._ids(self.client.get('/api/v1/lesson-plans/'))
+        self.assertIn(str(self.other_pub.id), ids)
+
+    def test_mine_ignored_for_anonymous(self):
+        resp = self.client.get('/api/v1/lesson-plans/?mine=1')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        # Anonymous has no "mine" — falls back to the public catalog.
+        self.assertEqual(self._ids(resp), {str(self.mine_pub.id), str(self.other_pub.id)})
+
+    def test_standard_filter_by_uuid_and_code_prefix(self):
+        s1 = self.CurriculumStandard.objects.create(
+            code='ZZ.3.1.1', subject='Prueba', grade_level='Básica media', description='d1')
+        s2 = self.CurriculumStandard.objects.create(
+            code='ZZ.3.1.2', subject='Prueba', grade_level='Básica media', description='d2')
+        self.mine_pub.standards.set([s1, s2])
+        self.client.force_authenticate(user=self.t1)
+
+        ids = self._ids(self.client.get(f'/api/v1/lesson-plans/?standard={s1.id}'))
+        self.assertEqual(ids, {str(self.mine_pub.id)})
+        # Code-prefix match ("what do we have for ZZ.3?") — and no duplicate rows
+        # even though TWO attached standards match the prefix (distinct()).
+        resp = self.client.get('/api/v1/lesson-plans/?standard=ZZ.3')
+        rows = resp.data['results'] if 'results' in resp.data else resp.data
+        self.assertEqual([row['id'] for row in rows], [str(self.mine_pub.id)])
+        ids = self._ids(self.client.get('/api/v1/lesson-plans/?standard=NOPE'))
+        self.assertEqual(ids, set())
+
+
+class LOMHasQuestionsFilterTest(TestCase):
+    """A.5 — /lom/?has_questions=1 lists only learning objects carrying a quiz."""
+
+    def setUp(self):
+        self.city = make_city()
+        self.client = APIClient()
+        htype = HeritageType.objects.create(name='Tangible', slug='tangible-hq')
+        hcat = HeritageCategory.objects.create(name='Arch', slug='arch-hq')
+        parish = Parish.objects.create(city=self.city, name='Parish HQ', canton='Riobamba')
+
+        def make_lom(title, slug):
+            item = HeritageItem.objects.create(
+                city=self.city, title=title, description='d', heritage_type=htype,
+                heritage_category=hcat, parish=parish, location='POINT(0 0)',
+                status='published',
+            )
+            return LOMGeneral.objects.create(
+                heritage_item=item, title=title, language='es', description='x')
+
+        self.with_quiz = make_lom('Catedral con quiz', 'cq')
+        self.without_quiz = make_lom('Parque sin quiz', 'pq')
+        AssessmentQuestion.objects.create(
+            lom_general=self.with_quiz, order=0, prompt='¿Año?', question_type='short_answer')
+        AssessmentQuestion.objects.create(
+            lom_general=self.with_quiz, order=1, prompt='¿Estilo?', question_type='short_answer')
+
+    def test_filter_returns_only_lom_with_questions_no_duplicates(self):
+        resp = self.client.get('/api/v1/lom/?has_questions=1')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        rows = resp.data['results'] if 'results' in resp.data else resp.data
+        # Exactly one row (two questions must not duplicate it via the join).
+        self.assertEqual([row['id'] for row in rows], [str(self.with_quiz.id)])
+
+    def test_unfiltered_list_still_returns_all(self):
+        resp = self.client.get('/api/v1/lom/')
+        rows = resp.data['results'] if 'results' in resp.data else resp.data
+        self.assertEqual(len(rows), 2)
+
+
+class LessonPlanDuplicateAdaptTest(TestCase):
+    """A.7 — duplicate-and-adapt across cities: re-home the copy, re-link
+    equivalent content by title, unlink and report what has no equivalent."""
+
+    def setUp(self):
+        from apps.education.models import LessonPlan, LessonActivity
+        self.LessonPlan = LessonPlan
+        self.client = APIClient()
+        self.teacher = User.objects.create_user(email='ta@example.com', password='pw', is_staff=True)
+
+        self.city_a = make_city(slug='city-a', name='City A')
+        self.city_b = make_city(slug='city-b', name='City B')
+        htype = HeritageType.objects.create(name='Tangible', slug='tangible-da')
+        hcat = HeritageCategory.objects.create(name='Arch', slug='arch-da')
+        parish_a = Parish.objects.create(city=self.city_a, name='PA', canton='A')
+        parish_b = Parish.objects.create(city=self.city_b, name='PB', canton='B')
+
+        def make_item(city, parish, title, status_='published'):
+            return HeritageItem.objects.create(
+                city=city, title=title, description='d', heritage_type=htype,
+                heritage_category=hcat, parish=parish, location='POINT(0 0)',
+                status=status_,
+            )
+
+        # "Catedral" exists in BOTH cities (with LOM+quiz on each side).
+        self.item_a = make_item(self.city_a, parish_a, 'Catedral')
+        self.item_b = make_item(self.city_b, parish_b, 'Catedral')
+        self.lom_a = LOMGeneral.objects.create(
+            heritage_item=self.item_a, title='LO Catedral A', language='es', description='x')
+        self.lom_b = LOMGeneral.objects.create(
+            heritage_item=self.item_b, title='LO Catedral B', language='es', description='x')
+        AssessmentQuestion.objects.create(lom_general=self.lom_a, order=0, prompt='¿?')
+        # A route that exists ONLY in city A.
+        self.route_a = HeritageRoute.objects.create(
+            city=self.city_a, title='Ruta Colonial', description='d', status='published')
+
+        self.plan = self.LessonPlan.objects.create(
+            city=self.city_a, title='Plan Colonial', author=self.teacher,
+            related_route=self.route_a,
+            status=self.LessonPlan.STATUS_PUBLISHED,
+            visibility=self.LessonPlan.VISIBILITY_PUBLIC,
+        )
+        LessonActivity.objects.create(
+            lesson=self.plan, order=0, title='Visita', activity_type='explore',
+            heritage_item=self.item_a,
+        )
+        LessonActivity.objects.create(
+            lesson=self.plan, order=1, title='Quiz', activity_type='assess',
+            lom_general=self.lom_a,
+        )
+        LessonActivity.objects.create(
+            lesson=self.plan, order=2, title='Recorrido', activity_type='practice',
+            route=self.route_a,
+        )
+
+    def test_adapt_relinks_matches_and_drops_the_rest(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(
+            f'/api/v1/lesson-plans/{self.plan.id}/duplicate/',
+            {'city': 'city-b'}, format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        clone = self.LessonPlan.objects.get(id=resp.data['id'])
+        self.assertEqual(clone.city_id, self.city_b.id)
+        self.assertTrue(clone.title.endswith('(City B)'), clone.title)
+        self.assertEqual(clone.status, self.LessonPlan.STATUS_DRAFT)
+
+        by_order = {a.order: a for a in clone.activities.all()}
+        # "Catedral" re-linked to city B's item; quiz re-linked to its LOM.
+        self.assertEqual(by_order[0].heritage_item_id, self.item_b.id)
+        self.assertEqual(by_order[1].lom_general_id, self.lom_b.id)
+        # The route has no equivalent — unlinked on the activity AND the plan.
+        self.assertIsNone(by_order[2].route_id)
+        self.assertIsNone(clone.related_route_id)
+
+        report = resp.data['adaptation']
+        self.assertEqual(report['city'], 'city-b')
+        self.assertEqual(report['relinked'], 2)   # item + quiz
+        self.assertEqual(report['dropped'], 2)    # related_route + activity route
+        dropped_fields = {d['field'] for d in report['details'] if d['matched_title'] is None}
+        self.assertEqual(dropped_fields, {'related_route', 'route'})
+
+    def test_same_city_duplicate_unchanged(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(f'/api/v1/lesson-plans/{self.plan.id}/duplicate/')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        self.assertNotIn('adaptation', resp.data)
+        clone = self.LessonPlan.objects.get(id=resp.data['id'])
+        self.assertEqual(clone.city_id, self.city_a.id)
+        self.assertEqual(clone.activities.get(order=0).heritage_item_id, self.item_a.id)
+        self.assertTrue(clone.title.endswith('(copy)'))
+
+    def test_unknown_city_rejected(self):
+        self.client.force_authenticate(user=self.teacher)
+        resp = self.client.post(
+            f'/api/v1/lesson-plans/{self.plan.id}/duplicate/',
+            {'city': 'atlantis'}, format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class SeedCurriculumCommandTest(TestCase):
+    """A.9 — the seed_curriculum command loads the catalog idempotently."""
+
+    def test_seed_is_idempotent_and_derives_grades(self):
+        from django.core.management import call_command
+        from apps.education.models import CurriculumStandard
+
+        call_command('seed_curriculum')
+        first = CurriculumStandard.objects.count()
+        self.assertGreaterEqual(first, 60)
+        call_command('seed_curriculum')
+        self.assertEqual(CurriculumStandard.objects.count(), first)
+
+        std = CurriculumStandard.objects.get(code='M.3.3.4', country='EC', framework='MinEduc')
+        self.assertEqual(std.grade_level, 'Básica media')
+        self.assertEqual(std.subject, 'Matemática')
+        # The migration-seeded starter rows stay intact (same codes, refreshed).
+        self.assertTrue(CurriculumStandard.objects.filter(code='CS.3.1.10').exists())
