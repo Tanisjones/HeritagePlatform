@@ -41,27 +41,18 @@ def resolve_city_for_new_item(request, serializer):
 def notify_category_suggestion(item, suggestion_text):
     """B7 — relay a contributor's free-text category suggestion to the curators
     of the item's city (per-city CityRole grants; staff monitor the admin)."""
-    from apps.cities.models import CityRole
-    from apps.notifications.models import UserNotification
+    from apps.notifications.utils import notify_city_curators
 
-    if not item.city_id:
-        return
-    curator_ids = set(
-        CityRole.objects.filter(
-            city_id=item.city_id, role=CityRole.ROLE_CURATOR
-        ).values_list('user_id', flat=True)
+    notify_city_curators(
+        item.city_id,
+        'category_suggestion',
+        'Sugerencia de categoría',
+        (
+            f'«{item.title}»: quien contribuye sugiere la categoría '
+            f'"{suggestion_text}".'
+        ),
+        content_object=item,
     )
-    for user_id in curator_ids:
-        UserNotification.objects.create(
-            recipient_id=user_id,
-            notification_type='category_suggestion',
-            title='Sugerencia de categoría',
-            message=(
-                f'«{item.title}»: quien contribuye sugiere la categoría '
-                f'"{suggestion_text}".'
-            ),
-            content_object=item,
-        )
 
 
 from apps.ai_services.services import create_ai_suggestions
@@ -530,13 +521,18 @@ class ContributionViewSet(viewsets.ModelViewSet):
         if suggested_category:
             notify_category_suggestion(contribution, suggested_category)
 
-        # Drafts haven't been submitted: no points, no AI suggestions yet —
-        # both happen when the contributor actually sends it to review.
+        # Drafts haven't been submitted: no points, no AI suggestions, no
+        # curator notification yet — all happen when the contributor actually
+        # sends it to review.
         if save_as_draft:
             return
 
         handle_contribution_created(contribution)
         create_ai_suggestions(contribution)
+
+        # D3 — tell the city's curators something new landed in their queue.
+        from apps.notifications.utils import notify_queue_arrival
+        notify_queue_arrival(contribution)
 
 
 

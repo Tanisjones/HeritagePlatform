@@ -328,6 +328,69 @@ class ModerationViewSet(viewsets.ModelViewSet):
         qs = item.versions.all().order_by('-version_number')
         return Response(ContributionVersionSerializer(qs, many=True).data)
 
+    @action(detail=True, methods=['post'])
+    def assign(self, request, pk=None):
+        """D2 — claim an item ("asignarme"): records curator=me so other
+        curators can see it's being handled. Re-claiming is allowed — the last
+        curator to claim wins (small teams coordinate socially, not via locks)."""
+        item = self.get_object()
+        item.curator = request.user
+        item.save(update_fields=['curator', 'updated_at'])
+        return Response({'status': 'assigned', 'curator_email': request.user.email})
+
+    BULK_MAX_ITEMS = 50
+
+    @action(detail=False, methods=['post'])
+    def bulk(self, request):
+        """D2 — bulk approve/reject: {ids: [...], decision: approve|reject,
+        feedback: ''}. Applies the same state change + notifications as the
+        per-item actions but skips scoring/checklists (that's the point of
+        bulk). Items outside the curator's cities or not in a moderatable
+        status are skipped and reported, never failed."""
+        ids = request.data.get('ids')
+        decision = request.data.get('decision')
+        feedback = request.data.get('feedback', '') or ''
+
+        if decision not in ('approve', 'reject'):
+            return Response({'error': 'decision must be "approve" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(ids, list) or not ids:
+            return Response({'error': 'ids must be a non-empty list.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(ids) > self.BULK_MAX_ITEMS:
+            return Response(
+                {'error': f'At most {self.BULK_MAX_ITEMS} items per bulk call.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        items = self._scope_to_request_city(
+            HeritageItem.objects.filter(id__in=ids, status__in=['pending', 'changes_requested'])
+        )
+
+        processed = []
+        for item in items:
+            if decision == 'approve':
+                item.status = 'published'
+                item.curator = request.user
+                item.last_review_date = timezone.now()
+                if not item.submission_date:
+                    item.submission_date = item.created_at
+                item.save(update_fields=['status', 'curator', 'last_review_date', 'submission_date'])
+                handle_contribution_approved(item, moderator=request.user)
+                self._create_version(item, request.user, 'curator', 'Approved (bulk)')
+                self._notify(item, 'contribution_approved', 'Contribution approved', 'Your contribution was approved and published.')
+            else:
+                item.status = 'rejected'
+                item.curator = request.user
+                item.curator_feedback = feedback
+                item.last_review_date = timezone.now()
+                item.save(update_fields=['status', 'curator', 'curator_feedback', 'last_review_date'])
+                reward_moderation_review(request.user, item)
+                self._create_version(item, request.user, 'curator', 'Rejected (bulk)')
+                self._notify(item, 'contribution_rejected', 'Contribution rejected', feedback or 'Your contribution was rejected.')
+            processed.append(str(item.id))
+
+        skipped = [str(i) for i in ids if str(i) not in processed]
+        return Response({'decision': decision, 'processed': processed, 'skipped': skipped})
+
     @action(detail=False, methods=['get'])
     def stats(self, request):
         qs = self._scope_to_request_city(HeritageItem.objects.all())
@@ -335,12 +398,39 @@ class ModerationViewSet(viewsets.ModelViewSet):
         city = get_request_city(request)
         if city is not None:
             flags = flags.filter(heritage_item__city=city)
+
+        # D1 — per-city workload breakdown across ALL the cities this curator
+        # governs (staff: every city), regardless of the request-city scope:
+        # that scope answers "what am I looking at", this answers "where else
+        # is work piling up".
+        user = request.user
+        breakdown_qs = HeritageItem.objects.filter(status__in=['pending', 'changes_requested'])
+        if not user.is_staff:
+            breakdown_qs = breakdown_qs.filter(city_id__in=user_city_ids(user, CityRole.ROLE_CURATOR))
+        breakdown = (
+            breakdown_qs.values('city__slug', 'city__name')
+            .annotate(
+                pending=Count('id', filter=Q(status='pending')),
+                changes_requested=Count('id', filter=Q(status='changes_requested')),
+            )
+            .order_by('city__name')
+        )
+
         return Response(
             {
                 'pending': qs.filter(status='pending').count(),
                 'changes_requested': qs.filter(status='changes_requested').count(),
                 'flagged_open': flags.count(),
                 'reviewed_total': qs.filter(status__in=['published', 'rejected']).count(),
+                'cities': [
+                    {
+                        'slug': row['city__slug'],
+                        'name': row['city__name'],
+                        'pending': row['pending'],
+                        'changes_requested': row['changes_requested'],
+                    }
+                    for row in breakdown
+                ],
             }
         )
 

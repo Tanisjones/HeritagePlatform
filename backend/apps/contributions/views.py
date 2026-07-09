@@ -67,6 +67,10 @@ class MyContributionsViewSet(viewsets.ModelViewSet):
         item.curator = None
         item.last_review_date = None
         item.save(update_fields=['status', 'curator_feedback', 'curator', 'last_review_date'])
+
+        # D3 — back in the queue: let the city's curators know.
+        from apps.notifications.utils import notify_queue_arrival
+        notify_queue_arrival(item, resubmitted=True)
         return Response({'status': 'resubmitted'})
 
     @action(detail=True, methods=['post'])
@@ -88,5 +92,9 @@ class MyContributionsViewSet(viewsets.ModelViewSet):
         item.save(update_fields=['status', 'submission_date', 'updated_at'])
         handle_contribution_created(item)
         create_ai_suggestions(item)
+
+        # D3 — the draft just became a real submission: notify the curators.
+        from apps.notifications.utils import notify_queue_arrival
+        notify_queue_arrival(item)
         return Response({'status': 'submitted'})
 

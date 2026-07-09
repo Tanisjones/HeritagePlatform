@@ -121,9 +121,16 @@ class CuratorNoteSerializer(serializers.ModelSerializer):
 class CuratorQueueItemSerializer(HeritageItemListSerializer):
     flags_open = serializers.IntegerField(read_only=True)
     total_score = serializers.IntegerField(read_only=True)
+    # D2 — who claimed the item ("asignarme"); null when unassigned.
+    curator_email = serializers.SerializerMethodField()
 
     class Meta(HeritageItemListSerializer.Meta):
-        fields = HeritageItemListSerializer.Meta.fields + ['flags_open', 'total_score']
+        fields = HeritageItemListSerializer.Meta.fields + [
+            'flags_open', 'total_score', 'curator_email', 'submission_date',
+        ]
+
+    def get_curator_email(self, obj):
+        return obj.curator.email if obj.curator_id else None
 
 
 class CuratorReviewDetailSerializer(serializers.ModelSerializer):
