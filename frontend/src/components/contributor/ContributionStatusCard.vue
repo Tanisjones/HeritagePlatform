@@ -38,26 +38,26 @@ const statusStyle = (status: string) => {
         <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ contribution.description }}</p>
       </div>
       <span class="inline-flex items-center px-2 py-1 rounded-full text-xs border" :class="statusStyle(contribution.status)">
-        {{ contribution.status }}
+        {{ t(`curatorReview.statusMap.${contribution.status}`) }}
       </span>
     </div>
 
     <div class="mt-4 flex items-center justify-between">
       <div class="text-xs text-gray-500">
-        Submitted: {{ (contribution.submission_date || contribution.created_at || '').slice(0, 10) }}
+        {{ t('myContributions.card.submitted') }} {{ (contribution.submission_date || contribution.created_at || '').slice(0, 10) }}
       </div>
       <div class="flex gap-2">
         <button
           class="px-3 py-2 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
           @click="emit('feedback', contribution.id)"
         >
-          Feedback
+          {{ t('myContributions.card.feedback') }}
         </button>
         <button
           class="px-3 py-2 text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700"
           @click="emit('edit', contribution.id)"
         >
-          Edit
+          {{ t('myContributions.card.edit') }}
         </button>
         <!-- B2: drafts stay out of the queue until explicitly sent to review. -->
         <button

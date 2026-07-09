@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import AppHeader from './components/layout/AppHeader.vue'
 import AppDialogHost from './components/common/AppDialogHost.vue'
+import CityPickerSplash from './components/layout/CityPickerSplash.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCityStore } from '@/stores/city'
+import { applyCityTheme } from '@/utils/cityTheme'
 
 const authStore = useAuthStore()
 const cityStore = useCityStore()
@@ -13,6 +15,14 @@ onMounted(() => {
   authStore.loadUserIfNeeded()
   cityStore.load()
 })
+
+// C3 — re-theme the primary palette around the active city's brand color
+// (cleared when the city has none or in all-cities mode).
+watch(
+  () => cityStore.activeCity,
+  (city) => applyCityTheme(city),
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -21,6 +31,7 @@ onMounted(() => {
     <main class="flex-grow">
       <RouterView />
     </main>
+    <CityPickerSplash />
     <AppDialogHost />
   </div>
 </template>

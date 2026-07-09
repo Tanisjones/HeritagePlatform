@@ -40,7 +40,8 @@
     "confirm": "Confirm",
     "error": "Error",
     "errorGeneric": "Something went wrong. Please try again.",
-    "back": "Back"
+    "back": "Back",
+    "allCities": "All cities"
   },
   "nav": {
     "home": "Home",
@@ -146,6 +147,10 @@
       "ready": "Offline bundle ready",
       "mustBeOnline": "You need to be online to download an area for offline use.",
       "downloadError": "Offline download failed. Please try again."
+    },
+    "view": {
+      "list": "List",
+      "map": "Map"
     }
   },
   "routes": {
@@ -282,7 +287,35 @@
       "rejected": "Rejected",
       "draft": "Draft"
     },
-    "submitDraft": "Send for review"
+    "submitDraft": "Send for review",
+    "stats": {
+      "title": "My contribution stats",
+      "total": "Total",
+      "pending": "Pending",
+      "changes": "Changes",
+      "published": "Published",
+      "rejected": "Rejected"
+    },
+    "card": {
+      "submitted": "Submitted:",
+      "feedback": "Feedback",
+      "edit": "Edit"
+    },
+    "detailTitle": "Contribution",
+    "editTitle": "Edit contribution",
+    "edit": {
+      "save": "Save",
+      "resubmit": "Resubmit for review"
+    },
+    "feedbackCard": {
+      "title": "Curator feedback",
+      "empty": "No feedback yet.",
+      "message": "Message",
+      "total": "Total",
+      "completeness": "Completeness",
+      "accuracy": "Accuracy",
+      "media": "Media"
+    }
   },
   "heritage": {
     "detail": {
@@ -1003,7 +1036,8 @@
     "history": {
       "title": "Activity History",
       "empty": "No activity yet. Start contributing to earn points!"
-    }
+    },
+    "locked": "Locked"
   },
   "curatorReview": {
     "title": "Review contribution",
@@ -1453,5 +1487,11 @@
     "emptyTitle": "No notifications",
     "emptyUnread": "You have no unread notifications",
     "emptyAll": "You have no notifications yet"
+  },
+  "cityPicker": {
+    "title": "Which city do you want to explore?",
+    "subtitle": "This platform gathers the heritage of several cities. Pick one to start — you can switch anytime from the header.",
+    "exploreAll": "Explore all cities",
+    "keepCurrent": "Continue with {city}"
   }
 }

@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { ContributorFeedback } from '@/types/moderation'
 
 defineProps<{
   feedback: ContributorFeedback | null
 }>()
+
+const { t } = useI18n()
 
 const pill = (status: string) => {
   switch (status) {
@@ -24,21 +27,21 @@ const pill = (status: string) => {
 <template>
   <section class="bg-white border border-gray-200 rounded-xl p-5">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-lg font-semibold text-gray-900">Curator feedback</h3>
+      <h3 class="text-lg font-semibold text-gray-900">{{ t('myContributions.feedbackCard.title') }}</h3>
       <span
         v-if="feedback"
         class="inline-flex items-center px-2 py-1 rounded-full text-xs border"
         :class="pill(feedback.status)"
       >
-        {{ feedback.status }}
+        {{ t(`curatorReview.statusMap.${feedback.status}`) }}
       </span>
     </div>
 
-    <div v-if="!feedback" class="text-sm text-gray-600">No feedback available.</div>
+    <div v-if="!feedback" class="text-sm text-gray-600">{{ t('myContributions.feedbackCard.empty') }}</div>
 
     <div v-else class="space-y-4">
       <div>
-        <div class="text-sm font-semibold text-gray-700 mb-1">Message</div>
+        <div class="text-sm font-semibold text-gray-700 mb-1">{{ t('myContributions.feedbackCard.message') }}</div>
         <div class="text-sm text-gray-900 whitespace-pre-wrap">
           {{ feedback.curator_feedback || '—' }}
         </div>
@@ -46,19 +49,19 @@ const pill = (status: string) => {
 
       <div v-if="feedback.quality_score" class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div class="rounded-lg border border-gray-200 p-3">
-          <div class="text-xs text-gray-600">Total</div>
+          <div class="text-xs text-gray-600">{{ t('myContributions.feedbackCard.total') }}</div>
           <div class="text-xl font-bold text-gray-900">{{ feedback.quality_score.total_score ?? '—' }}</div>
         </div>
         <div class="rounded-lg border border-gray-200 p-3">
-          <div class="text-xs text-gray-600">Completeness</div>
+          <div class="text-xs text-gray-600">{{ t('myContributions.feedbackCard.completeness') }}</div>
           <div class="text-xl font-bold text-gray-900">{{ feedback.quality_score.completeness_score }}</div>
         </div>
         <div class="rounded-lg border border-gray-200 p-3">
-          <div class="text-xs text-gray-600">Accuracy</div>
+          <div class="text-xs text-gray-600">{{ t('myContributions.feedbackCard.accuracy') }}</div>
           <div class="text-xl font-bold text-gray-900">{{ feedback.quality_score.accuracy_score }}</div>
         </div>
         <div class="rounded-lg border border-gray-200 p-3">
-          <div class="text-xs text-gray-600">Media</div>
+          <div class="text-xs text-gray-600">{{ t('myContributions.feedbackCard.media') }}</div>
           <div class="text-xl font-bold text-gray-900">{{ feedback.quality_score.media_quality_score }}</div>
         </div>
       </div>

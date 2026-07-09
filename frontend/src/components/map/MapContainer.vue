@@ -18,6 +18,9 @@ const props = defineProps<{
   center?: [number, number]
   zoom?: number
   detailsLabel?: string
+  /** Frame the map around the markers instead of the city center — used by
+   * the Explore map, where results (all-cities mode!) may span cities. */
+  fitToMarkers?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -143,6 +146,13 @@ const addMarkers = (markers: HeritageMarker[]) => {
 
     markerLayer.value?.addLayer(leafletMarker)
   })
+
+  if (props.fitToMarkers && markers.length) {
+    map.fitBounds(L.latLngBounds(markers.map((m) => m.coordinates)), {
+      padding: [40, 40],
+      maxZoom: 16,
+    })
+  }
 }
 
 // Watch for marker updates

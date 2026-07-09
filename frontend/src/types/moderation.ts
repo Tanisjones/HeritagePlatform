@@ -109,6 +109,8 @@ export interface CuratorQueueItem {
   priority?: number;
   submission_date?: string | null;
   last_review_date?: string | null;
+  /** C1 — present on queue rows (CityRef); shown as a badge when unscoped. */
+  city?: { id: number; slug: string; name: string } | null;
   parish?: unknown;
   heritage_type?: unknown;
   heritage_category?: unknown;

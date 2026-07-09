@@ -14,15 +14,19 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { unwrapResults } from '@/utils/pagination'
+import { useCityStore } from '@/stores/city'
+import { parsePoint } from '@/utils/geo'
 import type { HeritageCategory, HeritageItem, HeritageType, Parish, TagCount } from '@/types/heritage'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import MapContainer from '@/components/map/MapContainer.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, te } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const cityStore = useCityStore()
 
 const items = ref<HeritageItem[]>([])
 // H.3: unified fetch via the V1 composable.
@@ -41,6 +45,34 @@ const selectedOrdering = ref<string>(route.query.sort?.toString() || '-created_a
 // B1 — free-form tag filter, fed by the top-tags chips row.
 const selectedTag = ref<string>(route.query.tag?.toString() || '')
 const topTags = ref<TagCount[]>([])
+// C6 — list/map presentation of the same filtered results.
+const viewMode = ref<'list' | 'map'>(route.query.view === 'map' ? 'map' : 'list')
+
+// C6 — the current results as map markers. parsePoint handles both the
+// GeoJSON-object and WKT-string shapes the API uses for `location`
+// (the list endpoint returns EWKT strings) and yields Leaflet [lat, lng].
+const mapMarkers = computed(() =>
+  items.value
+    .map((item) => {
+      const coordinates = parsePoint(item.location as any)
+      if (!coordinates) return null
+      return {
+        id: item.id,
+        title: item.title,
+        coordinates,
+        type: item.heritage_type?.name,
+        category: item.heritage_category?.name,
+        image: item.primary_image || item.images?.[0]?.file || undefined,
+      }
+    })
+    .filter((m): m is NonNullable<typeof m> => m !== null)
+)
+
+const setViewMode = (mode: 'list' | 'map') => {
+  if (viewMode.value === mode) return
+  viewMode.value = mode
+  syncQuery()
+}
 
 const OFFLINE_AREA_STORAGE_KEY = 'hp_offline_area'
 const offlineDownloading = ref(false)
@@ -193,6 +225,7 @@ const syncQuery = () => {
       media: selectedMedia.value || undefined,
       tag: selectedTag.value || undefined,
       sort: selectedOrdering.value !== '-created_at' ? selectedOrdering.value : undefined,
+      view: viewMode.value === 'map' ? 'map' : undefined,
     },
   })
 }
@@ -238,6 +271,7 @@ watch(
     selectedMedia.value = nextMedia
     selectedTag.value = nextTag
     selectedOrdering.value = nextSort
+    viewMode.value = q.view === 'map' ? 'map' : 'list'
 
     fetchItems()
   },
@@ -341,6 +375,24 @@ const getResourceType = (item: HeritageItem): string | null => {
           {{ t('explore.filters.clear') }}
         </button>
 
+        <!-- C6: list/map presentation toggle -->
+        <div class="flex rounded-lg border border-gray-300 overflow-hidden bg-white">
+          <button
+            class="px-3 py-1.5 text-sm"
+            :class="viewMode === 'list' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'"
+            @click="setViewMode('list')"
+          >
+            {{ t('explore.view.list') }}
+          </button>
+          <button
+            class="px-3 py-1.5 text-sm"
+            :class="viewMode === 'map' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'"
+            @click="setViewMode('map')"
+          >
+            {{ t('explore.view.map') }}
+          </button>
+        </div>
+
         <button
           class="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
           :disabled="offlineDownloading"
@@ -386,6 +438,16 @@ const getResourceType = (item: HeritageItem): string | null => {
       :title="t('common.noResults')"
     />
 
+    <!-- C6: map presentation of the same filtered results -->
+    <div v-else-if="!error && viewMode === 'map'" style="height: 600px">
+      <MapContainer
+        :markers="mapMarkers"
+        :details-label="t('home.map.viewDetails')"
+        fit-to-markers
+        @view-details="(m) => router.push({ name: 'heritage-detail', params: { id: m.id } })"
+      />
+    </div>
+
     <div v-else-if="!error" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
       <div v-for="item in items" :key="item.id" class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
         <router-link :to="{ name: 'heritage-detail', params: { id: item.id } }">
@@ -401,6 +463,13 @@ const getResourceType = (item: HeritageItem): string | null => {
           <div class="p-4">
             <h2 class="text-lg font-semibold text-gray-900 mb-2">{{ item.title }}</h2>
             <div class="flex flex-wrap gap-2 text-xs">
+              <!-- C1: city badge — only meaningful in the unscoped all-cities mode -->
+              <span
+                v-if="cityStore.isAllCities && item.city"
+                class="px-2 py-1 rounded-full bg-secondary-100 text-secondary-800 font-medium"
+              >
+                {{ item.city.name }}
+              </span>
               <!-- Heritage Type -->
               <span class="px-2 py-1 rounded-full bg-primary-100 text-primary-800 font-medium">
                 {{ item.heritage_type.name }}

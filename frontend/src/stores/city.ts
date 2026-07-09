@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { cityService, CITY_STORAGE_KEY } from '@/services/api';
+import { cityService, CITY_STORAGE_KEY, ALL_CITIES } from '@/services/api';
 import type { City } from '@/types/city';
 
 /**
@@ -20,11 +20,25 @@ export const useCityStore = defineStore('city', () => {
     const cities = ref<City[]>([]);
     const activeCitySlug = ref<string | null>(localStorage.getItem(CITY_STORAGE_KEY));
     const loaded = ref(false);
+    // C2 — true only when NOTHING was persisted before this session started
+    // (load() below persists a default, so this must be captured at init).
+    // Drives the one-time first-visit city picker.
+    const firstVisit = ref(localStorage.getItem(CITY_STORAGE_KEY) === null);
+
+    // C1 — explicit "Todas las ciudades" mode: no X-City header is sent (see
+    // the axios interceptor) and content cards show city badges.
+    const isAllCities = computed(() => activeCitySlug.value === ALL_CITIES);
 
     const activeCity = computed<City | null>(() => {
+        if (isAllCities.value) return null;
         if (!cities.value.length) return null;
         return cities.value.find((c) => c.slug === activeCitySlug.value) ?? cities.value[0] ?? null;
     });
+
+    /** What the header switcher should display (a city slug or the sentinel). */
+    const switcherValue = computed(() =>
+        isAllCities.value ? ALL_CITIES : activeCity.value?.slug
+    );
 
     const hasMultipleCities = computed(() => cities.value.length > 1);
 
@@ -46,10 +60,13 @@ export const useCityStore = defineStore('city', () => {
             const response = await cityService.list();
             cities.value = Array.isArray(response.data) ? response.data : [];
             loaded.value = true;
-            // Self-heal a stale/deactivated persisted slug.
+            // Self-heal a stale/deactivated persisted slug (the all-cities
+            // sentinel is always "known").
             const first = cities.value[0];
             if (first) {
-                const known = cities.value.some((c) => c.slug === activeCitySlug.value);
+                const known =
+                    activeCitySlug.value === ALL_CITIES ||
+                    cities.value.some((c) => c.slug === activeCitySlug.value);
                 if (!known) {
                     activeCitySlug.value = first.slug;
                 }
@@ -91,7 +108,10 @@ export const useCityStore = defineStore('city', () => {
         cities,
         activeCitySlug,
         loaded,
+        firstVisit,
+        isAllCities,
         activeCity,
+        switcherValue,
         hasMultipleCities,
         mapCenter,
         mapZoom,

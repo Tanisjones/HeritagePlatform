@@ -13,6 +13,10 @@ const DEFAULT_LOCALE = 'es';
 /** Active-city slug persisted by the city store; read here (not via Pinia —
  * same constraint as the locale) and sent as X-City on every request. */
 export const CITY_STORAGE_KEY = 'hp_city';
+/** C1 — sentinel persisted in hp_city for the explicit "Todas las ciudades"
+ * mode: no X-City header is sent, so lists come back unfiltered (the API's
+ * documented no-city-context behavior) and cards show city badges. */
+export const ALL_CITIES = '__all__';
 
 /** Login/register request bodies (the API returns `{ tokens, user }`). */
 export interface LoginCredentials {
@@ -47,8 +51,9 @@ api.interceptors.request.use(config => {
   headers.set('Accept-Language', locale);
 
   // Active-city scope: list endpoints filter by it, writes are assigned to it.
+  // The all-cities sentinel sends NO header → deliberately unscoped requests.
   const citySlug = localStorage.getItem(CITY_STORAGE_KEY);
-  if (citySlug) {
+  if (citySlug && citySlug !== ALL_CITIES) {
     headers.set('X-City', citySlug);
   }
 

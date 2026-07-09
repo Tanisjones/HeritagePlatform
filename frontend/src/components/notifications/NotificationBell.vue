@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/services/api';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
@@ -17,6 +18,7 @@ interface Notification {
 
 const authStore = useAuthStore();
 const router = useRouter();
+const { t } = useI18n();
 const unreadCount = ref(0);
 const notifications = ref<Notification[]>([]);
 const showDropdown = ref(false);
@@ -138,8 +140,8 @@ onMounted(() => {
     >
       <div class="p-4 border-b border-gray-200">
         <div class="flex justify-between items-center">
-          <h3 class="font-bold text-gray-900">Notifications</h3>
-          <span v-if="hasUnread" class="text-sm text-primary-600">{{ unreadCount }} new</span>
+          <h3 class="font-bold text-gray-900">{{ t('notifications.title') }}</h3>
+          <span v-if="hasUnread" class="text-sm text-primary-600">{{ unreadCount }} · {{ t('notifications.new') }}</span>
         </div>
       </div>
 
@@ -151,7 +153,7 @@ onMounted(() => {
         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
         </svg>
-        <p>No notifications</p>
+        <p>{{ t('notifications.emptyAll') }}</p>
       </div>
 
       <div v-else class="max-h-96 overflow-y-auto">

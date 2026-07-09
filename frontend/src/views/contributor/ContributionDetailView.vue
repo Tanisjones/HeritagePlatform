@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useContributionsStore } from '@/stores/contributions'
 import ContributionFeedbackCard from '@/components/contributor/ContributionFeedbackCard.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const id = computed(() => route.params.id as string)
 
 const authStore = useAuthStore()
@@ -23,22 +25,22 @@ onMounted(async () => {
     <div class="flex items-start justify-between gap-4">
       <div>
         <button class="text-sm text-gray-600 hover:text-gray-900" @click="router.push('/my-contributions')">
-          ← Back
+          ← {{ t('common.back') }}
         </button>
-        <h1 class="text-3xl font-bold text-gray-900 mt-2">Contribution</h1>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">{{ t('myContributions.detailTitle') }}</h1>
       </div>
       <button
         class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700"
         @click="router.push(`/my-contributions/${id}/edit`)"
         :disabled="!authStore.isAuthenticated"
       >
-        Edit
+        {{ t('myContributions.card.edit') }}
       </button>
     </div>
 
     <div v-if="!authStore.isAuthenticated" class="bg-white border border-gray-200 rounded-xl p-6">
-      <h2 class="text-xl font-semibold text-gray-900">Login required</h2>
-      <p class="text-gray-600 mt-1">Please log in to view your contribution.</p>
+      <h2 class="text-xl font-semibold text-gray-900">{{ t('myContributions.loginRequiredTitle') }}</h2>
+      <p class="text-gray-600 mt-1">{{ t('myContributions.loginRequiredText') }}</p>
     </div>
 
     <template v-else>

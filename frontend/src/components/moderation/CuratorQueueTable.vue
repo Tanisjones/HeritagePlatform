@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { CuratorQueueItem } from '@/types/moderation'
+import { useCityStore } from '@/stores/city'
 
 defineProps<{
   items: CuratorQueueItem[]
@@ -12,6 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const cityStore = useCityStore()
 
 const statusPill = (status: string) => {
   switch (status) {
@@ -51,7 +53,16 @@ const statusPill = (status: string) => {
           @click="emit('select', item.id)"
         >
           <td class="px-4 py-3">
-            <div class="font-medium text-gray-900">{{ item.title }}</div>
+            <div class="font-medium text-gray-900 flex items-center gap-2">
+              <span>{{ item.title }}</span>
+              <!-- C1: which city the item belongs to, when the queue is unscoped -->
+              <span
+                v-if="cityStore.isAllCities && item.city"
+                class="text-xs font-medium rounded-full bg-secondary-100 text-secondary-800 px-2 py-0.5"
+              >
+                {{ item.city.name }}
+              </span>
+            </div>
             <div class="text-xs text-gray-500 line-clamp-1">{{ item.description }}</div>
           </td>
           <td class="px-4 py-3">

@@ -16,6 +16,9 @@ export interface City {
   boundary?: unknown | null;
   default_language: string;
   hero_image?: string | null;
+  /** C3 — optional per-city branding. */
+  brand_color?: string | null;
+  logo?: string | null;
   is_active: boolean;
 }
 

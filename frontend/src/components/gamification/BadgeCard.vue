@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+
 defineProps<{
     badge: {
         id: string;
@@ -10,6 +12,8 @@ defineProps<{
     earned: boolean;
     earnedDate?: string;
 }>();
+
+const { t } = useI18n();
 </script>
 
 <template>
@@ -36,7 +40,7 @@ defineProps<{
          <span v-if="earned && earnedDate" class="text-green-600">
              {{ new Date(earnedDate).toLocaleDateString() }}
          </span>
-         <span v-else-if="!earned" class="text-gray-400">Locked</span>
+         <span v-else-if="!earned" class="text-gray-400">{{ t('gamification.locked') }}</span>
     </div>
   </div>
 </template>

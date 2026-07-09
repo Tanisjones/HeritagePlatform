@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCityStore } from '@/stores/city'
+import { ALL_CITIES } from '@/services/api'
 import NotificationBell from '@/components/notifications/NotificationBell.vue'
 import { useI18n } from 'vue-i18n'
 
@@ -89,6 +90,13 @@ onUnmounted(() => {
       <div class="flex items-center justify-between md:grid md:grid-cols-3">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center space-x-2 md:justify-self-start">
+          <!-- C3: the active city's logo, when it has one -->
+          <img
+            v-if="cityStore.activeCity?.logo"
+            :src="cityStore.activeCity.logo"
+            :alt="cityStore.activeCity.name"
+            class="h-8 w-8 rounded object-contain"
+          />
           <span class="text-2xl font-display font-bold text-primary-600">
             {{ t('common.brand') }}
           </span>
@@ -111,7 +119,7 @@ onUnmounted(() => {
           <!-- City Switcher (only when the platform hosts more than one city) -->
           <div v-if="cityStore.hasMultipleCities" class="flex items-center border-r border-gray-300 pr-3 mr-2">
             <select
-              :value="cityStore.activeCity?.slug"
+              :value="cityStore.switcherValue"
               @change="onCityChange"
               :aria-label="t('common.citySwitcher')"
               class="bg-transparent border-none text-gray-700 font-medium focus:ring-0 cursor-pointer py-1"
@@ -119,6 +127,8 @@ onUnmounted(() => {
               <option v-for="city in cityStore.cities" :key="city.slug" :value="city.slug">
                 {{ city.name }}
               </option>
+              <!-- C1: explicit unscoped mode — no X-City header, badges on cards -->
+              <option :value="ALL_CITIES">{{ t('common.allCities') }}</option>
             </select>
           </div>
 
@@ -281,13 +291,14 @@ onUnmounted(() => {
         >
           <span class="text-gray-500 font-medium text-sm">{{ t('common.citySwitcher') }}:</span>
           <select
-            :value="cityStore.activeCity?.slug"
+            :value="cityStore.switcherValue"
             @change="onCityChange"
             class="bg-transparent border border-gray-200 rounded text-gray-700 font-medium text-sm py-1"
           >
             <option v-for="city in cityStore.cities" :key="city.slug" :value="city.slug">
               {{ city.name }}
             </option>
+            <option :value="ALL_CITIES">{{ t('common.allCities') }}</option>
           </select>
         </div>
         <div class="px-2 pb-2 mb-2 border-b border-gray-100 flex items-center space-x-4">

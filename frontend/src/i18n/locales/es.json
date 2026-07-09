@@ -40,7 +40,8 @@
     "confirm": "Confirmar",
     "error": "Error",
     "errorGeneric": "Algo salió mal. Inténtelo de nuevo.",
-    "back": "Volver"
+    "back": "Volver",
+    "allCities": "Todas las ciudades"
   },
   "nav": {
     "home": "Inicio",
@@ -146,6 +147,10 @@
       "ready": "Paquete sin conexión listo",
       "mustBeOnline": "Debe estar en línea para descargar un área para uso sin conexión.",
       "downloadError": "Falló la descarga sin conexión. Inténtelo de nuevo."
+    },
+    "view": {
+      "list": "Lista",
+      "map": "Mapa"
     }
   },
   "routes": {
@@ -282,7 +287,35 @@
       "rejected": "Rechazada",
       "draft": "Borrador"
     },
-    "submitDraft": "Enviar a revisión"
+    "submitDraft": "Enviar a revisión",
+    "stats": {
+      "title": "Mis estadísticas de contribución",
+      "total": "Total",
+      "pending": "Pendientes",
+      "changes": "Cambios",
+      "published": "Publicadas",
+      "rejected": "Rechazadas"
+    },
+    "card": {
+      "submitted": "Enviada:",
+      "feedback": "Comentarios",
+      "edit": "Editar"
+    },
+    "detailTitle": "Contribución",
+    "editTitle": "Editar contribución",
+    "edit": {
+      "save": "Guardar",
+      "resubmit": "Reenviar a revisión"
+    },
+    "feedbackCard": {
+      "title": "Comentarios del curador",
+      "empty": "Aún no hay comentarios.",
+      "message": "Mensaje",
+      "total": "Total",
+      "completeness": "Completitud",
+      "accuracy": "Precisión",
+      "media": "Medios"
+    }
   },
   "heritage": {
     "detail": {
@@ -1003,7 +1036,8 @@
     "history": {
       "title": "Historial de Actividad",
       "empty": "Aún no hay actividad. ¡Comienza a contribuir para ganar puntos!"
-    }
+    },
+    "locked": "Bloqueada"
   },
   "curatorReview": {
     "title": "Revisar contribución",
@@ -1453,5 +1487,11 @@
     "emptyTitle": "Sin notificaciones",
     "emptyUnread": "No tienes notificaciones sin leer",
     "emptyAll": "Aún no tienes notificaciones"
+  },
+  "cityPicker": {
+    "title": "¿Qué ciudad quieres explorar?",
+    "subtitle": "Esta plataforma reúne el patrimonio de varias ciudades. Elige una para empezar — podrás cambiarla cuando quieras desde la cabecera.",
+    "exploreAll": "Explorar todas las ciudades",
+    "keepCurrent": "Seguir con {city}"
   }
 }

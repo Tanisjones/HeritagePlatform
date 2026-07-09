@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useContributionsStore } from '@/stores/contributions'
@@ -9,7 +10,12 @@ import type { Parish, HeritageType, HeritageCategory } from '@/types/heritage'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const id = computed(() => route.params.id as string)
+
+// Same catalog the wizard offers — the model field is a choices field, so a
+// free-text input here could only produce 400s.
+const historicalPeriods = ['pre-columbian', 'colonial', 'republican', 'contemporary', 'unknown']
 
 const authStore = useAuthStore()
 const contributionsStore = useContributionsStore()
@@ -86,27 +92,27 @@ onMounted(async () => {
     <div class="flex items-start justify-between gap-4">
       <div>
         <button class="text-sm text-gray-600 hover:text-gray-900" @click="router.push('/my-contributions')">
-          ← Back
+          ← {{ t('common.back') }}
         </button>
-        <h1 class="text-3xl font-bold text-gray-900 mt-2">Edit Contribution</h1>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">{{ t('myContributions.editTitle') }}</h1>
       </div>
       <div class="flex gap-2">
         <button class="px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50" @click="save" :disabled="contributionsStore.loading">
-          Save
+          {{ t('myContributions.edit.save') }}
         </button>
         <button
           class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
           :disabled="contributionsStore.loading || !canResubmit"
           @click="resubmit"
         >
-          Resubmit
+          {{ t('myContributions.edit.resubmit') }}
         </button>
       </div>
     </div>
 
     <div v-if="!authStore.isAuthenticated" class="bg-white border border-gray-200 rounded-xl p-6">
-      <h2 class="text-xl font-semibold text-gray-900">Login required</h2>
-      <p class="text-gray-600 mt-1">Please log in to edit your contribution.</p>
+      <h2 class="text-xl font-semibold text-gray-900">{{ t('myContributions.loginRequiredTitle') }}</h2>
+      <p class="text-gray-600 mt-1">{{ t('myContributions.loginRequiredText') }}</p>
     </div>
 
     <template v-else>
@@ -117,32 +123,32 @@ onMounted(async () => {
       </div>
 
       <section class="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">General information</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ t('contribution.steps.2') }}</h2>
 
-        <div v-if="loadingMeta" class="text-sm text-gray-600">Loading…</div>
+        <div v-if="loadingMeta" class="text-sm text-gray-600">{{ t('myContributions.loading') }}</div>
 
         <div class="grid grid-cols-1 gap-4">
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1">Title</label>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step2.fields.title') }}</label>
             <input v-model="form.title" class="w-full rounded-lg border-gray-300" />
           </div>
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step2.fields.description') }}</label>
             <textarea v-model="form.description" rows="4" class="w-full rounded-lg border-gray-300" />
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1">Heritage type</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step2.fields.heritageType') }}</label>
               <select v-model="form.heritage_type" class="w-full rounded-lg border-gray-300">
-                <option :value="null">Select</option>
-                <option v-for="t in heritageTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                <option :value="null">{{ t('contribution.step2.fields.selectType') }}</option>
+                <option v-for="ht in heritageTypes" :key="ht.id" :value="ht.id">{{ ht.name }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1">Category</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step2.fields.category') }}</label>
               <select v-model="form.heritage_category" class="w-full rounded-lg border-gray-300">
-                <option :value="null">Select</option>
+                <option :value="null">{{ t('contribution.step2.fields.selectCategory') }}</option>
                 <option v-for="c in heritageCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
             </div>
@@ -150,25 +156,29 @@ onMounted(async () => {
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1">Parish</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step3.fields.parish') }}</label>
               <select v-model="form.parish" class="w-full rounded-lg border-gray-300">
-                <option :value="null">Select</option>
+                <option :value="null">{{ t('contribution.step3.fields.selectParish') }}</option>
                 <option v-for="p in parishes" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1">Address</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step3.fields.address') }}</label>
               <input v-model="form.address" class="w-full rounded-lg border-gray-300" />
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1">Historical period</label>
-              <input v-model="form.historical_period" class="w-full rounded-lg border-gray-300" placeholder="e.g. colonial" />
+              <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step4.fields.historicalPeriod') }}</label>
+              <!-- Choices field on the model — a select, not free text (a typo would 400). -->
+              <select v-model="form.historical_period" class="w-full rounded-lg border-gray-300">
+                <option value="">{{ t('contribution.step4.fields.selectPeriod') }}</option>
+                <option v-for="p in historicalPeriods" :key="p" :value="p">{{ p }}</option>
+              </select>
             </div>
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1">External registry URL</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('contribution.step4.fields.externalUrl') }}</label>
               <input v-model="form.external_registry_url" class="w-full rounded-lg border-gray-300" />
             </div>
           </div>
