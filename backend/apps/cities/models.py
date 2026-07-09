@@ -13,6 +13,7 @@ from zoneinfo import available_timezones
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
 
@@ -55,6 +56,23 @@ class City(models.Model):
         null=True,
         blank=True,
         help_text=_('Landing-page hero image for this city'),
+    )
+    # Per-city branding (C3): the SPA re-themes its primary palette around
+    # brand_color and shows the logo in the header when set. Both optional —
+    # cities without branding keep the global platform look.
+    brand_color = models.CharField(
+        _('brand color'),
+        max_length=7,
+        blank=True,
+        validators=[RegexValidator(r'^#[0-9a-fA-F]{6}$', _('Use a #RRGGBB hex color.'))],
+        help_text=_('Hex color like #b55a3a; used as the accent color in the app'),
+    )
+    logo = models.ImageField(
+        _('logo'),
+        upload_to='cities/logos/',
+        null=True,
+        blank=True,
+        help_text=_('Small square-ish logo shown next to the platform brand'),
     )
     is_active = models.BooleanField(_('active'), default=True)
     order = models.IntegerField(_('display order'), default=0)

@@ -22,5 +22,5 @@ class CitySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'slug', 'name', 'description', 'country', 'country_name',
             'region', 'timezone', 'center', 'default_zoom', 'boundary',
-            'default_language', 'hero_image', 'is_active',
+            'default_language', 'hero_image', 'brand_color', 'logo', 'is_active',
         ]

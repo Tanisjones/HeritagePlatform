@@ -111,7 +111,7 @@ cd ~/HeritagePlatform && ./redeploy.sh    # pull + rebuild + restart + scoped pr
 
 ## Gotchas
 
-- **Seed media are placeholders in prod.** `seed_heritage` downloads real media via the **`requests`** lib, which isn't in `requirements/` (only `httpx`). Without it the seeder writes ~70-byte dummy files. For real photos: add `requests` to `requirements/base.txt`, rebuild, re-seed with `--reset`.
+- **Seed media need a rebuild on old deployments.** `requests` (used by the seeders to download real media) is in `requirements/base.txt` since the content-creation branch; images built before that write ~70-byte placeholder files. For real photos on an existing deployment: rebuild the backend image, then re-seed with `--reset` (destroys seeded content).
 - **AI is opt-in.** No provider runs in production; `GET /api/v1/ai/status/` reports availability. Ollama is a **dev-only** compose profile.
 
 ## When you finish a change

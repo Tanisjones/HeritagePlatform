@@ -34,6 +34,10 @@ PyYAML==6.0.3
 # HTTP client (used for Ollama integration)
 httpx==0.28.1
 
+# Remote media downloads in the city seeders (scripts/seed_city_engine.py).
+# Without it the seeders silently write ~70-byte placeholder files (C5).
+requests==2.32.3
+
 # HTML sanitization for user-authored rich text (EducationalResource.content is
 # rendered via v-html in the SPA) — see apps/education/sanitize.py
 nh3==0.2.18

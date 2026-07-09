@@ -61,7 +61,7 @@ ITEMS = [
             "historical_period": "colonial",
             "status": "published",
             "media": [
-                {"type": "image", "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Catedral_de_Riobamba%2C_Interior.jpg"},
+                {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Catedral%20de%20Riobamba%2C%20Interior.jpg"},
             ],
             "moderation": {
                 "score": {"completeness": 35, "accuracy": 28, "media": 25, "notes": "Excelente detalle."},
@@ -93,7 +93,7 @@ ITEMS = [
             "historical_period": "republican",
             "status": "published",
             "media": [
-                {"type": "image", "url": "https://upload.wikimedia.org/wikipedia/commons/d/da/01_Catedral_de_San_Pedro_-_Riobamba_%28Chimborazo%29.jpg"}
+                {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/01%20Catedral%20de%20San%20Pedro%20-%20Riobamba%20%28Chimborazo%29.jpg"}
             ],
              "moderation": {
                 "score": {"completeness": 30, "accuracy": 25, "media": 20, "notes": "Buena contribución."},
@@ -175,7 +175,7 @@ ITEMS = [
             "heritage_category": "architecture",
             "historical_period": "republican",
             "status": "published",
-            "media": [{"type": "image", "url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Teatro_Le%C3%B3n_%28Riobamba%2C_Ecuador_1920%29.png"}],
+            "media": [{"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Teatro%20Le%C3%B3n%20%28Riobamba%2C%20Ecuador%201920%29.png"}],
             "moderation": {
                 "score": {"completeness": 35, "accuracy": 30, "media": 25, "notes": "Valor histórico."},
                 "checklist": True,
@@ -201,7 +201,7 @@ ITEMS = [
             "heritage_category": "architecture",
             "historical_period": "colonial",
             "status": "published",
-            "media": [{"type": "image", "url": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Iglesia_de_Balbanera_Ecuador596.jpg"}],
+            "media": [{"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Iglesia%20de%20Balbanera%20Ecuador596.jpg"}],
             "moderation": {
                 "score": {"completeness": 40, "accuracy": 30, "media": 30, "notes": "Sitio fundacional."},
                 "checklist": True,
@@ -227,7 +227,7 @@ ITEMS = [
             "heritage_category": "architecture",
             "historical_period": "republican",
             "status": "published",
-            "media": [{"type": "image", "url": "https://upload.wikimedia.org/wikipedia/commons/e/ea/Ecuador_Riobamba_trainstation.JPG"}],
+            "media": [{"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ecuador%20Riobamba%20trainstation.JPG"}],
              "moderation": {
                 "score": {"completeness": 33, "accuracy": 28, "media": 22, "notes": "Infraestructura clave."},
                 "checklist": True,

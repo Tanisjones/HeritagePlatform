@@ -9,6 +9,7 @@ Extracted from the legacy scripts/seed_heritage.py (now a thin delegator).
 
 import os
 import sys
+import time
 from django.contrib.gis.geos import Point, LineString
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -358,9 +359,24 @@ def create_city_data(city_module, *, download_remote_media: bool = True):
             return None
         try:
             print(f"Downloading image from {url}...")
-            response = requests.get(url, timeout=10)
+            # Wikimedia (where the city datasets point) rejects the default
+            # python-requests User-Agent with 403 — send a descriptive one.
+            response = requests.get(
+                url,
+                timeout=15,
+                headers={
+                    'User-Agent': (
+                        'HeritagePlatformSeeder/1.0 '
+                        '(participatory heritage platform; demo-data seeding)'
+                    )
+                },
+            )
             if response.status_code == 200:
+                # Be polite to Wikimedia between sequential downloads — burst
+                # requests from one IP get 429-throttled quickly.
+                time.sleep(2)
                 return ContentFile(response.content)
+            print(f"Download failed ({response.status_code}) for {url}")
         except Exception as e:
             print(f"Failed to download image: {e}")
         return None
