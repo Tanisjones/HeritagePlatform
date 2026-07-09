@@ -3,9 +3,43 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
+from django.utils.text import slugify
 import mimetypes
 from pathlib import Path
 import uuid
+
+
+class Tag(models.Model):
+    """
+    Free-form topic tag for heritage items ("independencia", "barroco",
+    "gastronomía andina"). Platform-global like the other taxonomies — tags are
+    concepts, not places — while the items they hang off stay city-scoped.
+    Uniqueness is case/accent-insensitive via the slug (both "Café" and "cafe"
+    normalize to slug "cafe", so only one of them can exist).
+    """
+    name = models.CharField(_('name'), max_length=50, unique=True)
+    slug = models.SlugField(_('slug'), max_length=60, unique=True)
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('tag')
+        verbose_name_plural = _('tags')
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def get_or_create_normalized(cls, raw: str):
+        """Resolve a free-form string to a Tag (creating it if new), or None
+        for strings that normalize to nothing. Lookup is by slug so 'Café' and
+        'cafe' map to the same tag instead of tripping the unique constraint."""
+        name = ' '.join(str(raw or '').split())[:50]
+        slug = slugify(name)[:60]
+        if not slug:
+            return None
+        tag, _created = cls.objects.get_or_create(slug=slug, defaults={'name': name})
+        return tag
 
 
 class HeritageCategory(models.Model):
@@ -311,6 +345,14 @@ class HeritageItem(models.Model):
         blank=True,
         limit_choices_to={'file_type': 'document'},
         verbose_name=_('documents')
+    )
+
+    # Free-form findability tags (B1) — feed search and the Explore filter chips.
+    tags = models.ManyToManyField(
+        Tag,
+        related_name='heritage_items',
+        blank=True,
+        verbose_name=_('tags')
     )
 
     # External references

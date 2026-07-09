@@ -1,9 +1,44 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryField
-from .models import HeritageItem, HeritageCategory, HeritageType, Parish, MediaFile, HeritageRelation, Annotation
+from .models import HeritageItem, HeritageCategory, HeritageType, Parish, MediaFile, HeritageRelation, Annotation, Tag
 from apps.cities.request import get_request_city_or_default
 from apps.cities.serializers import CityRefSerializer
 from apps.education.serializers import LOMGeneralSerializer, LOMEducationalSerializer
+
+
+class TagListField(serializers.Field):
+    """
+    Tags on the wire are a plain list of strings (["independencia", "barroco"]);
+    internally they resolve to Tag rows. Returning Tag instances from
+    to_internal_value lets ModelSerializer's default create/update handle the
+    M2M .set() — no per-serializer plumbing. Unknown tags are created on the
+    spot (free-form by design); a validation failure elsewhere can therefore
+    leave an unused Tag row behind, which is harmless vocabulary.
+    """
+    MAX_TAGS = 10
+
+    def to_representation(self, value):
+        return [tag.name for tag in value.all()]
+
+    def to_internal_value(self, data):
+        if not isinstance(data, list):
+            raise serializers.ValidationError('Se esperaba una lista de etiquetas.')
+        if len(data) > self.MAX_TAGS:
+            raise serializers.ValidationError(f'Máximo {self.MAX_TAGS} etiquetas.')
+        tags = []
+        for raw in data:
+            if not isinstance(raw, str):
+                raise serializers.ValidationError('Cada etiqueta debe ser texto.')
+            tag = Tag.get_or_create_normalized(raw)
+            if tag is not None and tag not in tags:
+                tags.append(tag)
+        return tags
+
+
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ['name', 'slug']
 
 
 class MediaFileSerializer(serializers.ModelSerializer):
@@ -61,6 +96,7 @@ class HeritageItemListSerializer(serializers.ModelSerializer):
     main_image = MediaFileSerializer(read_only=True)
     primary_image = serializers.SerializerMethodField()
     lom_metadata = serializers.SerializerMethodField()
+    tags = TagListField(read_only=True)
 
     class Meta:
         model = HeritageItem
@@ -68,7 +104,7 @@ class HeritageItemListSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'location', 'address',
             'status', 'heritage_type', 'heritage_category',
             'parish', 'city', 'images', 'main_image', 'primary_image', 'created_at',
-            'lom_metadata'
+            'lom_metadata', 'tags'
         ]
 
     def get_primary_image(self, obj):
@@ -103,6 +139,7 @@ class HeritageItemDetailSerializer(serializers.ModelSerializer):
     documents = MediaFileSerializer(many=True, read_only=True)
     lom_metadata = serializers.SerializerMethodField()
     primary_image = serializers.SerializerMethodField()
+    tags = TagListField(read_only=True)
     # Add contributor info if needed, but keeping it simple for now
 
     class Meta:
@@ -160,6 +197,7 @@ class HeritageItemCreateUpdateSerializer(ParishCityCoherenceMixin, serializers.M
     Handles GeoJSON geometry fields.
     """
     location = GeometryField()
+    tags = TagListField(required=False)
     # Server-assigned from the request city context (see perform_create) —
     # clients cannot place content in another city.
     city = CityRefSerializer(read_only=True)
@@ -187,9 +225,20 @@ class HeritageItemContributionSerializer(ParishCityCoherenceMixin, serializers.M
     the view) means DRF validates it in the normal flow, so errors surface with a
     proper ``educational.<field>`` path. The view pops it from validated_data and
     applies it to the item's LOM after creation.
+
+    ``save_as_draft`` (B2) keeps the item out of the moderation queue
+    (status='draft' instead of 'pending') so contributors can park work in
+    progress; ``suggested_category`` (B7) is a free-text request relayed to the
+    city's curators when none of the curated categories fits. Both are
+    write-only wizard inputs consumed by the view, never model fields.
     """
     location = GeometryField()
     educational = LOMEducationalSerializer(required=False, write_only=True)
+    tags = TagListField(required=False)
+    save_as_draft = serializers.BooleanField(write_only=True, required=False, default=False)
+    suggested_category = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, max_length=200
+    )
     # Server-assigned from the request city context (see perform_create).
     city = CityRefSerializer(read_only=True)
 

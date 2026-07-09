@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -67,4 +68,25 @@ class MyContributionsViewSet(viewsets.ModelViewSet):
         item.last_review_date = None
         item.save(update_fields=['status', 'curator_feedback', 'curator', 'last_review_date'])
         return Response({'status': 'resubmitted'})
+
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        """B2 — send a saved draft to the moderation queue (draft → pending).
+        Points and AI suggestions were deliberately skipped when the draft was
+        created, so this is where they fire (both are idempotent/safe)."""
+        from apps.ai_services.services import create_ai_suggestions
+        from apps.gamification.services import handle_contribution_created
+
+        item = self.get_object()
+        if item.status != 'draft':
+            return Response(
+                {'error': 'Only drafts can be submitted.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        item.status = 'pending'
+        item.submission_date = timezone.now()
+        item.save(update_fields=['status', 'submission_date', 'updated_at'])
+        handle_contribution_created(item)
+        create_ai_suggestions(item)
+        return Response({'status': 'submitted'})
 

@@ -81,3 +81,22 @@ def get_ai_suggestions(heritage_item):
         })
 
     return suggestions
+
+
+def create_ai_suggestions(heritage_item):
+    """
+    Generate AND persist AI suggestions for a heritage item. Shared by the
+    contribution create path and the draft→pending submit action so a draft
+    saved without suggestions still gets them when it actually enters the
+    moderation queue.
+    """
+    from .models import AISuggestion
+
+    for suggestion in get_ai_suggestions(heritage_item):
+        AISuggestion.objects.create(
+            heritage_item=heritage_item,
+            suggester=suggestion['suggester'],
+            suggestion_type=suggestion['suggestion_type'],
+            content=suggestion['content'],
+            confidence=suggestion['confidence'],
+        )

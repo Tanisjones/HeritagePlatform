@@ -33,6 +33,7 @@ class UserNotification(models.Model):
         ('contribution_flagged', _('Contribution Flagged')),
         ('contribution_resubmitted', _('Contribution Resubmitted')),
         ('annotation_reply', _('Annotation Reply')),
+        ('category_suggestion', _('Category Suggestion')),
         ('badge_earned', _('Badge Earned')),
         ('level_up', _('Level Up')),
         ('moderation_needed', _('Moderation Needed')),

@@ -10,7 +10,7 @@ from django.db.models import Count, Q
 
 from .models import (
     HeritageCategory, HeritageType, Parish, MediaFile,
-    HeritageItem, HeritageRelation, Annotation
+    HeritageItem, HeritageRelation, Annotation, Tag
 )
 from .serializers import (
     HeritageCategorySerializer, HeritageTypeSerializer, ParishSerializer,
@@ -36,8 +36,35 @@ def resolve_city_for_new_item(request, serializer):
     if parish is not None and parish.city_id:
         return parish.city
     return get_request_city_or_default(request)
-from apps.ai_services.services import get_ai_suggestions
-from apps.ai_services.models import AISuggestion
+
+
+def notify_category_suggestion(item, suggestion_text):
+    """B7 — relay a contributor's free-text category suggestion to the curators
+    of the item's city (per-city CityRole grants; staff monitor the admin)."""
+    from apps.cities.models import CityRole
+    from apps.notifications.models import UserNotification
+
+    if not item.city_id:
+        return
+    curator_ids = set(
+        CityRole.objects.filter(
+            city_id=item.city_id, role=CityRole.ROLE_CURATOR
+        ).values_list('user_id', flat=True)
+    )
+    for user_id in curator_ids:
+        UserNotification.objects.create(
+            recipient_id=user_id,
+            notification_type='category_suggestion',
+            title='Sugerencia de categoría',
+            message=(
+                f'«{item.title}»: quien contribuye sugiere la categoría '
+                f'"{suggestion_text}".'
+            ),
+            content_object=item,
+        )
+
+
+from apps.ai_services.services import create_ai_suggestions
 
 
 class IsAuthenticatedOrReadOnly(permissions.BasePermission):
@@ -195,7 +222,7 @@ class HeritageItemViewSet(viewsets.ModelViewSet):
     """
     queryset = HeritageItem.objects.select_related(
         'heritage_type', 'heritage_category', 'parish', 'contributor'
-    ).prefetch_related('images', 'audio', 'video', 'documents')
+    ).prefetch_related('images', 'audio', 'video', 'documents', 'tags')
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly, IsModeratorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
@@ -205,7 +232,7 @@ class HeritageItemViewSet(viewsets.ModelViewSet):
         'parish': ['exact'],
         'historical_period': ['exact'],
     }
-    search_fields = ['title', 'description', 'address']
+    search_fields = ['title', 'description', 'address', 'tags__name']
     ordering_fields = ['created_at', 'updated_at', 'view_count', 'favorite_count']
     ordering = ['-created_at']
 
@@ -267,6 +294,14 @@ class HeritageItemViewSet(viewsets.ModelViewSet):
             city = get_request_city(self.request)
             if city is not None:
                 queryset = queryset.filter(city=city)
+
+        # Free-form tag filter (B1): accepts the slug (what the chips send) or
+        # the display name. distinct() guards the M2M join.
+        tag = self.request.query_params.get('tag')
+        if tag:
+            queryset = queryset.filter(
+                Q(tags__slug=tag) | Q(tags__name__iexact=tag)
+            ).distinct()
 
         # Optional media presence filters (boolean query params)
         has_images = self.request.query_params.get('has_images')
@@ -374,6 +409,27 @@ class HeritageItemViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def tags(self, request):
+        """
+        Top free-form tags for the Explore filter chips: [{name, slug, count}].
+        Counts published items only (chips are a public browsing aid), scoped to
+        the request city when one is set — same convention as the list endpoint.
+        """
+        conditions = Q(heritage_items__status='published')
+        city = get_request_city(request)
+        if city is not None:
+            conditions &= Q(heritage_items__city=city)
+        # One filtered+distinct Count instead of chained .filter() calls: each
+        # chained M2M filter opens its own join and the counts multiply.
+        tag_qs = (
+            Tag.objects
+            .annotate(count=Count('heritage_items', filter=conditions, distinct=True))
+            .filter(count__gt=0)
+            .order_by('-count', 'name')[:30]
+        )
+        return Response([{'name': t.name, 'slug': t.slug, 'count': t.count} for t in tag_qs])
+
     @action(detail=True, methods=['get'])
     def relations(self, request, pk=None):
         """Get all relations for a heritage item"""
@@ -400,9 +456,12 @@ class ContributionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Set contributor to current user and status to 'pending'.
-        Awards points for the contribution and generates AI suggestions.
-        Creates initial LOM metadata.
+        Set contributor to current user and status to 'pending' — or 'draft'
+        when the wizard asks to park the work (save_as_draft, B2). Points and
+        AI suggestions only fire on a real submission; a draft earns them later
+        via /my-contributions/{id}/submit/. Creates initial LOM metadata either
+        way, and relays a free-text category suggestion (B7) to the city's
+        curators.
         """
         from django.db import transaction
         from apps.education.models import LOMGeneral, LOMEducational, LOMLifeCycle
@@ -411,8 +470,11 @@ class ContributionViewSet(viewsets.ModelViewSet):
         # contribution serializer (as a write-only nested field), so errors
         # already surfaced as 400 with an ``educational.<field>`` path. Pop it out
         # of validated_data before save() so it doesn't reach HeritageItem's
-        # constructor; we attach it to the LOM below.
+        # constructor; we attach it to the LOM below. Same for the other
+        # write-only wizard inputs consumed here rather than by the model.
         edu_fields = dict(serializer.validated_data.pop('educational', None) or {})
+        save_as_draft = serializer.validated_data.pop('save_as_draft', False)
+        suggested_category = (serializer.validated_data.pop('suggested_category', '') or '').strip()
 
         contributor = self.request.user if self.request.user.is_authenticated else None
 
@@ -421,7 +483,7 @@ class ContributionViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             contribution = serializer.save(
                 contributor=contributor,
-                status='pending',
+                status='draft' if save_as_draft else 'pending',
                 city=resolve_city_for_new_item(self.request, serializer),
             )
 
@@ -465,18 +527,16 @@ class ContributionViewSet(viewsets.ModelViewSet):
                 **edu_fields,
             )
 
-        handle_contribution_created(contribution)
+        if suggested_category:
+            notify_category_suggestion(contribution, suggested_category)
 
-        # Generate and save AI suggestions
-        ai_suggestions = get_ai_suggestions(contribution)
-        for suggestion in ai_suggestions:
-            AISuggestion.objects.create(
-                heritage_item=contribution,
-                suggester=suggestion['suggester'],
-                suggestion_type=suggestion['suggestion_type'],
-                content=suggestion['content'],
-                confidence=suggestion['confidence']
-            )
+        # Drafts haven't been submitted: no points, no AI suggestions yet —
+        # both happen when the contributor actually sends it to review.
+        if save_as_draft:
+            return
+
+        handle_contribution_created(contribution)
+        create_ai_suggestions(contribution)
 
 
 

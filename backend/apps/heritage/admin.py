@@ -5,8 +5,16 @@ from apps.cities.admin import CityMapWidgetMixin
 
 from .models import (
     HeritageCategory, HeritageType, Parish, MediaFile,
-    HeritageItem, HeritageRelation, Annotation
+    HeritageItem, HeritageRelation, Annotation, Tag
 )
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'created_at']
+    search_fields = ['name', 'slug']
+    prepopulated_fields = {'slug': ('name',)}
+    readonly_fields = ['created_at']
 
 
 @admin.register(HeritageCategory)
@@ -45,10 +53,10 @@ class MediaFileAdmin(admin.ModelAdmin):
 class HeritageItemAdmin(CityMapWidgetMixin, admin.GISModelAdmin):
     list_display = ['title', 'city', 'heritage_type', 'heritage_category', 'parish', 'status', 'contributor', 'created_at']
     list_filter = ['city', 'status', 'heritage_type', 'heritage_category', 'historical_period', 'created_at']
-    search_fields = ['title', 'description', 'address']
+    search_fields = ['title', 'description', 'address', 'tags__name']
     raw_id_fields = ['contributor', 'parish']
     readonly_fields = ['id', 'created_at', 'updated_at', 'view_count', 'favorite_count']
-    filter_horizontal = ['images', 'audio', 'video']
+    filter_horizontal = ['images', 'audio', 'video', 'tags']
 
     fieldsets = (
         (_('Basic Information'), {
@@ -60,7 +68,7 @@ class HeritageItemAdmin(CityMapWidgetMixin, admin.GISModelAdmin):
             'fields': ('city', 'location', 'address', 'parish')
         }),
         (_('Classification'), {
-            'fields': ('heritage_type', 'heritage_category', 'historical_period')
+            'fields': ('heritage_type', 'heritage_category', 'historical_period', 'tags')
         }),
         (_('Media'), {
             'fields': ('images', 'audio', 'video')
