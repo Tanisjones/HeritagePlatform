@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import api from '@/services/api';
+import { computed, onMounted, ref, watch } from 'vue';
+import api, { lessonPlanService, curriculumService } from '@/services/api';
 import { useAsyncAction } from '@/composables/useAsyncAction';
 import { unwrapResults } from '@/utils/pagination';
 import { apiBaseUrl } from '@/utils/apiUrl';
-import { iso8601ToMinutes } from '@/utils/duration';
-import type { LOMResource } from '@/types/heritage';
+import { iso8601ToMinutes, formatIsoDuration } from '@/utils/duration';
+import type { LOMResource, LessonPlan, CurriculumStandard } from '@/types/heritage';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
@@ -16,11 +16,51 @@ import { useLomLabels } from '@/composables/useLomLabels';
 const { t } = useI18n();
 const toast = useToast();
 // Shared LOM vocab translators (aliased to keep existing template calls).
-const { humanize: humanizeEnum, translate: translateEnum } = useLomLabels();
+const { humanize: humanizeEnum, translate: translateEnum, ageRange } = useLomLabels();
 // H.3: unified fetch via the V1 composable.
 const { loading, error, run } = useAsyncAction();
 const lomResources = ref<LOMResource[]>([]);
 const downloadingId = ref<string | null>(null);
+
+// A.6 — published lesson plans, discoverable by curriculum standard.
+const plans = ref<LessonPlan[]>([]);
+const plansLoading = ref(false);
+const planStandard = ref('');
+const standardsCatalog = ref<CurriculumStandard[]>([]);
+const standardsBySubject = computed(() => {
+  const groups = new Map<string, CurriculumStandard[]>();
+  for (const std of standardsCatalog.value) {
+    const key = std.subject || '—';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(std);
+  }
+  return groups;
+});
+
+async function fetchPlans() {
+  plansLoading.value = true;
+  try {
+    const params: Record<string, any> = { status: 'published', page_size: 6 };
+    if (planStandard.value) params.standard = planStandard.value;
+    plans.value = unwrapResults<LessonPlan>((await lessonPlanService.list(params)).data);
+  } catch {
+    plans.value = [];
+  } finally {
+    plansLoading.value = false;
+  }
+}
+
+async function loadStandardsCatalog() {
+  try {
+    standardsCatalog.value = unwrapResults<CurriculumStandard>(
+      (await curriculumService.standards()).data,
+    );
+  } catch {
+    standardsCatalog.value = [];
+  }
+}
+
+watch(planStandard, fetchPlans);
 
 const filters = ref({
   search: '',
@@ -198,7 +238,11 @@ const clearFilters = () => {
   };
 };
 
-onMounted(fetchLom);
+onMounted(() => {
+  fetchLom();
+  fetchPlans();
+  loadStandardsCatalog();
+});
 </script>
 
 <template>
@@ -210,6 +254,62 @@ onMounted(fetchLom);
         {{ t('learn.header.description') }}
       </p>
     </header>
+
+    <!-- A.6: published lesson plans, filterable by curriculum standard -->
+    <section
+      v-if="plans.length || planStandard || plansLoading"
+      class="mb-10 bg-secondary-50/60 border border-secondary-100 rounded-xl p-5 md:p-6"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">{{ t('learn.plans.title') }}</h2>
+          <p class="text-sm text-gray-600">{{ t('learn.plans.description') }}</p>
+        </div>
+        <div v-if="standardsCatalog.length">
+          <label class="sr-only">{{ t('learn.plans.standardFilter') }}</label>
+          <select
+            v-model="planStandard"
+            class="rounded-lg border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500"
+          >
+            <option value="">{{ t('learn.plans.allStandards') }}</option>
+            <optgroup v-for="[subject, group] in standardsBySubject" :key="subject" :label="subject">
+              <option v-for="std in group" :key="std.id" :value="std.code">
+                {{ std.code }} · {{ std.grade_level }}
+              </option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div v-if="plansLoading" class="flex justify-center py-8">
+        <BaseSpinner class="h-6 w-6 text-primary-600" />
+      </div>
+      <div v-else-if="plans.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <RouterLink
+          v-for="plan in plans"
+          :key="plan.id"
+          :to="{ name: 'lesson-plan-detail', params: { id: plan.id } }"
+          class="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+        >
+          <h3 class="font-semibold text-gray-900">{{ plan.title }}</h3>
+          <p v-if="plan.summary" class="mt-1 text-sm text-gray-600 line-clamp-2">{{ plan.summary }}</p>
+          <div class="mt-2 flex flex-wrap gap-1.5 text-xs">
+            <span v-if="plan.subject" class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{{ plan.subject }}</span>
+            <span v-if="plan.grade_level" class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{{ plan.grade_level }}</span>
+            <span
+              v-for="std in (plan.standards_detail || []).slice(0, 3)"
+              :key="std.id"
+              class="px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-100"
+              :title="std.description"
+            >{{ std.code }}</span>
+          </div>
+          <p class="mt-2 text-xs text-gray-400">
+            {{ plan.activities.length }} {{ t('lessonPlans.activitiesCount') }}
+          </p>
+        </RouterLink>
+      </div>
+      <p v-else class="text-sm text-gray-500 py-4 text-center">{{ t('learn.plans.emptyForStandard') }}</p>
+    </section>
 
     <!-- Tabs -->
     <div class="mb-6 border-b border-gray-200">
@@ -364,10 +464,12 @@ onMounted(fetchLom);
         >
           <div>
             <header class="mb-3">
-                <div class="flex justify-between items-start">
-                    <p class="text-xs uppercase tracking-wide text-primary-600 font-semibold">LOM {{ resource.id.slice(0, 8) }}</p>
-                    <span v-if="resource.educational?.difficulty" 
-                        class="px-2 py-0.5 rounded text-xs font-medium border"
+                <!-- A.2: the card leads with the TITLE (the internal LOM id was
+                     meaningless to learners and teachers). -->
+                <div class="flex justify-between items-start gap-2">
+                    <h2 class="text-xl font-semibold text-gray-900">{{ resource.title }}</h2>
+                    <span v-if="resource.educational?.difficulty"
+                        class="flex-shrink-0 px-2 py-0.5 rounded text-xs font-medium border mt-1"
                         :class="{
                             'bg-green-50 text-green-700 border-green-100': ['very_easy', 'easy'].includes(resource.educational?.difficulty || ''),
                             'bg-yellow-50 text-yellow-700 border-yellow-100': ['medium'].includes(resource.educational?.difficulty || ''),
@@ -382,7 +484,6 @@ onMounted(fetchLom);
                        }}
                     </span>
                 </div>
-                <h2 class="text-xl font-semibold text-gray-900 mt-1">{{ resource.title }}</h2>
                 <p class="text-gray-600 text-sm mt-2 line-clamp-3">{{ resource.description }}</p>
             </header>
 
@@ -403,15 +504,18 @@ onMounted(fetchLom);
                   )
                 }}
                 </span>
+                <!-- A.2: localized, self-contained age label ("Todas las edades", "6–12 años") -->
                 <span v-if="resource.educational?.typical_age_range" class="px-2 py-1 rounded-full bg-primary-50 text-primary-700 border border-primary-100">
-                {{ t('learn.labels.ages') }} {{ resource.educational.typical_age_range }}
+                {{ ageRange(resource.educational.typical_age_range) }}
                 </span>
             </div>
 
             <div class="text-sm text-gray-700 space-y-1 mb-4">
                 <p v-if="resource.educational?.typical_learning_time" class="flex items-center">
                     <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span class="font-medium text-gray-900 mr-1">{{ t('learn.labels.typicalTime') }}:</span> {{ resource.educational.typical_learning_time }}
+                    <!-- A.2: "PT1H" → "1 h" (fall back to the raw value if unparseable) -->
+                    <span class="font-medium text-gray-900 mr-1">{{ t('learn.labels.typicalTime') }}:</span>
+                    {{ formatIsoDuration(resource.educational.typical_learning_time) || resource.educational.typical_learning_time }}
                 </p>
                 <p v-if="resource.keywords?.length" class="text-xs text-gray-500">
                     <span class="font-medium text-gray-700">{{ t('learn.labels.keywords') }}:</span> {{ resource.keywords.slice(0, 5).join(', ') }}

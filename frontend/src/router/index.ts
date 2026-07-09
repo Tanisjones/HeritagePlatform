@@ -192,6 +192,12 @@ const router = createRouter({
       component: () => import('../views/education/LessonPlanDetailView.vue'),
     },
     {
+      // A.4: projector/print-friendly classroom mode of the same lesson sheet.
+      path: '/learn/plans/:id/class',
+      name: 'lesson-plan-class',
+      component: () => import('../views/education/LessonPlanClassView.vue'),
+    },
+    {
       path: '/teach/plans/new',
       name: 'lesson-plan-new',
       component: () => import('../views/education/LessonPlanEditView.vue'),

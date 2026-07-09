@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useCityStore } from '@/stores/city'
-import { lessonPlanService, aiService, educationService, curriculumService } from '@/services/api'
+import { lessonPlanService, aiService, educationService, curriculumService, routeService } from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useToast, useConfirm } from '@/composables/useDialogs'
 import { useAiError } from '@/composables/useAiError'
@@ -51,6 +51,7 @@ const form = reactive<{
   objectivesText: string
   activities: LessonActivity[]
   standards: string[]
+  related_route: string | null
 }>({
   title: '',
   summary: '',
@@ -64,10 +65,59 @@ const form = reactive<{
   objectivesText: '',
   activities: [],
   standards: [],
+  related_route: null,
 })
 
 // P.6: curriculum-standard catalog for the multi-select.
 const standardsCatalog = ref<CurriculumStandard[]>([])
+
+// A.1 — browsable standards picker: search + subject/grade filters over the
+// catalog (client-side; the whole catalog is served unpaginated).
+const stdSearch = ref('')
+const stdSubject = ref('')
+const stdGrade = ref('')
+const GRADE_ORDER = ['Preparatoria', 'Básica elemental', 'Básica media', 'Básica superior', 'Bachillerato']
+const stdSubjects = computed(() =>
+  [...new Set(standardsCatalog.value.map((s) => s.subject).filter(Boolean))].sort() as string[],
+)
+const stdGrades = computed(() =>
+  ([...new Set(standardsCatalog.value.map((s) => s.grade_level).filter(Boolean))] as string[]).sort((a, b) => {
+    const ia = GRADE_ORDER.indexOf(a)
+    const ib = GRADE_ORDER.indexOf(b)
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b)
+  }),
+)
+const filteredStandards = computed(() => {
+  const q = stdSearch.value.trim().toLowerCase()
+  return standardsCatalog.value.filter(
+    (s) =>
+      (!stdSubject.value || s.subject === stdSubject.value) &&
+      (!stdGrade.value || s.grade_level === stdGrade.value) &&
+      (!q || `${s.code} ${s.description} ${s.subject ?? ''}`.toLowerCase().includes(q)),
+  )
+})
+const selectedStandards = computed(() => standardsCatalog.value.filter((s) => form.standards.includes(s.id)))
+function toggleStandard(id: string) {
+  const i = form.standards.indexOf(id)
+  if (i >= 0) form.standards.splice(i, 1)
+  else form.standards.push(id)
+}
+
+// A.3 — a plan can be seeded from a route (?route=<id>&title=<title>) and keeps
+// a visible link to it. The title is fetched when we only have the id.
+const relatedRouteTitle = ref('')
+async function resolveRouteTitle() {
+  if (!form.related_route || relatedRouteTitle.value) return
+  try {
+    relatedRouteTitle.value = String((await routeService.get(form.related_route)).data?.title ?? '')
+  } catch {
+    /* chip falls back to the id */
+  }
+}
+function unlinkRoute() {
+  form.related_route = null
+  relatedRouteTitle.value = ''
+}
 
 function hydrate(plan: LessonPlan) {
   form.title = plan.title
@@ -81,6 +131,9 @@ function hydrate(plan: LessonPlan) {
   form.visibility = plan.visibility
   form.objectivesText = (plan.objectives || []).join('\n')
   form.standards = (plan.standards || []).slice()
+  form.related_route = plan.related_route ?? null
+  relatedRouteTitle.value = ''
+  resolveRouteTitle()
   form.activities = (plan.activities || [])
     .slice()
     .sort((a, b) => a.order - b.order)
@@ -99,6 +152,13 @@ async function load() {
   refreshAi()
   loadStandards()
   if (isNew.value) {
+    // A.3: "start from a route" — the teach hub links here with the route id.
+    const qRoute = route.query.route ? String(route.query.route) : null
+    if (qRoute) {
+      form.related_route = qRoute
+      relatedRouteTitle.value = route.query.title ? String(route.query.title) : ''
+      resolveRouteTitle()
+    }
     addActivity()
     return
   }
@@ -129,17 +189,27 @@ function removeActivity(index: number) {
 /** Apply a content-picker selection to an activity (single-target binding). */
 function onBindingChange(
   index: number,
-  payload: { heritage_item: string | null; route: string | null; educational_resource: number | null },
+  payload: {
+    heritage_item: string | null
+    route: string | null
+    educational_resource: number | null
+    lom_general: string | null
+    picked_title?: string | null
+  },
 ) {
   const a = form.activities[index]
   if (!a) return
   a.heritage_item = payload.heritage_item
   a.route = payload.route
   a.educational_resource = payload.educational_resource
-  // Clear stale read-only titles so the chip reflects the new binding until save.
-  a.heritage_item_title = null
-  a.route_title = null
-  a.educational_resource_title = null
+  a.lom_general = payload.lom_general
+  // Refresh the read-only titles: the picked row's title lands on the bound
+  // field so the chip is right immediately; the rest are cleared until save.
+  const title = payload.picked_title ?? null
+  a.heritage_item_title = payload.heritage_item ? title : null
+  a.route_title = payload.route ? title : null
+  a.educational_resource_title = payload.educational_resource != null ? title : null
+  a.lom_general_title = payload.lom_general ? title : null
   // A resolved quiz belongs to the OLD heritage item's LOM — reset it so it must be
   // re-resolved for the new binding (don't edit the wrong item's answer key).
   a._quizLomId = null
@@ -203,6 +273,7 @@ function buildPayload(): LessonPlanWriteData {
     visibility: form.visibility,
     objectives,
     standards: form.standards,
+    related_route: form.related_route ?? null,
     activities: form.activities.map((a, i) => ({
       ...(a.id ? { id: a.id } : {}),
       order: i,
@@ -214,6 +285,7 @@ function buildPayload(): LessonPlanWriteData {
       heritage_item: a.heritage_item ?? null,
       route: a.route ?? null,
       educational_resource: a.educational_resource ?? null,
+      lom_general: a.lom_general ?? null,
     })),
   }
 }
@@ -374,6 +446,16 @@ onMounted(load)
             />
           </div>
         </div>
+        <!-- A.3: plan seeded from / linked to a route -->
+        <div v-if="form.related_route" class="flex items-center gap-2 text-sm flex-wrap">
+          <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary-100 text-secondary-800">
+            <span class="font-medium">{{ t('lessonPlans.fields.relatedRoute') }}:</span>
+            {{ relatedRouteTitle || form.related_route }}
+          </span>
+          <button type="button" class="text-xs text-red-600 hover:underline" @click="unlinkRoute">
+            {{ t('lessonPlans.content.unlink') }}
+          </button>
+        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.summary') }}</label>
           <textarea v-model="form.summary" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"></textarea>
@@ -399,25 +481,73 @@ onMounted(load)
           <p class="mt-1 text-xs text-gray-500">{{ t('lessonPlans.fields.objectivesHelp') }}</p>
         </div>
 
-        <!-- P.6: curriculum standards (toggle chips from the curated catalog) -->
+        <!-- A.1: browsable curriculum-standards picker (search + subject/grade
+             filters, full descriptions — teachers must see WHAT they align to) -->
         <div v-if="standardsCatalog.length">
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('lessonPlans.fields.standards') }}</label>
-          <div class="flex flex-wrap gap-2">
+
+          <ul v-if="selectedStandards.length" class="mb-2 space-y-1">
+            <li
+              v-for="std in selectedStandards"
+              :key="std.id"
+              class="flex items-start gap-2 text-sm bg-primary-50 border border-primary-100 rounded-lg px-3 py-1.5"
+            >
+              <span class="font-semibold text-primary-800 whitespace-nowrap">{{ std.code }}</span>
+              <span class="text-gray-700 flex-grow">{{ std.description }}</span>
+              <span class="text-xs text-gray-500 whitespace-nowrap hidden md:inline">
+                {{ std.subject }}<template v-if="std.grade_level"> · {{ std.grade_level }}</template>
+              </span>
+              <button
+                type="button"
+                class="text-red-600 text-xs hover:underline flex-shrink-0"
+                :aria-label="t('lessonPlans.content.unlink')"
+                @click="toggleStandard(std.id)"
+              >✕</button>
+            </li>
+          </ul>
+          <p v-else class="text-xs text-gray-500 mb-2">{{ t('lessonPlans.standardsPicker.empty') }}</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+            <input
+              v-model="stdSearch"
+              type="search"
+              class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              :placeholder="t('lessonPlans.standardsPicker.search')"
+            />
+            <select v-model="stdSubject" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+              <option value="">{{ t('lessonPlans.standardsPicker.allSubjects') }}</option>
+              <option v-for="s in stdSubjects" :key="s" :value="s">{{ s }}</option>
+            </select>
+            <select v-model="stdGrade" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+              <option value="">{{ t('lessonPlans.standardsPicker.allGrades') }}</option>
+              <option v-for="g in stdGrades" :key="g" :value="g">{{ g }}</option>
+            </select>
+          </div>
+
+          <div class="border border-gray-200 rounded-lg max-h-56 overflow-y-auto divide-y divide-gray-100">
             <button
-              v-for="std in standardsCatalog"
+              v-for="std in filteredStandards"
               :key="std.id"
               type="button"
-              class="px-2 py-1 rounded-full text-xs border"
-              :class="form.standards.includes(std.id)
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-primary-50'"
-              :title="std.description"
-              @click="form.standards.includes(std.id)
-                ? form.standards.splice(form.standards.indexOf(std.id), 1)
-                : form.standards.push(std.id)"
+              class="w-full text-left px-3 py-2 flex gap-2 items-start hover:bg-primary-50 text-sm"
+              :class="form.standards.includes(std.id) ? 'bg-primary-50/70' : ''"
+              @click="toggleStandard(std.id)"
             >
-              {{ std.code }}
+              <input
+                type="checkbox"
+                tabindex="-1"
+                :checked="form.standards.includes(std.id)"
+                class="mt-1 pointer-events-none rounded border-gray-300 text-primary-600"
+              />
+              <span class="flex-grow">
+                <span class="font-medium text-gray-900">{{ std.code }}</span>
+                <span class="text-gray-600"> — {{ std.description }}</span>
+                <span class="block text-xs text-gray-400">{{ std.subject }}<template v-if="std.grade_level"> · {{ std.grade_level }}</template></span>
+              </span>
             </button>
+            <div v-if="!filteredStandards.length" class="px-3 py-3 text-xs text-gray-400 text-center">
+              {{ t('lessonPlans.standardsPicker.noMatch') }}
+            </div>
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -441,7 +571,15 @@ onMounted(load)
           <AppButton size="sm" variant="secondary" :loading="acting" @click="transition('submit')">{{ t('lessonPlans.actions.submit') }}</AppButton>
           <AppButton size="sm" variant="secondary" :loading="acting" @click="transition('publish')">{{ t('lessonPlans.actions.publish') }}</AppButton>
           <AppButton size="sm" variant="ghost" :loading="acting" @click="transition('archive')">{{ t('lessonPlans.actions.archive') }}</AppButton>
-          <AppButton size="sm" variant="ghost" :loading="exportingPdf" class="ml-auto" @click="exportPdf">{{ t('lessonPlans.actions.exportPdf') }}</AppButton>
+          <AppButton
+            size="sm"
+            variant="ghost"
+            class="ml-auto"
+            @click="router.push({ name: 'lesson-plan-class', params: { id: planId as string } })"
+          >
+            {{ t('lessonPlans.classMode.open') }}
+          </AppButton>
+          <AppButton size="sm" variant="ghost" :loading="exportingPdf" @click="exportPdf">{{ t('lessonPlans.actions.exportPdf') }}</AppButton>
           <AppButton size="sm" variant="ghost" :loading="exporting" @click="exportScorm">{{ t('lessonPlans.actions.exportScorm') }}</AppButton>
         </div>
       </section>
@@ -476,20 +614,26 @@ onMounted(load)
               </div>
               <textarea v-model="activity.instructions" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" :placeholder="t('lessonPlans.fields.instructions')"></textarea>
 
-              <!-- content picker: bind a real heritage item / route / resource -->
+              <!-- content picker: bind a real heritage item / route / resource / quiz -->
               <ActivityContentPicker
                 :heritage-item="activity.heritage_item"
                 :route="activity.route"
                 :educational-resource="activity.educational_resource"
+                :lom-general="activity.lom_general"
                 :heritage-item-title="activity.heritage_item_title"
                 :route-title="activity.route_title"
                 :educational-resource-title="activity.educational_resource_title"
+                :lom-general-title="activity.lom_general_title"
                 @change="(p) => onBindingChange(index, p)"
               />
 
-              <!-- quiz authoring for assess activities (needs a bound heritage item) -->
+              <!-- quiz authoring for assess activities: edit the bound quiz (A.5)
+                   directly, or resolve it from the bound heritage item -->
               <div v-if="activity.activity_type === 'assess'" class="border-t border-gray-100 pt-3">
-                <template v-if="!activity.heritage_item">
+                <template v-if="activity.lom_general">
+                  <QuizEditor :lom-general-id="String(activity.lom_general)" />
+                </template>
+                <template v-else-if="!activity.heritage_item">
                   <p class="text-xs text-gray-500">{{ t('quiz.needHeritage') }}</p>
                 </template>
                 <template v-else-if="activity._quizLomId">

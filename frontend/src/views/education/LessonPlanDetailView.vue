@@ -74,7 +74,16 @@ onMounted(load)
         <button class="text-sm text-primary-600 hover:underline mb-2" @click="router.back()">
           ← {{ t('common.back') }}
         </button>
-        <h1 class="text-3xl font-display font-bold text-gray-900">{{ plan.title }}</h1>
+        <div class="flex items-start justify-between gap-3 flex-wrap">
+          <h1 class="text-3xl font-display font-bold text-gray-900">{{ plan.title }}</h1>
+          <!-- A.4: projector/print mode of this same sheet -->
+          <RouterLink
+            :to="{ name: 'lesson-plan-class', params: { id: plan.id } }"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+          >
+            📽 {{ t('lessonPlans.classMode.open') }}
+          </RouterLink>
+        </div>
         <p v-if="plan.summary" class="mt-2 text-gray-700">{{ plan.summary }}</p>
         <div class="mt-3 flex flex-wrap gap-2 text-sm">
           <span v-if="plan.subject" class="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700">{{ plan.subject }}</span>
@@ -130,6 +139,13 @@ onMounted(load)
                 🔗 {{ activityLink(a)!.label }}
               </RouterLink>
             </div>
+            <!-- A.5: a bound quiz surfaces on the sheet (questions live in the LOM layer) -->
+            <p v-if="a.lom_general" class="mt-2 text-sm text-secondary-800">
+              ❓ {{ t('lessonPlans.content.quiz') }}: {{ a.lom_general_title || '' }}
+              <template v-if="a.quiz_question_count != null">
+                ({{ t('lessonPlans.content.questionCount', a.quiz_question_count) }})
+              </template>
+            </p>
             <p v-if="a.materials" class="mt-2 text-xs text-gray-500">{{ t('lessonPlans.detail.materials') }}: {{ a.materials }}</p>
           </li>
         </ol>
@@ -138,9 +154,10 @@ onMounted(load)
         </div>
       </section>
 
-      <!-- rubrics -->
+      <!-- A.8: evaluation criteria (rubrics), student/parent-readable -->
       <section v-if="plan.rubrics && plan.rubrics.length" class="mt-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">{{ t('lessonPlans.detail.rubrics') }}</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-1">{{ t('lessonPlans.detail.evaluation') }}</h2>
+        <p class="text-sm text-gray-500 mb-3">{{ t('lessonPlans.detail.evaluationHint') }}</p>
         <div v-for="rubric in plan.rubrics" :key="rubric.id" class="bg-white border border-gray-200 rounded-xl p-5 mb-3">
           <h3 class="font-semibold text-gray-900">{{ rubric.title }}</h3>
           <p v-if="rubric.description" class="text-sm text-gray-600 mb-2">{{ rubric.description }}</p>
@@ -152,8 +169,16 @@ onMounted(load)
               </tr>
             </thead>
             <tbody>
-              <tr v-for="c in [...rubric.criteria].sort((a, b) => a.order - b.order)" :key="c.id || c.label" class="border-b border-gray-100 last:border-0">
-                <td class="py-1.5 text-gray-800">{{ c.label }}</td>
+              <tr v-for="c in [...rubric.criteria].sort((a, b) => a.order - b.order)" :key="c.id || c.label" class="border-b border-gray-100 last:border-0 align-top">
+                <td class="py-1.5 text-gray-800">
+                  {{ c.label }}
+                  <!-- performance levels, when the rubric defines them -->
+                  <span v-if="c.levels?.length" class="block text-xs text-gray-500 mt-0.5">
+                    <template v-for="(lvl, li) in c.levels" :key="li">
+                      <span class="mr-3">{{ lvl.level }}<template v-if="lvl.points != null"> ({{ lvl.points }})</template><template v-if="lvl.descriptor">: {{ lvl.descriptor }}</template></span>
+                    </template>
+                  </span>
+                </td>
                 <td class="py-1.5 text-right tabular-nums">{{ c.max_points }}</td>
               </tr>
             </tbody>

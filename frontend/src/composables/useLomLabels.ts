@@ -44,5 +44,21 @@ export function useLomLabels() {
     return te(key) ? t(key) : fallback
   }
 
-  return { lom, humanize, translate }
+  /**
+   * Localize a LOM `typical_age_range` free-text value (A.2): "all" → "Todas
+   * las edades", "6-12" → "6–12 años", "18+" → "18+ años". Unknown shapes pass
+   * through untouched; empty stays empty (caller hides the chip).
+   */
+  function ageRange(value: string | null | undefined): string {
+    const v = (value ?? '').trim()
+    if (!v) return ''
+    if (/^(all|todas?|any)$/i.test(v)) return t('learn.ages.all')
+    const range = v.match(/^(\d+)\s*-\s*(\d+)$/)
+    if (range) return t('learn.ages.range', { range: `${range[1]}–${range[2]}` })
+    const plus = v.match(/^(\d+)\s*\+$/)
+    if (plus) return t('learn.ages.plus', { age: plus[1] })
+    return v
+  }
+
+  return { lom, humanize, translate, ageRange }
 }

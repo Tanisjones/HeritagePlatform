@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * P.4 — bind ONE real content item to a lesson activity: a heritage item, a route,
- * or an educational resource. Searches the existing list endpoints (?search=),
+ * an educational resource, or (A.5) a quiz — a learning object that carries
+ * assessment questions. Searches the existing list endpoints (?search=),
  * debounced, and emits the chosen FK id (+ a display title for the card). Binding
  * is single-target: choosing one kind clears the others (matches how an activity
  * links a single primary resource).
@@ -15,15 +16,17 @@ import { useI18n } from 'vue-i18n'
 import api from '@/services/api'
 import { unwrapResults } from '@/utils/pagination'
 
-type ContentKind = 'heritage_item' | 'route' | 'educational_resource'
+type ContentKind = 'heritage_item' | 'route' | 'educational_resource' | 'lom_general'
 
 const props = defineProps<{
   heritageItem?: string | null
   route?: string | null
   educationalResource?: number | null
+  lomGeneral?: string | null
   heritageItemTitle?: string | null
   routeTitle?: string | null
   educationalResourceTitle?: string | null
+  lomGeneralTitle?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -33,21 +36,38 @@ const emit = defineEmits<{
       heritage_item: string | null
       route: string | null
       educational_resource: number | null
+      lom_general: string | null
+      /** Display title of the picked row, so the chip is right before save. */
+      picked_title?: string | null
     },
   ): void
 }>()
 
 const { t } = useI18n()
 
-const KINDS: { key: ContentKind; endpoint: string; labelKey: string }[] = [
+const KINDS: {
+  key: ContentKind
+  endpoint: string
+  labelKey: string
+  extraParams?: Record<string, unknown>
+}[] = [
   { key: 'heritage_item', endpoint: '/heritage-items/', labelKey: 'lessonPlans.content.heritage' },
   { key: 'route', endpoint: '/routes/', labelKey: 'lessonPlans.content.route' },
   { key: 'educational_resource', endpoint: '/educational-resources/', labelKey: 'lessonPlans.content.resource' },
+  // Learning objects that actually carry a quiz (server-filtered).
+  { key: 'lom_general', endpoint: '/lom/', labelKey: 'lessonPlans.content.quiz', extraParams: { has_questions: 1 } },
 ]
+
+const CHIP_LABEL_KEY: Record<ContentKind, string> = {
+  heritage_item: 'lessonPlans.content.heritage',
+  route: 'lessonPlans.content.route',
+  educational_resource: 'lessonPlans.content.resource',
+  lom_general: 'lessonPlans.content.quiz',
+}
 
 const activeKind = ref<ContentKind>('heritage_item')
 const query = ref('')
-const results = ref<{ id: string | number; title: string }[]>([])
+const results = ref<{ id: string | number; title: string; meta?: string }[]>([])
 const searching = ref(false)
 const open = ref(false)
 
@@ -57,6 +77,7 @@ const currentBinding = computed<{ kind: ContentKind; title: string } | null>(() 
   if (props.route) return { kind: 'route', title: props.routeTitle || t('lessonPlans.content.linkedRoute') }
   if (props.educationalResource != null)
     return { kind: 'educational_resource', title: props.educationalResourceTitle || t('lessonPlans.content.linkedResource') }
+  if (props.lomGeneral) return { kind: 'lom_general', title: props.lomGeneralTitle || t('lessonPlans.content.linkedQuiz') }
   return null
 })
 
@@ -72,7 +93,9 @@ watch(query, () => {
 let searchSeq = 0
 async function runSearch() {
   const q = query.value.trim()
-  if (!q) {
+  // The quiz catalog is small — list it even without a search term so the tab
+  // isn't an empty box; the other kinds still wait for a query.
+  if (!q && activeKind.value !== 'lom_general') {
     results.value = []
     return
   }
@@ -80,10 +103,19 @@ async function runSearch() {
   const seq = ++searchSeq
   searching.value = true
   try {
-    const res = await api.get(kind.endpoint, { params: { search: q, page_size: 8 } })
+    const res = await api.get(kind.endpoint, {
+      params: { ...(q ? { search: q } : {}), page_size: 8, ...(kind.extraParams || {}) },
+    })
     if (seq !== searchSeq) return // a newer search superseded this one
     const rows = unwrapResults<any>(res.data)
-    results.value = rows.slice(0, 8).map((r: any) => ({ id: r.id, title: r.title || r.name || String(r.id) }))
+    results.value = rows.slice(0, 8).map((r: any) => ({
+      id: r.id,
+      title: r.title || r.name || String(r.id),
+      meta:
+        kind.key === 'lom_general' && Array.isArray(r.questions)
+          ? t('lessonPlans.content.questionCount', r.questions.length)
+          : undefined,
+    }))
   } catch {
     if (seq === searchSeq) results.value = []
   } finally {
@@ -92,10 +124,17 @@ async function runSearch() {
 }
 
 function pick(row: { id: string | number; title: string }) {
-  const payload = { heritage_item: null as string | null, route: null as string | null, educational_resource: null as number | null }
+  const payload = {
+    heritage_item: null as string | null,
+    route: null as string | null,
+    educational_resource: null as number | null,
+    lom_general: null as string | null,
+    picked_title: row.title,
+  }
   if (activeKind.value === 'heritage_item') payload.heritage_item = String(row.id)
   else if (activeKind.value === 'route') payload.route = String(row.id)
-  else payload.educational_resource = Number(row.id)
+  else if (activeKind.value === 'educational_resource') payload.educational_resource = Number(row.id)
+  else payload.lom_general = String(row.id)
   emit('change', payload)
   open.value = false
   query.value = ''
@@ -103,13 +142,15 @@ function pick(row: { id: string | number; title: string }) {
 }
 
 function clearBinding() {
-  emit('change', { heritage_item: null, route: null, educational_resource: null })
+  emit('change', {
+    heritage_item: null, route: null, educational_resource: null, lom_general: null, picked_title: null,
+  })
 }
 
 function switchKind(kind: ContentKind) {
   activeKind.value = kind
   results.value = []
-  if (query.value.trim()) runSearch()
+  if (query.value.trim() || kind === 'lom_general') runSearch()
 }
 </script>
 
@@ -118,7 +159,7 @@ function switchKind(kind: ContentKind) {
     <!-- current binding chip -->
     <div v-if="currentBinding" class="flex items-center gap-2 flex-wrap">
       <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary-100 text-secondary-800">
-        <span class="font-medium">{{ t(`lessonPlans.content.${currentBinding.kind === 'heritage_item' ? 'heritage' : currentBinding.kind === 'route' ? 'route' : 'resource'}`) }}:</span>
+        <span class="font-medium">{{ t(CHIP_LABEL_KEY[currentBinding.kind]) }}:</span>
         {{ currentBinding.title }}
       </span>
       <button type="button" class="text-xs text-red-600 hover:underline" @click="clearBinding">
@@ -158,14 +199,17 @@ function switchKind(kind: ContentKind) {
           <li v-for="row in results" :key="String(row.id)">
             <button
               type="button"
-              class="w-full text-left px-2 py-1.5 hover:bg-primary-50 rounded"
+              class="w-full text-left px-2 py-1.5 hover:bg-primary-50 rounded flex items-center justify-between gap-2"
               @click="pick(row)"
             >
-              {{ row.title }}
+              <span class="truncate">{{ row.title }}</span>
+              <span v-if="row.meta" class="flex-shrink-0 text-xs text-gray-400">{{ row.meta }}</span>
             </button>
           </li>
         </ul>
-        <div v-else-if="query.trim()" class="text-gray-400 py-2 text-center text-xs">{{ t('lessonPlans.content.noResults') }}</div>
+        <div v-else-if="query.trim() || activeKind === 'lom_general'" class="text-gray-400 py-2 text-center text-xs">
+          {{ activeKind === 'lom_general' ? t('lessonPlans.content.noQuizzes') : t('lessonPlans.content.noResults') }}
+        </div>
       </div>
     </div>
   </div>

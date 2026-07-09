@@ -187,6 +187,9 @@ export const educationService = {
   getByHeritageItem: (heritageItemId: string) =>
     api.get('/lom/by_heritage_item/', { params: { heritage_item_id: heritageItemId } }),
   getLom: (lomId: string) => api.get(`/lom/${lomId}/`),
+  // Learning-object catalog (powers /learn and the teach dashboard). Supports
+  // ?search=, ?has_questions=1, ordering, page_size.
+  listLom: (params?: Record<string, any>) => api.get('/lom/', { params }),
   // Nested partial update of the whole educational layer in one call.
   updateLom: (lomId: string, payload: Record<string, any>) =>
     api.patch(`/lom/${lomId}/`, payload),
@@ -199,7 +202,10 @@ export const lessonPlanService = {
   create: (payload: LessonPlanWriteData) => api.post('/lesson-plans/', payload),
   update: (id: string, payload: LessonPlanWriteData) => api.patch(`/lesson-plans/${id}/`, payload),
   delete: (id: string) => api.delete(`/lesson-plans/${id}/`),
-  duplicate: (id: string) => api.post(`/lesson-plans/${id}/duplicate/`),
+  // A.7: pass { city: '<slug>' } to duplicate-and-adapt into another city
+  // (the response then carries an `adaptation` re-link report).
+  duplicate: (id: string, payload?: { city?: string }) =>
+    api.post(`/lesson-plans/${id}/duplicate/`, payload ?? {}),
   // State machine (P.2b): draft → review → published → archived.
   submit: (id: string) => api.post(`/lesson-plans/${id}/submit/`),
   publish: (id: string) => api.post(`/lesson-plans/${id}/publish/`),

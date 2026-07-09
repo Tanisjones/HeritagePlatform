@@ -364,6 +364,8 @@ export interface LessonActivity {
   heritage_item_title?: string | null;
   route_title?: string | null;
   educational_resource_title?: string | null;
+  lom_general_title?: string | null;
+  quiz_question_count?: number | null;
   // Client-only transient state for the inline quiz editor (assess activities).
   // Stored on the activity so it travels with reorder/delete; never sent to the API.
   _quizLomId?: string | null;
@@ -427,3 +429,11 @@ export interface LessonPlan {
 
 /** Write shape for creating/updating a lesson plan (nested activities reconciled by id). */
 export type LessonPlanWriteData = Partial<Omit<LessonPlan, 'id' | 'author' | 'author_name' | 'created_at' | 'updated_at'>>;
+
+/** A.7 — re-link report returned by duplicate-and-adapt into another city. */
+export interface LessonPlanAdaptation {
+  city: string;
+  relinked: number;
+  dropped: number;
+  details: Array<{ field: string; source_title: string; matched_title: string | null }>;
+}

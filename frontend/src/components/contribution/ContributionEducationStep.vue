@@ -6,6 +6,7 @@ import {
   LOM_END_USER_ROLES, LOM_PEDAGOGICAL_APPROACHES,
 } from '@/constants/lomVocab'
 import { useDurationValidation } from '@/composables/useDurationValidation'
+import { formatIsoDuration } from '@/utils/duration'
 import AiActionButton from '@/components/common/AiActionButton.vue'
 
 /**
@@ -55,6 +56,16 @@ const eduTimeError = useDurationValidation(
   () => props.educational.typical_learning_time,
   { invalidKey: 'contribution.step5edu.errors.duration', monthsKey: 'contribution.step5edu.errors.months' },
 )
+
+// A.2 — no more "PT30M" jargon: contributors pick a human duration; the ISO
+// value stays underneath (it's what LOM stores). A pre-existing value outside
+// the presets shows up as its own option so nothing is silently lost.
+const DURATION_PRESETS = ['PT15M', 'PT30M', 'PT45M', 'PT1H', 'PT1H30M', 'PT2H', 'PT3H']
+const customDuration = computed(() => {
+  const v = props.educational.typical_learning_time
+  return v && !DURATION_PRESETS.includes(v) ? v : null
+})
+const durationLabel = (iso: string) => formatIsoDuration(iso) || iso
 
 const resourceTypeOptions = LOM_RESOURCE_TYPES
 const difficultyOptions = LOM_DIFFICULTIES
@@ -117,7 +128,12 @@ const objectives = computed({
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step5edu.fields.learningTime') }}</label>
-        <input v-model="educational.typical_learning_time" type="text" class="w-full px-4 py-2 border rounded-lg focus:ring-primary-500 focus:border-primary-500" :class="eduTimeError ? 'border-red-400' : 'border-gray-300'" :placeholder="t('contribution.step5edu.placeholders.learningTime')" />
+        <!-- A.2: human durations; the underlying value stays ISO-8601 for LOM -->
+        <select v-model="educational.typical_learning_time" class="w-full px-4 py-2 border rounded-lg focus:ring-primary-500 focus:border-primary-500" :class="eduTimeError ? 'border-red-400' : 'border-gray-300'">
+          <option value="">{{ t('contribution.step5edu.unset') }}</option>
+          <option v-for="iso in DURATION_PRESETS" :key="iso" :value="iso">{{ durationLabel(iso) }}</option>
+          <option v-if="customDuration" :value="customDuration">{{ durationLabel(customDuration) }}</option>
+        </select>
         <p v-if="eduTimeError" class="text-xs text-red-600 mt-1">{{ eduTimeError }}</p>
         <p v-else class="text-xs text-gray-500 mt-1">{{ t('contribution.step5edu.help.learningTime') }}</p>
       </div>
