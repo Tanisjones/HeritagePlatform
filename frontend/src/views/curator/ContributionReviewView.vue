@@ -180,6 +180,10 @@ onMounted(() => {
         <h1 class="text-2xl font-bold text-gray-900 mt-2">{{ t('curatorReview.title') }}</h1>
       </div>
       <div class="flex items-center gap-2">
+        <!-- B3: visible note, not just a hover tooltip, when AI is off. -->
+        <span v-if="!aiAvailable" class="text-xs text-gray-500 italic">
+          {{ t('curatorReview.aiReview.unavailable') }}
+        </span>
         <span class="inline-block" :title="!aiAvailable ? t('curatorReview.aiReview.unavailable') : ''">
           <button
             class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
@@ -350,7 +354,10 @@ onMounted(() => {
         <section v-if="aiError || aiReview" class="bg-white border border-gray-200 rounded-xl p-5">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900">{{ t('curatorReview.aiReview.title') }}</h3>
-            <span class="inline-block" :title="!aiAvailable ? t('curatorReview.aiReview.unavailable') : ''">
+            <span class="inline-flex items-center gap-2" :title="!aiAvailable ? t('curatorReview.aiReview.unavailable') : ''">
+              <span v-if="!aiAvailable" class="text-xs text-gray-500 italic">
+                {{ t('curatorReview.aiReview.unavailable') }}
+              </span>
               <button
                 type="button"
                 class="text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50"

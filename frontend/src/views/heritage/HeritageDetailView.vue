@@ -301,6 +301,15 @@ onMounted(fetchHeritageItem);
                 <span v-if="getResourceType" class="px-3 py-1 rounded-full bg-secondary-100 text-secondary-700 text-xs font-bold uppercase tracking-wide">
                    {{ translateLom('resource_type', getResourceType) }}
                 </span>
+                <!-- B1: free-form tags — deep-link into Explore filtered by the tag -->
+                <router-link
+                  v-for="tag in item.tags || []"
+                  :key="tag"
+                  :to="{ path: '/explore', query: { tag } }"
+                  class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold tracking-wide hover:bg-gray-200"
+                >
+                  #{{ tag }}
+                </router-link>
              </div>
              
              <h1 class="font-display text-3xl md:text-5xl font-bold text-gray-900 mb-2">

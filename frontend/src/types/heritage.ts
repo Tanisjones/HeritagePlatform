@@ -156,6 +156,15 @@ export interface HeritageItem {
   video: MediaFile[];
   documents: MediaFile[];
   lom_metadata?: LOMMetadata;
+  /** B1 — free-form topic tags (plain names on the wire). */
+  tags?: string[];
+}
+
+/** B1 — one entry of the /heritage-items/tags/ chips catalog. */
+export interface TagCount {
+  name: string;
+  slug: string;
+  count: number;
 }
 
 export interface HeritageItemContribution {
@@ -172,6 +181,8 @@ export interface HeritageItemContribution {
   audio: string[];
   video: string[];
   documents: string[];
+  /** B1 — free-form topic tags. */
+  tags?: string[];
 }
 
 export interface UserPublic {

@@ -14,7 +14,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { unwrapResults } from '@/utils/pagination'
-import type { HeritageCategory, HeritageItem, HeritageType, Parish } from '@/types/heritage'
+import type { HeritageCategory, HeritageItem, HeritageType, Parish, TagCount } from '@/types/heritage'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -38,6 +38,9 @@ const selectedCategoryId = ref<string>(route.query.category?.toString() || '')
 const selectedParishId = ref<string>(route.query.parish?.toString() || '')
 const selectedMedia = ref<string>(route.query.media?.toString() || '')
 const selectedOrdering = ref<string>(route.query.sort?.toString() || '-created_at')
+// B1 — free-form tag filter, fed by the top-tags chips row.
+const selectedTag = ref<string>(route.query.tag?.toString() || '')
+const topTags = ref<TagCount[]>([])
 
 const OFFLINE_AREA_STORAGE_KEY = 'hp_offline_area'
 const offlineDownloading = ref(false)
@@ -57,6 +60,7 @@ const currentQuerySnapshot = computed(() => {
   if (selectedTypeId.value) params.heritage_type = selectedTypeId.value
   if (selectedCategoryId.value) params.heritage_category = selectedCategoryId.value
   if (selectedParishId.value) params.parish = selectedParishId.value
+  if (selectedTag.value) params.tag = selectedTag.value
   if (selectedOrdering.value) params.ordering = selectedOrdering.value
 
   if (selectedMedia.value === 'images') params.has_images = true
@@ -151,17 +155,31 @@ const downloadForOffline = async () => {
 
 const fetchFilterOptions = async () => {
   try {
-    const [typesRes, categoriesRes, parishesRes] = await Promise.all([
+    const [typesRes, categoriesRes, parishesRes, tagsRes] = await Promise.all([
       api.get('/types/'),
       api.get('/categories/all/'),
       api.get('/parishes/'),
+      api.get('/heritage-items/tags/'),
     ])
     types.value = typesRes.data?.results || typesRes.data || []
     categories.value = categoriesRes.data || []
     parishes.value = parishesRes.data?.results || parishesRes.data || []
+    topTags.value = tagsRes.data || []
   } catch (e) {
     console.error('Error loading filter options:', e)
   }
+}
+
+// Chips toggle: clicking the active tag clears it. Card tags pass display
+// names — map them onto the catalog slug when we know it so the chips row
+// highlights consistently (the API accepts either form).
+const toggleTag = (value: string) => {
+  const match = topTags.value.find(
+    (t) => t.slug === value || t.name.toLowerCase() === value.toLowerCase()
+  )
+  const next = match?.slug ?? value
+  selectedTag.value = selectedTag.value === next ? '' : next
+  syncQuery()
 }
 
 const syncQuery = () => {
@@ -173,6 +191,7 @@ const syncQuery = () => {
       category: selectedCategoryId.value || undefined,
       parish: selectedParishId.value || undefined,
       media: selectedMedia.value || undefined,
+      tag: selectedTag.value || undefined,
       sort: selectedOrdering.value !== '-created_at' ? selectedOrdering.value : undefined,
     },
   })
@@ -191,6 +210,7 @@ const clearFilters = () => {
   selectedCategoryId.value = ''
   selectedParishId.value = ''
   selectedMedia.value = ''
+  selectedTag.value = ''
   selectedOrdering.value = '-created_at'
   syncQuery()
 }
@@ -208,6 +228,7 @@ watch(
     const nextCategory = q.category?.toString() || ''
     const nextParish = q.parish?.toString() || ''
     const nextMedia = q.media?.toString() || ''
+    const nextTag = q.tag?.toString() || ''
     const nextSort = q.sort?.toString() || '-created_at'
 
     search.value = nextSearch
@@ -215,6 +236,7 @@ watch(
     selectedCategoryId.value = nextCategory
     selectedParishId.value = nextParish
     selectedMedia.value = nextMedia
+    selectedTag.value = nextTag
     selectedOrdering.value = nextSort
 
     fetchItems()
@@ -332,6 +354,22 @@ const getResourceType = (item: HeritageItem): string | null => {
         </span>
       </div>
 
+      <!-- B1: top free-form tags as filter chips (city-scoped, published only) -->
+      <div v-if="topTags.length" class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-medium text-gray-500">{{ t('explore.filters.tags') }}</span>
+        <button
+          v-for="tag in topTags.slice(0, 12)"
+          :key="tag.slug"
+          class="px-2.5 py-1 text-xs rounded-full border transition"
+          :class="selectedTag === tag.slug
+            ? 'bg-primary-600 text-white border-primary-600'
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+          @click="toggleTag(tag.slug)"
+        >
+          #{{ tag.name }} <span class="opacity-70">({{ tag.count }})</span>
+        </button>
+      </div>
+
       <p v-if="offlineDownloadError" class="text-sm text-red-600">
         {{ offlineDownloadError }}
       </p>
@@ -375,6 +413,15 @@ const getResourceType = (item: HeritageItem): string | null => {
               <span v-if="getResourceType(item)" class="px-2 py-1 rounded-full bg-purple-100 text-purple-800 font-medium capitalize">
                 {{ te(`lom.resource_type.${getResourceType(item)}`) ? t(`lom.resource_type.${getResourceType(item)}`) : getResourceType(item)?.replace(/_/g, ' ') }}
               </span>
+              <!-- B1: free-form tags; clicking filters instead of navigating -->
+              <button
+                v-for="tag in (item.tags || []).slice(0, 3)"
+                :key="tag"
+                class="px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"
+                @click.prevent.stop="toggleTag(tag)"
+              >
+                #{{ tag }}
+              </button>
             </div>
           </div>
         </router-link>

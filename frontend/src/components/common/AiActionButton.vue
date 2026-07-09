@@ -26,6 +26,11 @@ const { t } = useI18n()
     <div v-if="props.error" class="text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
       {{ props.error }}
     </div>
+    <!-- B3: when AI is off, say so visibly — a hover-only tooltip on a greyed
+         button reads as breakage to contributors who never hover it. -->
+    <span v-if="!props.available" class="text-xs text-gray-500 italic">
+      {{ t('ai.unavailable') }}
+    </span>
     <span class="inline-block" :title="!props.available ? t('ai.unavailable') : ''">
       <button
         type="button"

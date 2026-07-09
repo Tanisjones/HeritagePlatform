@@ -13,11 +13,12 @@
  */
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useCityStore } from '@/stores/city';
-import type { HeritageItemContribution, Parish, HeritageType, HeritageCategory } from '@/types/heritage';
+import type { HeritageItem, HeritageItemContribution, Parish, HeritageType, HeritageCategory } from '@/types/heritage';
 import api, { aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability'
 import { useAiError } from '@/composables/useAiError';
 import { useDurationValidation } from '@/composables/useDurationValidation';
+import { useGeolocation } from '@/composables/useGeolocation';
 import { useToast } from '@/composables/useDialogs';
 import { useFileUpload } from '@/composables/useFileUpload';
 import { LOM_RESOURCE_TYPES, LOM_DIFFICULTIES, LOM_CONTEXTS } from '@/constants/lomVocab';
@@ -45,6 +46,21 @@ watch(currentStep, (newStep) => {
 const totalSteps = 6;
 const submittedSuccess = ref(false);
 const queuedOffline = ref(false);
+
+// B2 — compact single-page mode for experienced contributors: every section is
+// visible at once and the resource uploads at submit time instead of on step 1.
+// The preference sticks across visits.
+const COMPACT_STORAGE_KEY = 'hp_contrib_compact';
+const compactMode = ref(localStorage.getItem(COMPACT_STORAGE_KEY) === '1');
+watch(compactMode, (v) => localStorage.setItem(COMPACT_STORAGE_KEY, v ? '1' : '0'));
+// Sections 1-5 all show in compact mode; the review step is wizard-only (the
+// whole form already being on screen IS the review).
+const showSection = (n: number) => (compactMode.value ? n <= 5 : currentStep.value === n);
+
+// B2 — save-as-draft state. A draft needs the step-2 basics (see draftValid);
+// the resource and everything else can come later via "Mis contribuciones".
+const savingDraft = ref(false);
+const draftSaved = ref(false);
 
 type ContributionResourceType = 'image' | 'audio' | 'video' | 'document' | 'text';
 const resourceType = ref<ContributionResourceType>('text');
@@ -74,7 +90,26 @@ const contribution = reactive<Partial<HeritageItemContribution>>({
   audio: [],
   video: [],
   documents: [],
+  tags: [],
 });
+
+// B1 — free-form tags chip editor (step 4). AI-suggested keywords become
+// clickable "add as tag" chips instead of display-only text.
+const MAX_TAGS = 10;
+const tagInput = ref('');
+const addTag = (raw?: string) => {
+  const name = String(raw ?? tagInput.value).replace(/,/g, ' ').trim().replace(/\s+/g, ' ');
+  if (!name) return;
+  const tags = contribution.tags ?? (contribution.tags = []);
+  if (tags.length >= MAX_TAGS) return;
+  if (!tags.some((t) => t.toLowerCase() === name.toLowerCase())) tags.push(name.slice(0, 50));
+  tagInput.value = '';
+};
+const removeTag = (index: number) => contribution.tags?.splice(index, 1);
+
+// B7 — free-text category suggestion, relayed to the city's curators.
+const showSuggestCategory = ref(false);
+const suggestedCategory = ref('');
 
 // --- Educational (IEEE-LOM §5) layer captured in step 5 ---
 // The educational draft shape lives with the step component (single source of
@@ -142,6 +177,81 @@ const files = reactive<{ images: File[], audio: File[], video: File[], documents
 
 const imagePreviews = ref<string[]>([]);
 
+// B4 — client-side size guard; mirrors the deployment's nginx client_max_body_size.
+const MAX_UPLOAD_MB = 100;
+
+// B5 — "usar mi ubicación": one-shot fix from the shared geolocation composable.
+const { isSupported: geoSupported, getCurrent: getCurrentPosition } = useGeolocation();
+const locating = ref(false);
+const useMyLocation = async () => {
+  if (locating.value) return;
+  locating.value = true;
+  try {
+    const [lng, lat] = await getCurrentPosition();
+    onLocationUpdate([lat, lng]);
+  } catch {
+    toast.error(t('contribution.step3.geolocationError'));
+  } finally {
+    locating.value = false;
+  }
+};
+
+// B4 — near-duplicate warning. Debounced, best-effort lookups against the
+// existing search + nearby endpoints; never blocks the wizard. The nearby leg
+// only runs once the user has actually moved the pin — the seeded city-center
+// default would otherwise "match" everything downtown.
+const possibleDuplicates = ref<HeritageItem[]>([]);
+const duplicatesDismissed = ref(false);
+const pinTouched = ref(false);
+let duplicateTimer: ReturnType<typeof setTimeout> | null = null;
+
+const checkDuplicates = async () => {
+  if (duplicatesDismissed.value || submittedSuccess.value) return;
+  const title = (contribution.title || '').trim();
+  const byTitle = title.length >= 4;
+  if (!byTitle && !pinTouched.value) {
+    possibleDuplicates.value = [];
+    return;
+  }
+  try {
+    const [titleRes, nearbyRes] = await Promise.all([
+      byTitle
+        ? api.get('/heritage-items/', { params: { search: title, page_size: 5 } })
+        : Promise.resolve(null),
+      pinTouched.value
+        ? api.get('/heritage-items/nearby/', {
+            params: {
+              latitude: formLocation.value.lat,
+              longitude: formLocation.value.lng,
+              radius: 0.3,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+    const seen = new Set<string>();
+    const merged: HeritageItem[] = [];
+    for (const res of [titleRes, nearbyRes]) {
+      const list: HeritageItem[] = res ? (res.data?.results ?? res.data ?? []) : [];
+      for (const item of list) {
+        if (item?.id && !seen.has(item.id)) {
+          seen.add(item.id);
+          merged.push(item);
+        }
+      }
+    }
+    possibleDuplicates.value = merged.slice(0, 3);
+  } catch {
+    // Best-effort: a failed lookup must never get in the way of contributing.
+  }
+};
+const scheduleDuplicateCheck = () => {
+  if (duplicateTimer) clearTimeout(duplicateTimer);
+  duplicateTimer = setTimeout(checkDuplicates, 700);
+};
+watch(() => contribution.title, scheduleDuplicateCheck);
+// Pin moves re-run the lookup too (formLocation is declared above this block).
+watch(formLocation, scheduleDuplicateCheck);
+
 // Data Sources
 const parishes = ref<Parish[]>([]);
 const heritageTypes = ref<HeritageType[]>([]);
@@ -204,78 +314,91 @@ onMounted(async () => {
 });
 
 // --- Actions ---
-const nextStep = async () => {
-  if (submitting.value) return;
 
-  if (currentStep.value === 1) {
-    if (step1Uploading.value) return;
+// The staged (not yet uploaded) file for the current resource type.
+const stagedFile = (): File | undefined =>
+  resourceType.value === 'image' ? files.images[0] :
+  resourceType.value === 'audio' ? files.audio[0] :
+  resourceType.value === 'video' ? files.video[0] :
+  resourceType.value === 'document' ? files.documents[0] :
+  undefined;
 
+// Identity of the staged resource. Compact mode calls ensureResourceUploaded on
+// every submit attempt, so this is what makes re-submits (and wizard back/next)
+// skip re-uploading an unchanged resource. Empty string = nothing staged.
+const stagedSignature = (): string => {
+  if (resourceType.value === 'text') {
+    const plain = narrativeText.value.replace(/<[^>]*>/g, '').trim();
+    return plain ? `text:${narrativeText.value}` : '';
+  }
+  const file = stagedFile();
+  return file ? `${resourceType.value}:${file.name}:${file.size}:${file.lastModified}` : '';
+};
+
+const uploadedSignature = ref('');
+
+/**
+ * Upload the staged resource (file or narrative text) unless it's already up.
+ * With required=false (drafts) an empty step 1 passes through — the resource
+ * can be added later from "Mis contribuciones". Returns false, with
+ * step1Error set, when a required resource is missing or the upload fails.
+ */
+const ensureResourceUploaded = async (required = true): Promise<boolean> => {
+  const signature = stagedSignature();
+
+  if (!signature) {
+    if (!required) return true;
+    step1Error.value = t('contribution.step1.errors.selectFile');
+    return false;
+  }
+  if (signature === uploadedSignature.value) return true;
+
+  try {
+    step1Error.value = '';
+    // useFileUpload owns the uploading/progress state.
     if (resourceType.value === 'text') {
-      // Basic check for empty HTML content (strip tags)
-      const plainText = narrativeText.value.replace(/<[^>]*>/g, '').trim();
-      if (!plainText) return;
-
-      try {
-          step1Error.value = '';
-          // useFileUpload owns the uploading/progress state.
-          const blob = new Blob([narrativeText.value], { type: 'text/html' });
-          const file = new File([blob], "narrative_text.html", { type: 'text/html' });
-
-          const id = await uploadOneFile(file, 'document');
-
-          // Store as document
-          contribution.documents = [id];
-          contribution.images = [];
-          contribution.audio = [];
-          contribution.video = [];
-
-          currentStep.value = 2;
-          return;
-      } catch (error) {
-        const err = error as any;
-        if (err?.code === 'ERR_CANCELED') return; // user cancelled — not an error
-        console.error('Error uploading text file:', err);
-        step1Error.value = t('contribution.step1.errors.uploadFailed');
-        return;
-      }
-    }
-
-    const file =
-      resourceType.value === 'image' ? files.images[0] :
-      resourceType.value === 'audio' ? files.audio[0] :
-      resourceType.value === 'video' ? files.video[0] :
-      resourceType.value === 'document' ? files.documents[0] :
-      undefined;
-
-    if (!file) {
-      step1Error.value = t('contribution.step1.errors.selectFile');
-      return;
-    }
-
-    try {
-      step1Error.value = '';
-      // useFileUpload owns the uploading/progress state.
+      const blob = new Blob([narrativeText.value], { type: 'text/html' });
+      const file = new File([blob], 'narrative_text.html', { type: 'text/html' });
+      const id = await uploadOneFile(file, 'document');
+      contribution.documents = [id];
+      contribution.images = [];
+      contribution.audio = [];
+      contribution.video = [];
+    } else {
+      const file = stagedFile()!;
       const id = await uploadOneFile(file, resourceType.value);
       contribution.images = resourceType.value === 'image' ? [id] : [];
       contribution.audio = resourceType.value === 'audio' ? [id] : [];
       contribution.video = resourceType.value === 'video' ? [id] : [];
       contribution.documents = resourceType.value === 'document' ? [id] : [];
-      currentStep.value = 2;
-      return;
-    } catch (error) {
-      const err = error as any;
-      if (err?.code === 'ERR_CANCELED') return; // user cancelled — not an error
-      const status = err?.response?.status;
-      const data = err?.response?.data;
-      console.error('Error uploading file:', err);
-      if (status) {
-        const detail = typeof data === 'string' ? data : '';
-        step1Error.value = `${t('contribution.step1.errors.uploadFailedStatus', { status })} ${detail}`.trim();
-      } else {
-        step1Error.value = t('contribution.step1.errors.uploadFailed');
-      }
-      return;
     }
+    uploadedSignature.value = signature;
+    return true;
+  } catch (error) {
+    const err = error as any;
+    if (err?.code === 'ERR_CANCELED') return false; // user cancelled — not an error
+    const status = err?.response?.status;
+    const data = err?.response?.data;
+    console.error('Error uploading resource:', err);
+    if (status) {
+      const detail = typeof data === 'string' ? data : '';
+      step1Error.value = `${t('contribution.step1.errors.uploadFailedStatus', { status })} ${detail}`.trim();
+    } else {
+      step1Error.value = t('contribution.step1.errors.uploadFailed');
+    }
+    return false;
+  }
+};
+
+const nextStep = async () => {
+  if (submitting.value) return;
+
+  if (currentStep.value === 1) {
+    if (step1Uploading.value) return;
+    const ok = await ensureResourceUploaded();
+    if (!ok) return;
+    currentStep.value = 2;
+    return;
   }
 
   step1Error.value = '';
@@ -284,6 +407,12 @@ const nextStep = async () => {
 
 const prevStep = () => {
   if (currentStep.value > 1) currentStep.value--;
+};
+
+// B2 — visible skip for the optional steps (4: details, 5: capa educativa).
+const skipStep = () => {
+  if (submitting.value) return;
+  if (currentStep.value < totalSteps) currentStep.value++;
 };
 
 // Clear the four parallel file arrays (staged File objects) and their uploaded-id
@@ -298,6 +427,7 @@ const clearAllMedia = () => {
   contribution.audio = [];
   contribution.video = [];
   contribution.documents = [];
+  uploadedSignature.value = '';
 };
 
 const setResourceType = (nextType: ContributionResourceType) => {
@@ -312,6 +442,8 @@ const setResourceType = (nextType: ContributionResourceType) => {
 const onLocationUpdate = ([lat, lng]: [number, number]) => {
   formLocation.value = { lat, lng };
   contribution.location = { type: 'Point', coordinates: [lng, lat] };
+  // A deliberate pin placement arms the location leg of the duplicate check.
+  pinTouched.value = true;
 };
 
 // The <input id> matches the `files`/`contribution` array key; map it to the
@@ -328,6 +460,14 @@ const handleFileUpload = (event: Event) => {
   const fileType = target.id as 'images' | 'audio' | 'video' | 'documents';
   const firstFile = target.files?.item(0);
   if (!firstFile || !(fileType in FILE_INPUT_TO_TYPE)) return;
+
+  // B4 — catch oversize files before wasting an upload round-trip (the server
+  // and nginx would reject them anyway).
+  if (firstFile.size > MAX_UPLOAD_MB * 1024 * 1024) {
+    step1Error.value = t('contribution.step1.errors.tooLarge', { max: MAX_UPLOAD_MB });
+    target.value = '';
+    return;
+  }
 
   resourceType.value = FILE_INPUT_TO_TYPE[fileType];
   clearAllMedia();
@@ -378,17 +518,35 @@ const buildEducationalPayload = (): Record<string, any> | null => {
   return Object.keys(out).length ? out : null;
 };
 
+// One payload builder for both real submissions and drafts: the contribution
+// fields, the pruned educational layer, and the B7 category suggestion.
+const buildPayload = (): Record<string, any> => {
+  const payload: Record<string, any> = { ...contribution };
+  if (!payload.tags?.length) delete payload.tags;
+  const edu = buildEducationalPayload();
+  if (edu) payload.educational = edu;
+  if (suggestedCategory.value.trim()) payload.suggested_category = suggestedCategory.value.trim();
+  return payload;
+};
+
 const submitContribution = async () => {
+  if (submitting.value || savingDraft.value) return;
   submitting.value = true;
   try {
-    // Submit data (resource is uploaded in step 1 if provided). The educational
-    // layer, when filled, rides along under `educational`.
-    const payload: Record<string, any> = { ...contribution };
-    const edu = buildEducationalPayload();
-    if (edu) payload.educational = edu;
-    await api.post('/contributions/', payload);
+    // In compact mode nothing was uploaded on the way in — the resource (still
+    // just staged) uploads now. The wizard already uploaded it leaving step 1.
+    if (compactMode.value) {
+      const ok = await ensureResourceUploaded();
+      if (!ok) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+    }
+
+    await api.post('/contributions/', buildPayload());
 
     queuedOffline.value = false;
+    draftSaved.value = false;
     submittedSuccess.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (error) {
@@ -402,6 +560,7 @@ const submitContribution = async () => {
     const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
     if (offline && canServiceWorkerQueueContribution()) {
       queuedOffline.value = true;
+      draftSaved.value = false;
       submittedSuccess.value = true;
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -410,6 +569,31 @@ const submitContribution = async () => {
     toast.error(t('contribution.actions.error'));
   } finally {
     submitting.value = false;
+  }
+};
+
+// B2 — park the work as a draft (status='draft' server-side, no moderation
+// yet). Minimum viable draft = the step-2 basics; a staged resource uploads
+// too when there is one, but isn't required.
+const saveDraft = async () => {
+  if (savingDraft.value || submitting.value) return;
+  savingDraft.value = true;
+  try {
+    const ok = await ensureResourceUploaded(false);
+    if (!ok) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    await api.post('/contributions/', { ...buildPayload(), save_as_draft: true });
+    draftSaved.value = true;
+    queuedOffline.value = false;
+    submittedSuccess.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (error) {
+    console.error('Error saving draft:', error);
+    toast.error(t('contribution.actions.draftError'));
+  } finally {
+    savingDraft.value = false;
   }
 };
 
@@ -539,6 +723,7 @@ const generateAIEducational = async () => {
 const resetForm = () => {
   submittedSuccess.value = false;
   queuedOffline.value = false;
+  draftSaved.value = false;
   currentStep.value = 1;
   setResourceType('text'); // also clears the file/media arrays
 
@@ -551,6 +736,14 @@ const resetForm = () => {
   contribution.heritage_category = null;
   contribution.historical_period = '';
   contribution.external_registry_url = '';
+  contribution.tags = [];
+  tagInput.value = '';
+  suggestedCategory.value = '';
+  showSuggestCategory.value = false;
+
+  possibleDuplicates.value = [];
+  duplicatesDismissed.value = false;
+  pinTouched.value = false;
 
   formLocation.value = cityDefaultLatLng();
 
@@ -567,18 +760,22 @@ const resetForm = () => {
 };
 
 // --- Computed ---
+const step1Valid = computed(() => {
+  if (resourceType.value === 'text') {
+    const plainText = narrativeText.value.replace(/<[^>]*>/g, '').trim();
+    return plainText.length > 0;
+  }
+  if (resourceType.value === 'image') return (contribution.images?.length || files.images.length > 0) ? true : false;
+  if (resourceType.value === 'audio') return (contribution.audio?.length || files.audio.length > 0) ? true : false;
+  if (resourceType.value === 'video') return (contribution.video?.length || files.video.length > 0) ? true : false;
+  if (resourceType.value === 'document') return (contribution.documents?.length || files.documents.length > 0) ? true : false;
+  return false;
+});
+
 const isStepValid = computed(() => {
   switch (currentStep.value) {
     case 1: // Resource
-      if (resourceType.value === 'text') {
-         const plainText = narrativeText.value.replace(/<[^>]*>/g, '').trim();
-         return plainText.length > 0;
-      }
-      if (resourceType.value === 'image') return (contribution.images?.length || files.images.length > 0) ? true : false;
-      if (resourceType.value === 'audio') return (contribution.audio?.length || files.audio.length > 0) ? true : false;
-      if (resourceType.value === 'video') return (contribution.video?.length || files.video.length > 0) ? true : false;
-      if (resourceType.value === 'document') return (contribution.documents?.length || files.documents.length > 0) ? true : false;
-      return false;
+      return step1Valid.value;
     case 2: // General
       return contribution.title && contribution.description && contribution.heritage_type && contribution.heritage_category;
     case 3: // Location
@@ -595,6 +792,17 @@ const isStepValid = computed(() => {
       return false;
   }
 });
+
+// B2 — a draft only needs the step-2 basics (the API's required fields).
+const draftValid = computed(() =>
+  !!(contribution.title && contribution.description && contribution.heritage_type && contribution.heritage_category)
+);
+
+// B2 — compact mode submits everything at once, so gate on the union of the
+// per-step requirements.
+const compactValid = computed(() =>
+  step1Valid.value && draftValid.value && !!contribution.parish && !eduTimeError.value
+);
 </script>
 
 <template>
@@ -606,21 +814,33 @@ const isStepValid = computed(() => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
         </svg>
       </div>
-      <h2 class="text-3xl font-bold text-gray-900 mb-4">{{ t('contribution.successPage.title') }}</h2>
+      <h2 class="text-3xl font-bold text-gray-900 mb-4">
+        {{ draftSaved ? t('contribution.successPage.draftTitle') : t('contribution.successPage.title') }}
+      </h2>
       <p class="text-lg text-gray-600 mb-10 max-w-2xl mx-auto">
-        {{ t('contribution.successPage.message') }}
+        {{ draftSaved ? t('contribution.successPage.draftMessage') : t('contribution.successPage.message') }}
       </p>
       <p v-if="queuedOffline" class="text-sm text-gray-700 mb-10 max-w-2xl mx-auto">
         {{ t('contribution.successPage.offlineQueued') }}
       </p>
       <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-        <button 
-          @click="resetForm"
+        <button
+          v-if="draftSaved"
+          @click="router.push('/my-contributions')"
           class="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold transition shadow-lg"
+        >
+          {{ t('contribution.successPage.viewMyContributions') }}
+        </button>
+        <button
+          @click="resetForm"
+          class="px-6 py-3 font-bold transition"
+          :class="draftSaved
+            ? 'border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50'
+            : 'bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-lg'"
         >
           {{ t('contribution.successPage.submitAnother') }}
         </button>
-        <button 
+        <button
           @click="router.push('/')"
           class="px-6 py-3 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 font-bold transition"
         >
@@ -633,21 +853,40 @@ const isStepValid = computed(() => {
     <div v-else>
       <!-- Stepper Header -->
       <div class="bg-gray-50 border-b border-gray-200 px-6 py-4">
-      <div class="flex items-center justify-between">
-        <span class="text-sm font-medium text-gray-500">{{ t('contribution.progress', { current: currentStep, total: totalSteps }) }}</span>
-        <div class="flex space-x-2">
-          <div v-for="step in totalSteps" :key="step" 
-               class="h-2 w-10 rounded-full transition-colors duration-300"
-               :class="step <= currentStep ? 'bg-primary-600' : 'bg-gray-200'"></div>
+      <div class="flex items-center justify-between gap-3">
+        <span v-if="!compactMode" class="text-sm font-medium text-gray-500">{{ t('contribution.progress', { current: currentStep, total: totalSteps }) }}</span>
+        <span v-else class="text-sm font-medium text-gray-500">{{ t('contribution.compact.subtitle') }}</span>
+        <div class="flex items-center gap-3">
+          <div v-if="!compactMode" class="flex space-x-2">
+            <div v-for="step in totalSteps" :key="step"
+                 class="h-2 w-10 rounded-full transition-colors duration-300"
+                 :class="step <= currentStep ? 'bg-primary-600' : 'bg-gray-200'"></div>
+          </div>
+          <!-- B2: one-page mode for experienced contributors -->
+          <button
+            type="button"
+            class="text-xs font-medium text-primary-700 hover:text-primary-900 underline whitespace-nowrap"
+            :disabled="submitting || savingDraft || step1Uploading"
+            @click="compactMode = !compactMode"
+          >
+            {{ compactMode ? t('contribution.compact.toWizard') : t('contribution.compact.toCompact') }}
+          </button>
         </div>
       </div>
       <h2 class="text-xl font-bold text-gray-900 mt-2">
-        <span v-if="currentStep === 1">{{ t('contribution.steps.1') }}</span>
-        <span v-if="currentStep === 2">{{ t('contribution.steps.2') }}</span>
-        <span v-if="currentStep === 3">{{ t('contribution.steps.3') }}</span>
-        <span v-if="currentStep === 4">{{ t('contribution.steps.4') }}</span>
-        <span v-if="currentStep === 5">{{ t('contribution.steps.5') }}</span>
-        <span v-if="currentStep === 6">{{ t('contribution.steps.6') }}</span>
+        <template v-if="compactMode">{{ t('contribution.compact.title') }}</template>
+        <template v-else>
+          <span v-if="currentStep === 1">{{ t('contribution.steps.1') }}</span>
+          <span v-if="currentStep === 2">{{ t('contribution.steps.2') }}</span>
+          <span v-if="currentStep === 3">{{ t('contribution.steps.3') }}</span>
+          <span v-if="currentStep === 4">{{ t('contribution.steps.4') }}</span>
+          <span v-if="currentStep === 5">{{ t('contribution.steps.5') }}</span>
+          <span v-if="currentStep === 6">{{ t('contribution.steps.6') }}</span>
+          <span
+            v-if="currentStep === 4 || currentStep === 5"
+            class="ml-2 align-middle text-xs font-medium text-gray-500 bg-gray-200 rounded-full px-2 py-0.5"
+          >{{ t('contribution.optionalBadge') }}</span>
+        </template>
       </h2>
     </div>
 
@@ -656,7 +895,10 @@ const isStepValid = computed(() => {
       <form @submit.prevent>
         
 	        <!-- Step 1: Resource -->
-	        <div v-if="currentStep === 1" class="space-y-6">
+	        <div v-if="showSection(1)" class="space-y-6">
+          <h3 v-if="compactMode" class="text-lg font-bold text-gray-900">
+            {{ t('contribution.steps.1') }}
+          </h3>
           <div v-if="step1Uploading" class="rounded-lg border border-primary-200 bg-primary-50 p-4">
             <div class="flex items-center">
               <BaseSpinner class="h-5 w-5 text-primary-600 mr-3" />
@@ -760,6 +1002,7 @@ const isStepValid = computed(() => {
 	                <input id="images" type="file" class="hidden" accept="image/*" @change="handleFileUpload" />
 	              </label>
 	            </div>
+            <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step1.hints.image', { max: MAX_UPLOAD_MB }) }}</p>
 
             <div v-if="imagePreviews.length" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
               <div class="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden">
@@ -771,18 +1014,21 @@ const isStepValid = computed(() => {
 	          <div v-else-if="resourceType === 'audio'">
 	            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('contribution.step1.uploadLabel', { type: t('contribution.step1.types.audio') }) }}</label>
 	            <input id="audio" type="file" accept="audio/*" :disabled="step1Uploading || submitting" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50" @change="handleFileUpload">
+	            <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step1.hints.audio', { max: MAX_UPLOAD_MB }) }}</p>
 	            <p v-if="files.audio.length" class="text-xs text-gray-600 mt-1">{{ t('contribution.step1.selected', { name: files.audio[0]?.name }) }}</p>
 	          </div>
 
 	          <div v-else-if="resourceType === 'video'">
 	            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('contribution.step1.uploadLabel', { type: t('contribution.step1.types.video') }) }}</label>
 	            <input id="video" type="file" accept="video/*" :disabled="step1Uploading || submitting" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50" @change="handleFileUpload">
+	            <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step1.hints.video', { max: MAX_UPLOAD_MB }) }}</p>
 	            <p v-if="files.video.length" class="text-xs text-gray-600 mt-1">{{ t('contribution.step1.selected', { name: files.video[0]?.name }) }}</p>
 	          </div>
 
 	          <div v-else-if="resourceType === 'document'">
 	            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('contribution.step1.uploadLabel', { type: t('contribution.step1.types.document') }) }}</label>
 	            <input id="documents" type="file" accept="application/pdf" :disabled="step1Uploading || submitting" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50" @change="handleFileUpload">
+	            <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step1.hints.document', { max: MAX_UPLOAD_MB }) }}</p>
 	            <p v-if="files.documents.length" class="text-xs text-gray-600 mt-1">{{ t('contribution.step1.selected', { name: files.documents[0]?.name }) }}</p>
 	          </div>
 
@@ -801,7 +1047,10 @@ const isStepValid = computed(() => {
         </div>
 
         <!-- Step 2: General Information -->
-        <div v-if="currentStep === 2" class="space-y-6">
+        <div v-if="showSection(2)" class="space-y-6" :class="{ 'mt-10 pt-8 border-t border-gray-200': compactMode }">
+          <h3 v-if="compactMode" class="text-lg font-bold text-gray-900">
+            {{ t('contribution.steps.2') }}
+          </h3>
           <AiActionButton
             :label="t('ai.draftButton')"
             :loading-label="t('ai.generating')"
@@ -836,12 +1085,66 @@ const isStepValid = computed(() => {
                 <option :value="null" disabled>{{ t('contribution.step2.fields.selectCategory') }}</option>
                 <option v-for="c in heritageCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
+              <!-- B7: request-to-curator escape valve when no category fits -->
+              <button
+                v-if="!showSuggestCategory"
+                type="button"
+                class="mt-1 text-xs text-primary-700 hover:text-primary-900 underline"
+                @click="showSuggestCategory = true"
+              >
+                {{ t('contribution.step2.suggestCategory.link') }}
+              </button>
+              <div v-else class="mt-2">
+                <label class="block text-xs font-medium text-gray-600 mb-1">{{ t('contribution.step2.suggestCategory.label') }}</label>
+                <input
+                  v-model="suggestedCategory"
+                  type="text"
+                  maxlength="200"
+                  class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                  :placeholder="t('contribution.step2.suggestCategory.placeholder')"
+                />
+                <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step2.suggestCategory.hint') }}</p>
+              </div>
             </div>
           </div>
         </div>
 
+        <!-- B4: near-duplicate warning (fed by title search + nearby lookup) -->
+        <div
+          v-if="(showSection(2) || showSection(3)) && possibleDuplicates.length && !duplicatesDismissed"
+          class="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4"
+        >
+          <p class="text-sm font-semibold text-amber-900">{{ t('contribution.duplicates.title') }}</p>
+          <p class="text-xs text-amber-800 mt-1">{{ t('contribution.duplicates.intro') }}</p>
+          <ul class="mt-3 space-y-2">
+            <li v-for="d in possibleDuplicates" :key="d.id" class="flex items-center justify-between gap-3 text-sm">
+              <span class="text-amber-900">
+                {{ d.title }}
+                <span v-if="d.parish?.name" class="text-amber-700">· {{ d.parish.name }}</span>
+              </span>
+              <router-link
+                :to="{ name: 'heritage-detail', params: { id: d.id } }"
+                target="_blank"
+                class="shrink-0 text-xs font-medium text-amber-900 underline hover:text-amber-950"
+              >
+                {{ t('contribution.duplicates.view') }}
+              </router-link>
+            </li>
+          </ul>
+          <button
+            type="button"
+            class="mt-3 text-xs font-medium text-amber-900 underline"
+            @click="duplicatesDismissed = true"
+          >
+            {{ t('contribution.duplicates.dismiss') }}
+          </button>
+        </div>
+
         <!-- Step 3: Location -->
-        <div v-if="currentStep === 3" class="space-y-6">
+        <div v-if="showSection(3)" class="space-y-6" :class="{ 'mt-10 pt-8 border-t border-gray-200': compactMode }">
+          <h3 v-if="compactMode" class="text-lg font-bold text-gray-900">
+            {{ t('contribution.steps.3') }}
+          </h3>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('contribution.step3.fields.parish') }} <span class="text-red-500">*</span></label>
             <select v-model="contribution.parish" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
@@ -856,7 +1159,24 @@ const isStepValid = computed(() => {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('contribution.step3.fields.pinLocation') }} <span class="text-red-500">*</span></label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-gray-700">{{ t('contribution.step3.fields.pinLocation') }} <span class="text-red-500">*</span></label>
+              <!-- B5: one-tap pin from the device's geolocation -->
+              <button
+                v-if="geoSupported"
+                type="button"
+                class="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 hover:text-primary-900 disabled:opacity-50"
+                :disabled="locating || submitting"
+                @click="useMyLocation"
+              >
+                <BaseSpinner v-if="locating" class="h-4 w-4" />
+                <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {{ locating ? t('contribution.step3.locating') : t('contribution.step3.useMyLocation') }}
+              </button>
+            </div>
             <div class="h-80 rounded-lg overflow-hidden border border-gray-300">
               <LocationPickerMap
                 :latlng="[formLocation.lat, formLocation.lng]"
@@ -869,7 +1189,11 @@ const isStepValid = computed(() => {
         </div>
 
         <!-- Step 4: Details -->
-        <div v-if="currentStep === 4" class="space-y-6">
+        <div v-if="showSection(4)" class="space-y-6" :class="{ 'mt-10 pt-8 border-t border-gray-200': compactMode }">
+          <h3 v-if="compactMode" class="text-lg font-bold text-gray-900">
+            {{ t('contribution.steps.4') }}
+            <span class="ml-2 align-middle text-xs font-medium text-gray-500 bg-gray-200 rounded-full px-2 py-0.5">{{ t('contribution.optionalBadge') }}</span>
+          </h3>
           <AiActionButton
             :label="t('ai.metadataButton')"
             :loading-label="t('ai.metadataGenerating')"
@@ -897,34 +1221,83 @@ const isStepValid = computed(() => {
             <input v-model="contribution.external_registry_url" type="url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500" :placeholder="t('contribution.step4.fields.urlPlaceholder')" />
           </div>
 
+          <!-- B1: free-form tags -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ t('contribution.step4.fields.tags') }}
+              <span class="text-xs font-normal text-gray-500">({{ (contribution.tags || []).length }}/{{ MAX_TAGS }})</span>
+            </label>
+            <div class="flex gap-2">
+              <input
+                v-model="tagInput"
+                type="text"
+                maxlength="50"
+                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                :placeholder="t('contribution.step4.fields.tagsPlaceholder')"
+                :disabled="(contribution.tags || []).length >= MAX_TAGS"
+                @keydown.enter.prevent="addTag()"
+              />
+              <button
+                type="button"
+                class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                :disabled="!tagInput.trim() || (contribution.tags || []).length >= MAX_TAGS"
+                @click="addTag()"
+              >
+                {{ t('contribution.step4.fields.addTag') }}
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">{{ t('contribution.step4.fields.tagsHint') }}</p>
+            <div v-if="contribution.tags?.length" class="flex flex-wrap gap-2 mt-2">
+              <span
+                v-for="(tag, i) in contribution.tags"
+                :key="tag"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-primary-100 text-primary-800"
+              >
+                {{ tag }}
+                <button type="button" class="font-bold hover:text-primary-950" :aria-label="t('contribution.step4.fields.removeTag')" @click="removeTag(i)">×</button>
+              </span>
+            </div>
+          </div>
+
           <div v-if="aiSuggestedKeywords.length" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <p class="text-sm font-medium text-gray-700 mb-2">{{ t('contribution.step4.fields.suggestedKeywords') }}</p>
             <div class="flex flex-wrap gap-2">
-              <span
+              <!-- Clicking a suggested keyword adopts it as a tag (B1) -->
+              <button
                 v-for="kw in aiSuggestedKeywords"
                 :key="kw"
-                class="inline-block px-2 py-1 text-xs rounded-full bg-primary-100 text-primary-800"
-              >{{ kw }}</span>
+                type="button"
+                class="inline-block px-2 py-1 text-xs rounded-full bg-primary-100 text-primary-800 hover:bg-primary-200 disabled:opacity-50"
+                :disabled="(contribution.tags || []).length >= MAX_TAGS"
+                :title="t('contribution.step4.fields.addAsTag')"
+                @click="addTag(kw)"
+              >+ {{ kw }}</button>
             </div>
+            <p class="text-xs text-gray-500 mt-2">{{ t('contribution.step4.fields.suggestedKeywordsHint') }}</p>
           </div>
         </div>
 
         <!-- Step 5: Educational layer (IEEE-LOM) -->
-        <ContributionEducationStep
-          v-if="currentStep === 5"
-          :educational="educational"
-          v-model:objectives-text="objectivesText"
-          :ai-available="aiAvailable"
-          :ai-loading="aiEduLoading"
-          :ai-error="aiEduError"
-          :ai-note="aiEduNote"
-          :submitting="submitting"
-          @sync-objectives="syncObjectivesFromText"
-          @generate="generateAIEducational"
-        />
+        <div v-if="showSection(5)" :class="{ 'mt-10 pt-8 border-t border-gray-200': compactMode }">
+          <h3 v-if="compactMode" class="text-lg font-bold text-gray-900 mb-6">
+            {{ t('contribution.steps.5') }}
+            <span class="ml-2 align-middle text-xs font-medium text-gray-500 bg-gray-200 rounded-full px-2 py-0.5">{{ t('contribution.optionalBadge') }}</span>
+          </h3>
+          <ContributionEducationStep
+            :educational="educational"
+            v-model:objectives-text="objectivesText"
+            :ai-available="aiAvailable"
+            :ai-loading="aiEduLoading"
+            :ai-error="aiEduError"
+            :ai-note="aiEduNote"
+            :submitting="submitting"
+            @sync-objectives="syncObjectivesFromText"
+            @generate="generateAIEducational"
+          />
+        </div>
 
-        <!-- Step 6: Review -->
-        <div v-if="currentStep === 6" class="space-y-6">
+        <!-- Step 6: Review (wizard only — in compact mode the whole form IS the review) -->
+        <div v-if="!compactMode && currentStep === 6" class="space-y-6">
           <div class="bg-gray-50 p-6 rounded-lg">
             <h3 class="text-lg font-bold text-gray-900 mb-4">{{ t('contribution.step5.summary') }}</h3>
             <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
@@ -962,38 +1335,101 @@ const isStepValid = computed(() => {
 	                   <span v-else>{{ t('contribution.step5.none') }}</span>
 	                </dd>
               </div>
+              <div v-if="contribution.tags?.length" class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">{{ t('contribution.step4.fields.tags') }}</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                  <span
+                    v-for="tag in contribution.tags"
+                    :key="tag"
+                    class="inline-block mr-1 mb-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800"
+                  >{{ tag }}</span>
+                </dd>
+              </div>
+              <div v-if="suggestedCategory.trim()" class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">{{ t('contribution.step2.suggestCategory.label') }}</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ suggestedCategory }}</dd>
+              </div>
             </dl>
           </div>
         </div>
 
-	        <!-- Navigation Buttons -->
-	        <div class="mt-8 flex justify-between pt-6 border-t border-gray-200">
-          <button 
-            type="button" 
-            @click="prevStep" 
+	        <!-- Navigation Buttons (wizard mode) -->
+	        <div v-if="!compactMode" class="mt-8 flex items-center justify-between gap-3 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            @click="prevStep"
             :disabled="currentStep === 1 || submitting"
             class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition"
             :class="{'invisible': currentStep === 1}"
           >
             {{ t('contribution.actions.back') }}
           </button>
-          
-	          <button 
+
+          <div class="flex items-center gap-3">
+            <!-- B2: park the work as a draft (needs the step-2 basics) -->
+            <button
+              v-if="currentStep >= 2"
+              type="button"
+              @click="saveDraft"
+              :disabled="savingDraft || submitting || !draftValid"
+              class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition flex items-center"
+              :title="!draftValid ? t('contribution.actions.draftNeedsBasics') : ''"
+            >
+              <BaseSpinner v-if="savingDraft" class="-ml-1 mr-2 h-4 w-4" />
+              {{ savingDraft ? t('contribution.actions.savingDraft') : t('contribution.actions.saveDraft') }}
+            </button>
+
+            <!-- B2: visible skip on the optional steps -->
+            <button
+              v-if="currentStep === 4 || currentStep === 5"
+              type="button"
+              @click="skipStep"
+              :disabled="submitting || (currentStep === 5 && !!eduTimeError)"
+              class="text-sm font-medium text-gray-500 hover:text-gray-800 underline disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {{ t('contribution.actions.skipStep') }}
+            </button>
+
+	          <button
 	            v-if="currentStep < totalSteps"
-	            type="button" 
-	            @click="nextStep" 
+	            type="button"
+	            @click="nextStep"
 	            :disabled="submitting || step1Uploading || (currentStep !== 1 && !isStepValid)"
 	            class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition shadow-sm"
 	          >
 	            {{ t('contribution.actions.next') }}
 	          </button>
-          
-          <button 
+
+          <button
             v-else
-            type="button" 
-            @click="submitContribution" 
+            type="button"
+            @click="submitContribution"
             :disabled="submitting"
             class="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold transition shadow-md flex items-center"
+          >
+            <BaseSpinner v-if="submitting" class="-ml-1 mr-3 h-5 w-5 text-white" />
+            {{ submitting ? t('contribution.actions.submitting') : t('contribution.actions.submit') }}
+          </button>
+          </div>
+        </div>
+
+        <!-- Navigation Buttons (compact mode: everything is on screen, one send) -->
+        <div v-else class="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            @click="saveDraft"
+            :disabled="savingDraft || submitting || step1Uploading || !draftValid"
+            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition flex items-center justify-center"
+            :title="!draftValid ? t('contribution.actions.draftNeedsBasics') : ''"
+          >
+            <BaseSpinner v-if="savingDraft" class="-ml-1 mr-2 h-4 w-4" />
+            {{ savingDraft ? t('contribution.actions.savingDraft') : t('contribution.actions.saveDraft') }}
+          </button>
+          <button
+            type="button"
+            @click="submitContribution"
+            :disabled="submitting || savingDraft || step1Uploading || !compactValid"
+            class="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold transition shadow-md flex items-center justify-center"
           >
             <BaseSpinner v-if="submitting" class="-ml-1 mr-3 h-5 w-5 text-white" />
             {{ submitting ? t('contribution.actions.submitting') : t('contribution.actions.submit') }}

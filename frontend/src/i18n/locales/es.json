@@ -137,7 +137,8 @@
       "sortNewest": "Más recientes",
       "sortMostViewed": "Más vistos",
       "sortMostFavorited": "Más guardados",
-      "clear": "Limpiar"
+      "clear": "Limpiar",
+      "tags": "Temas:"
     },
     "offline": {
       "download": "Descargar para usar sin conexión",
@@ -258,7 +259,7 @@
     "metadataKeywordsOnly": "La IA sugirió palabras clave. Revíselas más abajo.",
     "metadataNothing": "La IA no pudo sugerir metadatos para este recurso.",
     "generating": "Generando…",
-    "unavailable": "IA no disponible.",
+    "unavailable": "IA no disponible en esta instalación.",
     "rateLimited": "Demasiadas solicitudes de IA. Inténtelo de nuevo en breve.",
     "genericError": "Falló la solicitud de IA.",
     "educationalButton": "Generar metadatos educativos con IA",
@@ -278,8 +279,10 @@
       "pending": "Pendiente",
       "changesRequested": "Cambios solicitados",
       "published": "Publicada",
-      "rejected": "Rechazada"
-    }
+      "rejected": "Rechazada",
+      "draft": "Borrador"
+    },
+    "submitDraft": "Enviar a revisión"
   },
   "heritage": {
     "detail": {
@@ -616,10 +619,17 @@
       "errors": {
         "selectFile": "Suba un archivo, o elija “Texto / sin subida” para continuar.",
         "uploadFailed": "Error al subir. Por favor intente de nuevo.",
-        "uploadFailedStatus": "Error al subir ({status})."
+        "uploadFailedStatus": "Error al subir ({status}).",
+        "tooLarge": "El archivo supera el máximo de {max} MB."
       },
       "uploadingWait": "Espere, esto puede tardar un momento.",
-      "cancelUpload": "Cancelar subida"
+      "cancelUpload": "Cancelar subida",
+      "hints": {
+        "image": "JPG, PNG, WebP o GIF · máx. {max} MB · ideal ≥ 1200 px de ancho",
+        "audio": "MP3 o WAV · máx. {max} MB",
+        "video": "MP4 o WebM · máx. {max} MB",
+        "document": "PDF · máx. {max} MB"
+      }
     },
     "step2": {
       "fields": {
@@ -633,6 +643,12 @@
           "title": "ej., La Catedral Vieja",
           "description": "Describa el elemento patrimonial..."
         }
+      },
+      "suggestCategory": {
+        "link": "¿No encuentra una categoría adecuada? Sugerir una",
+        "label": "Sugerir categoría",
+        "placeholder": "p. ej. Patrimonio industrial",
+        "hint": "Su sugerencia se enviará a los curadores de la ciudad junto con la contribución."
       }
     },
     "step3": {
@@ -643,7 +659,10 @@
         "addressPlaceholder": "ej., Esquina de 5ta Avenida y Calle Principal",
         "pinLocation": "Fijar Ubicación en el Mapa",
         "coordinates": "Coordenadas: {lat}, {lng}"
-      }
+      },
+      "useMyLocation": "Usar mi ubicación",
+      "locating": "Localizando...",
+      "geolocationError": "No se pudo obtener su ubicación. Revise los permisos del navegador."
     },
     "step4": {
       "fields": {
@@ -651,7 +670,14 @@
         "selectPeriod": "Seleccionar Período",
         "externalUrl": "URL de Registro Externo (Opcional)",
         "urlPlaceholder": "https://...",
-        "suggestedKeywords": "Palabras clave sugeridas por IA"
+        "suggestedKeywords": "Palabras clave sugeridas por IA",
+        "tags": "Etiquetas",
+        "tagsPlaceholder": "p. ej. independencia, barroco, gastronomía andina",
+        "tagsHint": "Temas libres que ayudan a encontrar este elemento (Enter o «Añadir» para agregar).",
+        "addTag": "Añadir",
+        "removeTag": "Quitar etiqueta",
+        "addAsTag": "Añadir como etiqueta",
+        "suggestedKeywordsHint": "Toque una palabra clave para añadirla como etiqueta."
       }
     },
     "step5": {
@@ -665,14 +691,22 @@
       "submit": "Enviar Contribución",
       "submitting": "Enviando...",
       "success": "¡Contribución enviada con éxito! Pendiente de revisión.",
-      "error": "Error al enviar contribución. Por favor intente de nuevo."
+      "error": "Error al enviar contribución. Por favor intente de nuevo.",
+      "saveDraft": "Guardar borrador",
+      "savingDraft": "Guardando borrador...",
+      "draftError": "Error al guardar el borrador. Por favor intente de nuevo.",
+      "draftNeedsBasics": "Complete título, descripción, tipo y categoría para guardar un borrador.",
+      "skipStep": "Omitir este paso"
     },
     "successPage": {
       "title": "¡Contribución Enviada!",
       "message": "Gracias por su contribución. Ha sido recibida y será revisada por los curadores de nuestra plataforma en breve. Se le notificará una vez que sea validada y publicada.",
       "offlineQueued": "Parece que no tiene conexión. Su contribución se guardó y se sincronizará automáticamente cuando vuelva a estar en línea.",
       "submitAnother": "Enviar Otra Contribución",
-      "goHome": "Volver al Inicio"
+      "goHome": "Volver al Inicio",
+      "draftTitle": "Borrador guardado",
+      "draftMessage": "Su contribución quedó guardada como borrador. Puede completarla y enviarla a revisión cuando quiera desde «Mis contribuciones».",
+      "viewMyContributions": "Ver mis contribuciones"
     },
     "step5edu": {
       "instruction": "¿Para quién es este contenido y cómo puede usarse en el aula? Cuéntalo con tus palabras: todo es opcional, puedes rellenarlo con IA y editarlo, o completarlo más tarde.",
@@ -705,6 +739,19 @@
         "duration": "Duración ISO-8601 no válida (p. ej. PT30M).",
         "months": "\"P30M\" son 30 meses; para 30 minutos usa \"PT30M\"."
       }
+    },
+    "optionalBadge": "Opcional",
+    "compact": {
+      "title": "Nueva contribución — una página",
+      "subtitle": "Formulario completo en una sola página",
+      "toCompact": "Ver todo en una página",
+      "toWizard": "Volver al asistente por pasos"
+    },
+    "duplicates": {
+      "title": "¿Ya existe este elemento?",
+      "intro": "Encontramos elementos parecidos por título o cercanía. Revíselos antes de continuar para evitar duplicados.",
+      "view": "Ver ficha",
+      "dismiss": "No es el mismo — descartar aviso"
     }
   },
   "contributePage": {
@@ -1004,7 +1051,7 @@
       "riskFlags": "Banderas de riesgo",
       "feedbackDraft": "Borrador de retroalimentación",
       "copy": "Copiar",
-      "unavailable": "IA no disponible.",
+      "unavailable": "IA no disponible en esta instalación.",
       "tooManyRequests": "Demasiadas solicitudes de IA. Inténtelo de nuevo en breve.",
       "requestFailed": "Falló la solicitud de IA."
     },

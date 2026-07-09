@@ -39,6 +39,11 @@ async function openFeedback(id: string) {
   router.push(`/my-contributions/${id}`)
 }
 
+// B2 — send a saved draft to the moderation queue.
+async function submitDraft(id: string) {
+  await contributionsStore.submitDraft(id)
+}
+
 onMounted(async () => {
   if (authStore.isAuthenticated) {
     await refresh()
@@ -71,6 +76,7 @@ onMounted(async () => {
           <label class="block text-sm font-semibold text-gray-700 mb-1">{{ t('myContributions.statusLabel') }}</label>
           <select v-model="statusFilter" class="w-full rounded-lg border-gray-300">
             <option value="all">{{ t('myContributions.filters.all') }}</option>
+            <option value="draft">{{ t('myContributions.filters.draft') }}</option>
             <option value="pending">{{ t('myContributions.filters.pending') }}</option>
             <option value="changes_requested">{{ t('myContributions.filters.changesRequested') }}</option>
             <option value="published">{{ t('myContributions.filters.published') }}</option>
@@ -92,6 +98,7 @@ onMounted(async () => {
           :contribution="c"
           @feedback="openFeedback"
           @edit="(id) => router.push(`/my-contributions/${id}/edit`)"
+          @submit="submitDraft"
         />
         <div v-if="filtered.length === 0" class="text-sm text-gray-600">{{ t('myContributions.empty') }}</div>
       </div>

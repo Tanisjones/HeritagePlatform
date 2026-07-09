@@ -41,5 +41,23 @@ export function useGeolocation() {
     pause()
   }
 
-  return { enabled, lngLat, accuracy, locatedAt, error, isSupported, start, stop }
+  /**
+   * One-shot fix for "usar mi ubicación" buttons — resolves a single [lng, lat]
+   * without engaging the continuous watch that start()/stop() manage.
+   */
+  function getCurrent(timeoutMs = 10000): Promise<LngLat> {
+    return new Promise((resolve, reject) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        reject(new Error('geolocation-unsupported'))
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve([pos.coords.longitude, pos.coords.latitude]),
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 30000 },
+      )
+    })
+  }
+
+  return { enabled, lngLat, accuracy, locatedAt, error, isSupported, start, stop, getCurrent }
 }

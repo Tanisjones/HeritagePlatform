@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 defineProps<{
   contribution: any
 }>()
@@ -7,7 +9,10 @@ const emit = defineEmits<{
   (e: 'open', id: string): void
   (e: 'edit', id: string): void
   (e: 'feedback', id: string): void
+  (e: 'submit', id: string): void
 }>()
+
+const { t } = useI18n()
 
 const statusStyle = (status: string) => {
   switch (status) {
@@ -53,6 +58,14 @@ const statusStyle = (status: string) => {
           @click="emit('edit', contribution.id)"
         >
           Edit
+        </button>
+        <!-- B2: drafts stay out of the queue until explicitly sent to review. -->
+        <button
+          v-if="contribution.status === 'draft'"
+          class="px-3 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700"
+          @click="emit('submit', contribution.id)"
+        >
+          {{ t('myContributions.submitDraft') }}
         </button>
       </div>
     </div>

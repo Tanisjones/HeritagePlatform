@@ -49,6 +49,12 @@ export const useContributionsStore = defineStore('contributions', () => {
     await fetchMyContributions()
   }
 
+  /** B2 — draft → pending, then refresh the list so the card status updates. */
+  async function submitDraft(id: string) {
+    await contributorService.submit(id)
+    await fetchMyContributions()
+  }
+
   return {
     myContributions,
     currentContribution,
@@ -61,6 +67,7 @@ export const useContributionsStore = defineStore('contributions', () => {
     fetchFeedback,
     updateContribution,
     resubmit,
+    submitDraft,
   }
 })
 

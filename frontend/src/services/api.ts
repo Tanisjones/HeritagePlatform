@@ -147,6 +147,8 @@ export const contributorService = {
   update: (id: string, payload: Record<string, unknown>) => api.patch(`/my-contributions/${id}/`, payload),
   feedback: (id: string) => api.get(`/my-contributions/${id}/feedback/`),
   resubmit: (id: string) => api.post(`/my-contributions/${id}/resubmit/`),
+  /** B2 — send a saved draft to the moderation queue (draft → pending). */
+  submit: (id: string) => api.post(`/my-contributions/${id}/submit/`),
 };
 
 export const teacherService = {

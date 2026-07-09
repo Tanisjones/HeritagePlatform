@@ -137,7 +137,8 @@
       "sortNewest": "Newest",
       "sortMostViewed": "Most viewed",
       "sortMostFavorited": "Most favorited",
-      "clear": "Clear"
+      "clear": "Clear",
+      "tags": "Topics:"
     },
     "offline": {
       "download": "Download for offline",
@@ -258,7 +259,7 @@
     "metadataKeywordsOnly": "AI suggested keywords. Review them below.",
     "metadataNothing": "AI couldn't suggest metadata for this resource.",
     "generating": "Generating…",
-    "unavailable": "AI unavailable.",
+    "unavailable": "AI is not available in this installation.",
     "rateLimited": "Too many AI requests. Please try again shortly.",
     "genericError": "AI request failed.",
     "educationalButton": "Generate educational metadata with AI",
@@ -278,8 +279,10 @@
       "pending": "Pending",
       "changesRequested": "Changes requested",
       "published": "Published",
-      "rejected": "Rejected"
-    }
+      "rejected": "Rejected",
+      "draft": "Draft"
+    },
+    "submitDraft": "Send for review"
   },
   "heritage": {
     "detail": {
@@ -616,10 +619,17 @@
       "errors": {
         "selectFile": "Upload a file, or choose “Text / no upload” to continue.",
         "uploadFailed": "Failed to upload. Please try again.",
-        "uploadFailedStatus": "Failed to upload ({status})."
+        "uploadFailedStatus": "Failed to upload ({status}).",
+        "tooLarge": "The file exceeds the {max} MB limit."
       },
       "uploadingWait": "Please wait, this can take a moment.",
-      "cancelUpload": "Cancel upload"
+      "cancelUpload": "Cancel upload",
+      "hints": {
+        "image": "JPG, PNG, WebP or GIF · max {max} MB · ideally ≥ 1200 px wide",
+        "audio": "MP3 or WAV · max {max} MB",
+        "video": "MP4 or WebM · max {max} MB",
+        "document": "PDF · max {max} MB"
+      }
     },
     "step2": {
       "fields": {
@@ -633,6 +643,12 @@
           "title": "e.g., The Old Cathedral",
           "description": "Describe the heritage item..."
         }
+      },
+      "suggestCategory": {
+        "link": "Can't find a fitting category? Suggest one",
+        "label": "Suggest a category",
+        "placeholder": "e.g. Industrial heritage",
+        "hint": "Your suggestion is sent to the city's curators along with the contribution."
       }
     },
     "step3": {
@@ -643,7 +659,10 @@
         "addressPlaceholder": "e.g., Corner of 5th Ave and Main St",
         "pinLocation": "Pin Location on Map",
         "coordinates": "Coordinates: {lat}, {lng}"
-      }
+      },
+      "useMyLocation": "Use my location",
+      "locating": "Locating...",
+      "geolocationError": "Could not get your location. Check the browser permissions."
     },
     "step4": {
       "fields": {
@@ -651,7 +670,14 @@
         "selectPeriod": "Select Period",
         "externalUrl": "External Registry URL (Optional)",
         "urlPlaceholder": "https://...",
-        "suggestedKeywords": "AI-suggested keywords"
+        "suggestedKeywords": "AI-suggested keywords",
+        "tags": "Tags",
+        "tagsPlaceholder": "e.g. independence, baroque, Andean gastronomy",
+        "tagsHint": "Free-form topics that help others find this item (Enter or \"Add\").",
+        "addTag": "Add",
+        "removeTag": "Remove tag",
+        "addAsTag": "Add as tag",
+        "suggestedKeywordsHint": "Tap a keyword to add it as a tag."
       }
     },
     "step5": {
@@ -665,14 +691,22 @@
       "submit": "Submit Contribution",
       "submitting": "Submitting...",
       "success": "Contribution submitted successfully! Pending review.",
-      "error": "Failed to submit contribution. Please try again."
+      "error": "Failed to submit contribution. Please try again.",
+      "saveDraft": "Save draft",
+      "savingDraft": "Saving draft...",
+      "draftError": "Error saving the draft. Please try again.",
+      "draftNeedsBasics": "Fill in title, description, type and category to save a draft.",
+      "skipStep": "Skip this step"
     },
     "successPage": {
       "title": "Contribution Submitted!",
       "message": "Thank you for your contribution. It has been received and will be reviewed by our platform curators shortly. You will be notified once it is validated and published.",
       "offlineQueued": "You appear to be offline. Your contribution has been saved and will automatically sync when you're back online.",
       "submitAnother": "Submit Another Contribution",
-      "goHome": "Return to Home"
+      "goHome": "Return to Home",
+      "draftTitle": "Draft saved",
+      "draftMessage": "Your contribution was saved as a draft. Finish it and send it for review anytime from \"My contributions\".",
+      "viewMyContributions": "View my contributions"
     },
     "step5edu": {
       "instruction": "Who is this content for, and how could it be used in the classroom? Tell us in your own words — everything is optional: fill it with AI and edit, or complete it later.",
@@ -705,6 +739,19 @@
         "duration": "Invalid ISO-8601 duration (e.g. PT30M).",
         "months": "\"P30M\" means 30 months; for 30 minutes use \"PT30M\"."
       }
+    },
+    "optionalBadge": "Optional",
+    "compact": {
+      "title": "New contribution — single page",
+      "subtitle": "The whole form on one page",
+      "toCompact": "Show everything on one page",
+      "toWizard": "Back to the step-by-step wizard"
+    },
+    "duplicates": {
+      "title": "Does this item already exist?",
+      "intro": "We found similar items by title or proximity. Check them before continuing to avoid duplicates.",
+      "view": "View item",
+      "dismiss": "Not the same — dismiss"
     }
   },
   "contributePage": {
@@ -1004,7 +1051,7 @@
       "riskFlags": "Risk flags",
       "feedbackDraft": "Feedback draft",
       "copy": "Copy",
-      "unavailable": "AI unavailable.",
+      "unavailable": "AI is not available in this installation.",
       "tooManyRequests": "Too many AI requests. Please try again shortly.",
       "requestFailed": "AI request failed."
     },
