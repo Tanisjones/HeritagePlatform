@@ -3,6 +3,10 @@ from django.contrib.auth import get_user_model
 from apps.users.models import UserProfile, UserRole
 from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APITestCase
+from django.contrib.gis.geos import Point
+from apps.cities.testing import make_city
+from apps.heritage.models import HeritageCategory, HeritageItem, HeritageType
 
 User = get_user_model()
 
@@ -145,3 +149,35 @@ class RolePrivilegeEscalationTest(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.content)
         staff.profile.refresh_from_db()
         self.assertEqual(staff.profile.role_id, self.curator_role.id)
+
+
+class DashboardTests(APITestCase):
+    def setUp(self):
+        self.city = make_city()
+        role, _ = UserRole.objects.get_or_create(name='Contributor', slug='contributor')
+        self.user = User.objects.create_user(email='u@example.com', password='pw')
+        UserProfile.objects.create(user=self.user, role=role)
+
+        h_type = HeritageType.objects.create(name='T', slug='t')
+        h_cat = HeritageCategory.objects.create(name='C', slug='c')
+        for title, st in (('one', 'published'), ('two', 'pending')):
+            HeritageItem.objects.create(
+                city=self.city, title=title, description='d', location=Point(0, 0),
+                heritage_type=h_type, heritage_category=h_cat,
+                contributor=self.user, status=st,
+            )
+
+    def test_dashboard_returns_the_shape_the_spa_expects(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.get('/api/v1/users/dashboard/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['activity']['contributions_total'], 2)
+        self.assertEqual(res.data['activity']['contributions_approved'], 1)
+        self.assertEqual(res.data['activity']['annotations_total'], 0)
+        self.assertEqual(res.data['gamification']['total_points'], 0)
+        self.assertEqual(res.data['notifications']['unread_count'], 0)
+        self.assertEqual(res.data['user']['role'], 'Contributor')
+
+    def test_dashboard_requires_authentication(self):
+        res = self.client.get('/api/v1/users/dashboard/')
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)

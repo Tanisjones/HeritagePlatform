@@ -8,7 +8,9 @@ Three staff/curator-gated read endpoints over `AIUsageRecord`:
 
 All three share date-range parsing (``?since=&until=``, ISO dates), default to the
 last 30 days when ``since`` is omitted, and are gated to staff/curator via
-``IsCurator``. Aggregation is done in the DB (``Values().annotate(Count/Sum)``);
+``IsCurator``. Rows are scoped to the request city when one is set; non-staff
+curators are always confined to the cities they govern, so only staff see
+platform-wide totals. Aggregation is done in the DB (``Values().annotate(Count/Sum)``);
 cost is summed from the per-row ``estimated_cost_usd`` already computed at record
 time — the dashboard never re-prices.
 """
@@ -25,8 +27,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.cities.models import CityRole
 from apps.cities.request import get_request_city
-from apps.moderation.permissions import IsCurator
+from apps.users.permissions import IsCurator, user_city_ids
 
 from .models import AIUsageRecord
 from .usage_serializers import AIUsageRecordSerializer
@@ -89,11 +92,16 @@ class _UsageRangeMixin:
     def base_queryset(self, request):
         start_dt, end_dt = self.get_range(request)
         qs = AIUsageRecord.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
-        # Optional per-city drill-down (?city=/X-City); no city = global totals,
-        # which keeps the pre-multi-city dashboard behavior.
+        # Optional per-city drill-down (?city=/X-City).
         city = get_request_city(request)
         if city is not None:
             qs = qs.filter(city=city)
+        # Without a city, IsCurator admits a curator of ANY city, so confine
+        # non-staff to the cities they actually govern. Only staff see global
+        # totals; these rows carry other users' emails and spend.
+        user = request.user
+        if not user.is_staff:
+            qs = qs.filter(city_id__in=user_city_ids(user, CityRole.ROLE_CURATOR))
         return qs
 
 

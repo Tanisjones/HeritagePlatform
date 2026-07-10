@@ -7,7 +7,8 @@ from unittest.mock import patch
 from apps.users.models import UserRole
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory
 from apps.moderation.models import ContributionVersion, QualityScore, ContributionFlag, ReviewChecklist, ReviewChecklistItem
-from apps.cities.testing import make_city
+from apps.cities.testing import make_city, make_city_curator
+from apps.users.models import UserProfile
 
 User = get_user_model()
 
@@ -387,3 +388,79 @@ class PartDModerationTests(APITestCase):
         resp = self.client.get('/api/v1/moderation/queue/stats/')
         slugs = sorted(c['slug'] for c in resp.data['cities'])
         self.assertEqual(slugs, sorted([self.city.slug, self.other_city.slug]))
+
+
+class MultiCityCuratorTests(APITestCase):
+    """A curator who governs city A but not city B."""
+
+    def setUp(self):
+        self.city_a = make_city(slug='city-a', name='City A')
+        self.city_b = make_city(slug='city-b', name='City B')
+
+        role, _ = UserRole.objects.get_or_create(name='Curator', slug='curator')
+        self.curator = User.objects.create_user(email='cur@example.com', password='pw')
+        UserProfile.objects.create(user=self.curator, role=role)
+        make_city_curator(self.curator, self.city_a)
+
+        self.h_type = HeritageType.objects.create(name='T', slug='t')
+        self.h_cat = HeritageCategory.objects.create(name='C', slug='c')
+
+        self.item_a = self._item(self.city_a, 'Item A')
+        self.item_b = self._item(self.city_b, 'Item B')
+        self.client.force_authenticate(self.curator)
+
+    def _item(self, city, title):
+        return HeritageItem.objects.create(
+            city=city, title=title, description='d', location=Point(0, 0),
+            heritage_type=self.h_type, heritage_category=self.h_cat,
+            status='pending',
+        )
+
+    def test_detail_of_governed_item_works_while_another_city_is_active(self):
+        """The active X-City must not hide a governed item on a detail action."""
+        # City A is governed; the active city header names city B.
+        res = self.client.get(
+            f'/api/v1/moderation/queue/{self.item_a.id}/', HTTP_X_CITY='city-b'
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_detail_of_ungoverned_item_is_denied(self):
+        """Authorization still holds: city B is not governed by this curator."""
+        res = self.client.get(f'/api/v1/moderation/queue/{self.item_b.id}/')
+        self.assertIn(
+            res.status_code,
+            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
+
+    def test_list_still_honours_the_active_city(self):
+        """Queue presentation scope is unchanged: X-City narrows the list."""
+        res = self.client.get('/api/v1/moderation/queue/', HTTP_X_CITY='city-a')
+        titles = [r['title'] for r in res.data['results']]
+        self.assertEqual(titles, ['Item A'])
+
+    def test_bulk_approves_governed_item_while_another_city_is_active(self):
+        res = self.client.post(
+            '/api/v1/moderation/queue/bulk/',
+            {'ids': [str(self.item_a.id)], 'decision': 'approve'},
+            format='json', HTTP_X_CITY='city-b',
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['processed'], [str(self.item_a.id)])
+        self.item_a.refresh_from_db()
+        self.assertEqual(self.item_a.status, 'published')
+
+    def test_bulk_never_touches_an_ungoverned_item(self):
+        res = self.client.post(
+            '/api/v1/moderation/queue/bulk/',
+            {'ids': [str(self.item_b.id)], 'decision': 'approve'},
+            format='json',
+        )
+        self.assertEqual(res.data['processed'], [])
+        self.assertEqual(res.data['skipped'], [str(self.item_b.id)])
+        self.item_b.refresh_from_db()
+        self.assertEqual(self.item_b.status, 'pending')
+
+    def test_stats_stay_confined_to_governed_cities(self):
+        """With no X-City, a non-staff curator must not count city B's items."""
+        res = self.client.get('/api/v1/moderation/queue/stats/')
+        self.assertEqual(res.data['pending'], 1)  # Item A only, not Item B

@@ -7,7 +7,10 @@ from django.contrib.auth import get_user_model
 from apps.heritage.models import HeritageItem, HeritageType, HeritageCategory, Parish
 from apps.ai_services.models import AISuggestion, AIUsageRecord
 from rest_framework.test import APIClient
-from apps.cities.testing import make_city
+from apps.cities.testing import make_city, make_city_curator
+from apps.users.models import UserProfile, UserRole
+from rest_framework.test import APITestCase
+from rest_framework import status
 
 User = get_user_model()
 
@@ -1020,3 +1023,42 @@ class LessonPlanDraftAssistTest(TestCase):
             "/api/v1/ai/assist/lesson-plan-draft/", {"title": "X"}, format="json"
         )
         self.assertNotEqual(resp.status_code, 200)
+
+
+class AIUsageCityConfinementTests(APITestCase):
+    def setUp(self):
+        self.city_a = make_city(slug='city-a', name='City A')
+        self.city_b = make_city(slug='city-b', name='City B')
+
+        role, _ = UserRole.objects.get_or_create(name='Curator', slug='curator')
+        self.curator = User.objects.create_user(email='cur@example.com', password='pw')
+        UserProfile.objects.create(user=self.curator, role=role)
+        make_city_curator(self.curator, self.city_a)
+
+        self.staff = User.objects.create_user(
+            email='staff@example.com', password='pw', is_staff=True
+        )
+        UserProfile.objects.create(user=self.staff, role=role)
+
+        for city in (self.city_a, self.city_b):
+            AIUsageRecord.objects.create(
+                user=self.staff, city=city, operation='translate',
+                provider='ollama', model='m', status=AIUsageRecord.STATUS_OK,
+                input_tokens=1, output_tokens=1, total_tokens=2,
+            )
+
+    def test_curator_without_city_context_sees_only_governed_cities(self):
+        self.client.force_authenticate(self.curator)
+        res = self.client.get('/api/v1/ai/usage/summary/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['totals']['calls'], 1)  # city A only
+
+    def test_curator_recent_rows_exclude_other_cities(self):
+        self.client.force_authenticate(self.curator)
+        res = self.client.get('/api/v1/ai/usage/recent/')
+        self.assertEqual(res.data['count'], 1)
+
+    def test_staff_still_see_platform_wide_totals(self):
+        self.client.force_authenticate(self.staff)
+        res = self.client.get('/api/v1/ai/usage/summary/')
+        self.assertEqual(res.data['totals']['calls'], 2)

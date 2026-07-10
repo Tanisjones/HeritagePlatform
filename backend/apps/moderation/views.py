@@ -50,21 +50,32 @@ class ModerationViewSet(viewsets.ModelViewSet):
             )
             .prefetch_related('images', 'audio', 'video', 'documents')
         )
-        qs = self._scope_to_request_city(qs)
+        qs = self._scope_to_governed_cities(qs)
+        if self.action == 'list':
+            qs = self._scope_to_request_city(qs)
         status_filter = self.request.query_params.get('status')
         if status_filter:
             return qs
         return qs.filter(status__in=['pending', 'changes_requested']).order_by('priority', 'submission_date', 'created_at')
 
-    def _scope_to_request_city(self, qs):
-        """Queue scope: the active request city (when set), intersected with
-        the cities where a non-staff curator actually holds the role."""
-        city = get_request_city(self.request)
-        if city is not None:
-            qs = qs.filter(city=city)
+    def _scope_to_governed_cities(self, qs):
+        """Authorization: a non-staff curator only ever sees items in cities
+        where they hold the role. Applies to every action, detail included."""
         user = self.request.user
         if user.is_authenticated and not user.is_staff:
             qs = qs.filter(city_id__in=user_city_ids(user, CityRole.ROLE_CURATOR))
+        return qs
+
+    def _scope_to_request_city(self, qs):
+        """Queue presentation: narrow to the active request city when one is set.
+
+        List-only. Applying this to detail actions would 404 a cross-city item a
+        multi-city curator legitimately governs, since the active city travels on
+        every request regardless of which item is open.
+        """
+        city = get_request_city(self.request)
+        if city is not None:
+            qs = qs.filter(city=city)
         return qs
 
     def get_serializer_class(self):
@@ -361,7 +372,9 @@ class ModerationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        items = self._scope_to_request_city(
+        # Governed-cities scope only: a selection made in all-cities mode must stay
+        # actionable after the curator switches the active city.
+        items = self._scope_to_governed_cities(
             HeritageItem.objects.filter(id__in=ids, status__in=['pending', 'changes_requested'])
         )
 
@@ -393,7 +406,9 @@ class ModerationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        qs = self._scope_to_request_city(HeritageItem.objects.all())
+        qs = self._scope_to_request_city(
+            self._scope_to_governed_cities(HeritageItem.objects.all())
+        )
         flags = ContributionFlag.objects.filter(status__in=['open', 'under_review'])
         city = get_request_city(request)
         if city is not None:

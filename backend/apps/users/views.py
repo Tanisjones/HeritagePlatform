@@ -4,6 +4,12 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils.translation import gettext_lazy as _
 
+from apps.gamification.models import Level, UserBadge
+from apps.gamification.serializers import UserBadgeSerializer
+from apps.heritage.models import Annotation, HeritageItem
+from apps.notifications.models import UserNotification
+from apps.notifications.serializers import UserNotificationListSerializer
+
 from .models import User, UserProfile, UserRole
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, LoginSerializer,
@@ -151,6 +157,60 @@ class UserViewSet(viewsets.GenericViewSet):
         # Return updated user data
         user_serializer = UserSerializer(request.user)
         return Response(user_serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """
+        Aggregate the current user's profile, gamification and activity stats.
+
+        Contribution counts come from HeritageItem: the old contributions.Contribution
+        model was folded into HeritageItem's status machine, so a "contribution" is an
+        item the user authored, and an approved one is a published item.
+        """
+        user = request.user
+        profile = user.profile
+
+        level = Level.objects.filter(number=profile.level).first()
+        badges = (
+            UserBadge.objects.filter(user=user)
+            .select_related('badge')
+            .order_by('-earned_at')
+        )
+        recent_badges = badges[:5]
+
+        authored = HeritageItem.objects.filter(contributor=user)
+        notifications = UserNotification.objects.filter(recipient=user)
+        recent_notifications = notifications.order_by('-created_at')[:5]
+
+        return Response({
+            'user': {
+                'id': str(user.id),
+                'email': user.email,
+                'full_name': user.get_full_name(),
+                'role': profile.role.name if profile.role else None,
+            },
+            'gamification': {
+                'total_points': profile.points,
+                'current_level': {
+                    'id': str(level.id) if level else None,
+                    'name': level.name if level else None,
+                    'level': profile.level,
+                    'min_points': level.min_points if level else 0,
+                    'max_points': level.max_points if level else 0,
+                },
+                'badges_count': badges.count(),
+                'recent_badges': UserBadgeSerializer(recent_badges, many=True).data,
+            },
+            'activity': {
+                'contributions_total': authored.count(),
+                'contributions_approved': authored.filter(status='published').count(),
+                'annotations_total': Annotation.objects.filter(user=user).count(),
+            },
+            'notifications': {
+                'unread_count': notifications.filter(is_read=False).count(),
+                'recent': UserNotificationListSerializer(recent_notifications, many=True).data,
+            },
+        })
 
     @action(detail=False, methods=['post'])
     def change_password(self, request):

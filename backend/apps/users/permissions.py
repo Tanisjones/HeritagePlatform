@@ -66,11 +66,25 @@ class IsCurator(permissions.BasePermission):
     """
     City-aware curator gate.
 
-    View level: staff pass; with a request city (?city=/X-City) the user must
-    be THAT city's curator; without one, any curator assignment suffices
-    (list endpoints are additionally queryset-scoped to assigned cities).
+    View level: staff pass; when an action browses a collection, a request city
+    (?city=/X-City) means the user must be THAT city's curator; otherwise any
+    curator assignment suffices (those endpoints are additionally queryset-scoped
+    to assigned cities). Actions that name their own targets — every detail
+    action, plus collection actions like `bulk` that take explicit ids — defer to
+    the target's city instead: the active city travels on every request and says
+    nothing about which item is open, so gating on it would reject a cross-city
+    item the curator legitimately governs.
     Object level: the object's own city decides.
     """
+
+    #: Collection actions that address explicit targets rather than browsing the
+    #: request city's collection. Their querysets confine targets to governed cities.
+    TARGETED_COLLECTION_ACTIONS = frozenset({'bulk'})
+
+    def _targets_own_objects(self, view):
+        if getattr(view, 'detail', False):
+            return True
+        return getattr(view, 'action', None) in self.TARGETED_COLLECTION_ACTIONS
 
     def has_permission(self, request, view):
         user = request.user
@@ -79,7 +93,7 @@ class IsCurator(permissions.BasePermission):
         if user.is_staff:
             return True
         city = get_request_city(request)
-        if city is not None:
+        if city is not None and not self._targets_own_objects(view):
             return is_city_curator(user, city)
         return is_curator_anywhere(user)
 
