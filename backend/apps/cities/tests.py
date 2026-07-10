@@ -374,3 +374,132 @@ class AIPromptCityTests(APITestCase):
         variables = view.prompt_variables({'language': 'es'})
         self.assertEqual(variables['city'], 'Riobamba')
         self.assertEqual(variables['country'], 'Ecuador')
+
+
+class PartEAdminOpsTests(APITestCase):
+    """E1 admin inlines, E2 bootstrap_city, E3 changelist stats."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.User = get_user_model()
+        self.staff = self.User.objects.create_superuser(
+            email='root@example.com', username='root', password='pw'
+        )
+        self.city = make_city()
+
+    # ---- E2 ----------------------------------------------------------------
+
+    def test_bootstrap_creates_taxonomies_parishes_and_grants(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from apps.heritage.models import HeritageCategory, HeritageType, Parish
+
+        curator = self.User.objects.create_user(email='ana@example.com', password='pw')
+        out = StringIO()
+        call_command(
+            'bootstrap_city', self.city.slug,
+            '--parishes', 'El Sagrario, San Blas',
+            '--curator', 'ana@example.com',
+            stdout=out,
+        )
+        self.assertEqual(HeritageType.objects.filter(slug__in=['tangible', 'intangible']).count(), 2)
+        self.assertEqual(HeritageCategory.objects.count(), 6)
+        self.assertEqual(
+            sorted(Parish.objects.filter(city=self.city).values_list('name', flat=True)),
+            ['El Sagrario', 'San Blas'],
+        )
+        self.assertTrue(
+            CityRole.objects.filter(user=curator, city=self.city, role=CityRole.ROLE_CURATOR).exists()
+        )
+        self.assertIn('Readiness', out.getvalue())
+
+        # Idempotent: run again, nothing duplicates.
+        call_command(
+            'bootstrap_city', self.city.slug,
+            '--parishes', 'El Sagrario, San Blas',
+            '--curator', 'ana@example.com',
+            stdout=StringIO(),
+        )
+        self.assertEqual(Parish.objects.filter(city=self.city).count(), 2)
+        self.assertEqual(CityRole.objects.filter(city=self.city).count(), 1)
+
+    def test_bootstrap_rejects_unknown_curator_before_writing(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+
+        from apps.heritage.models import Parish
+
+        with self.assertRaises(CommandError):
+            call_command(
+                'bootstrap_city', self.city.slug,
+                '--parishes', 'Centro',
+                '--curator', 'ghost@example.com',
+                stdout=StringIO(),
+            )
+        # All-or-nothing: the parish list was not created either.
+        self.assertEqual(Parish.objects.filter(city=self.city).count(), 0)
+
+    def test_bootstrap_check_writes_nothing(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from apps.heritage.models import Parish
+
+        out = StringIO()
+        call_command('bootstrap_city', self.city.slug, '--check', stdout=out)
+        self.assertIn('Readiness', out.getvalue())
+        self.assertEqual(Parish.objects.filter(city=self.city).count(), 0)
+
+    # ---- E3 ----------------------------------------------------------------
+
+    def test_city_changelist_stats_count_distinct(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.contrib.gis.geos import Point as GeoPoint
+
+        from apps.cities.admin import CityAdmin
+        from apps.cities.models import City
+        from apps.heritage.models import HeritageCategory, HeritageItem, HeritageType
+
+        h_type = HeritageType.objects.create(name='T', slug='t')
+        h_cat = HeritageCategory.objects.create(name='C', slug='c')
+        for index, item_status in enumerate(['published', 'pending', 'pending']):
+            HeritageItem.objects.create(
+                city=self.city, title=f'I{index}', description='d',
+                heritage_type=h_type, heritage_category=h_cat,
+                location=GeoPoint(0, 0), status=item_status,
+            )
+        CityRole.objects.create(user=self.staff, city=self.city, role=CityRole.ROLE_CURATOR)
+
+        admin_instance = CityAdmin(City, AdminSite())
+        row = admin_instance.get_queryset(request=None).get(pk=self.city.pk)
+        self.assertEqual(admin_instance.items_total(row), 3)
+        self.assertEqual(admin_instance.items_pending(row), 2)
+        self.assertEqual(admin_instance.curators_total(row), 1)
+        self.assertEqual(admin_instance.routes_total(row), 0)
+
+    # ---- E1 ----------------------------------------------------------------
+
+    def test_user_admin_page_renders_cityrole_inline_and_grant_sticks(self):
+        from django.test import Client
+
+        client = Client()
+        client.force_login(self.staff)
+        target = self.User.objects.create_user(email='inline@example.com', password='pw')
+
+        page = client.get(f'/admin/users/user/{target.id}/change/')
+        self.assertEqual(page.status_code, 200)
+        # extra=0 → no -0- row for a user without grants; the formset's
+        # management form is the reliable marker that the inline is mounted.
+        self.assertContains(page, 'city_roles-TOTAL_FORMS', msg_prefix='CityRole inline missing')
+
+        # City admin renders too (roster inline + E3 columns on the list).
+        page = client.get('/admin/cities/city/')
+        self.assertEqual(page.status_code, 200)
+        page = client.get(f'/admin/cities/city/{self.city.id}/change/')
+        self.assertEqual(page.status_code, 200)

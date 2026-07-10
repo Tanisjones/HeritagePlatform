@@ -351,6 +351,16 @@ class LOMPackageViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['created_at', 'updated_at', 'title']
     ordering = ['-updated_at']
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # E5 — same request-city seam as /lom (via the parent heritage item):
+        # list-only, so package detail/download keep working cross-city.
+        if getattr(self, 'action', None) == 'list':
+            city = get_request_city(self.request)
+            if city is not None:
+                queryset = queryset.filter(heritage_item__city=city)
+        return queryset
+
     @action(detail=True, methods=['get'])
     def download(self, request, pk=None):
         lom = self.get_object()

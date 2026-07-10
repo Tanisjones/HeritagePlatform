@@ -20,9 +20,18 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=["http://localhost:8080"])  # noqa: F405
 
 # Email: the containers have no SMTP server; Django's default SMTP backend
-# would hard-fail on localhost:25. Console by default — point EMAIL_BACKEND
-# (+ EMAIL_HOST etc.) at a real provider via env when outbound mail is wanted.
+# would hard-fail on localhost:25. Console by default — set the EMAIL_* env
+# vars (documented in .env.prod.example) to point at a real provider when
+# outbound mail is wanted (E4).
 EMAIL_BACKEND = env(  # noqa: F405
     "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = env("EMAIL_HOST", default="")  # noqa: F405
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)  # noqa: F405
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)  # noqa: F405
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")  # noqa: F405
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")  # noqa: F405
+DEFAULT_FROM_EMAIL = env(  # noqa: F405
+    "DEFAULT_FROM_EMAIL", default="noreply@heritageplatform.ddns.net"
 )
 

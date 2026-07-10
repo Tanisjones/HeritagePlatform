@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
+from apps.cities.models import CityRole
+
 from .models import User, UserProfile, UserRole
 
 
@@ -20,9 +22,36 @@ class UserProfileInline(admin.StackedInline):
     fields = ['display_name', 'avatar', 'bio', 'location', 'preferred_language', 'role', 'points', 'level']
 
 
+class CityRoleInline(admin.TabularInline):
+    """E1 — per-city governance grants right on the User change page, so
+    making someone a curator no longer means a detour through the CityRole
+    admin. `granted_by` is stamped automatically (see UserAdmin.save_formset)."""
+    model = CityRole
+    fk_name = 'user'
+    extra = 0
+    autocomplete_fields = ['city']
+    fields = ['city', 'role', 'granted_by', 'created_at']
+    readonly_fields = ['granted_by', 'created_at']
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    inlines = [UserProfileInline]
+    inlines = [UserProfileInline, CityRoleInline]
+
+    def save_formset(self, request, form, formset, change):
+        # Record who granted each new CityRole without asking the admin to
+        # fill it in (the field is read-only on the inline).
+        if formset.model is CityRole:
+            instances = formset.save(commit=False)
+            for obj in instances:
+                if not obj.granted_by_id:
+                    obj.granted_by = request.user
+                obj.save()
+            for obj in formset.deleted_objects:
+                obj.delete()
+            formset.save_m2m()
+            return
+        super().save_formset(request, form, formset, change)
 
     list_display = ['email', 'username', 'first_name', 'last_name', 'is_staff', 'date_joined']
     list_filter = ['is_staff', 'is_superuser', 'is_active', 'date_joined']

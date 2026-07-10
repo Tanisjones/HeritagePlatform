@@ -58,6 +58,7 @@ $B python manage.py seed_heritage [--reset] [--skip-media-downloads]   # legacy 
 $B python manage.py seed_city <slug> [--reset] [--skip-media-downloads] # per-city dataset from data/cities/<slug>.py
 $B python manage.py seed_curriculum [--dataset ec_mineduc]  # curriculum-standard catalog from data/curriculum/ (idempotent)
 $B python manage.py import_items <file.csv|.geojson> --city <slug> [--status published] [--update] [--dry-run]  # staff bulk import (text-only, all-or-nothing validation)
+$B python manage.py bootstrap_city <slug> [--parishes "A,B"] [--curator email] [--check]  # onboard an admin-created city: taxonomies, parishes, curator grants + readiness checklist
 $B python manage.py sync_translation_fields      # after adding a translated field
 $B python manage.py check
 ```

@@ -1763,3 +1763,49 @@ class SeedCurriculumCommandTest(TestCase):
         self.assertEqual(std.subject, 'Matemática')
         # The migration-seeded starter rows stay intact (same codes, refreshed).
         self.assertTrue(CurriculumStandard.objects.filter(code='CS.3.1.10').exists())
+
+
+class LOMPackageCityScopeTest(TestCase):
+    """E5 — /education/lom-packages/ takes the request-city seam like /lom:
+    list is city-scoped, detail/download stay reachable cross-city."""
+
+    def setUp(self):
+        from django.contrib.gis.geos import Point
+
+        from apps.heritage.models import HeritageCategory, HeritageItem, HeritageType
+
+        self.city = make_city()
+        self.other_city = make_city(slug='other-city', name='Other City')
+        h_type = HeritageType.objects.create(name='T', slug='t')
+        h_cat = HeritageCategory.objects.create(name='C', slug='c')
+
+        def item(title, city):
+            return HeritageItem.objects.create(
+                city=city, title=title, description='d', heritage_type=h_type,
+                heritage_category=h_cat, location=Point(0, 0), status='published',
+            )
+
+        self.local_lom = LOMGeneral.objects.create(heritage_item=item('Local', self.city), title='Local LOM')
+        self.far_lom = LOMGeneral.objects.create(heritage_item=item('Far', self.other_city), title='Far LOM')
+
+    def _titles(self, data):
+        rows = data.get('results', data) if isinstance(data, dict) else data
+        return sorted(r['title'] for r in rows)
+
+    def test_list_scopes_by_request_city(self):
+        response = self.client.get('/api/v1/education/lom-packages/', HTTP_X_CITY=self.city.slug)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._titles(response.json()), ['Local LOM'])
+
+    def test_list_unscoped_without_city_context(self):
+        response = self.client.get('/api/v1/education/lom-packages/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._titles(response.json()), ['Far LOM', 'Local LOM'])
+
+    def test_detail_ignores_city_context(self):
+        # Cross-city deep links must keep working (the documented contract).
+        response = self.client.get(
+            f'/api/v1/education/lom-packages/{self.far_lom.id}/', HTTP_X_CITY=self.city.slug
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['title'], 'Far LOM')
