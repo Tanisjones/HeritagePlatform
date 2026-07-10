@@ -8,7 +8,6 @@ from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
-from apps.contributions.models import Contribution
 from apps.education.models import (
     EducationalResource,
     LOMClassification,
@@ -37,7 +36,6 @@ class Command(BaseCommand):
             parishes = self._create_parishes()
             heritage_items = self._create_heritage_items(users, taxonomy, parishes)
             self._attach_lom_metadata(heritage_items, users)
-            self._create_contributions(users, heritage_items)
             self._create_annotations(users, heritage_items)
             self._create_routes(users, heritage_items)
             self._create_educational_resources(users, heritage_items)
@@ -233,26 +231,6 @@ class Command(BaseCommand):
                 taxon_source="local",
                 taxon_entry="Patrimonio",
                 defaults={"keywords": "cultura, historia"},
-            )
-
-    def _create_contributions(self, users, heritage_items):
-        if "contributions_contribution" not in connection.introspection.table_names():
-            self.stdout.write(self.style.WARNING("Skipping contributions seeding (table missing, run migrations)."))
-            return
-
-        contributor = users["contributor"]
-        moderator = users["moderator"]
-        for item in heritage_items:
-            Contribution.objects.get_or_create(
-                heritage_item=item,
-                contributor=contributor,
-                contribution_type="enrichment",
-                defaults={
-                    "status": "approved",
-                    "content": {"notes": f"Enriquecimiento para {item.title}"},
-                    "reviewed_at": timezone.now(),
-                    "reviewer": moderator,
-                },
             )
 
     def _create_annotations(self, users, heritage_items):

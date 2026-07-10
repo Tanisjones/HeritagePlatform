@@ -229,3 +229,13 @@ ROUTING_TIMEOUT_SECONDS = env.int("ROUTING_TIMEOUT_SECONDS", default=8)
 ROUTING_WALKING_SPEED_MPS = env.float("ROUTING_WALKING_SPEED_MPS", default=1.3)
 # Radius (metres) within which a geolocated check-in is considered "at" the stop.
 ROUTE_CHECKIN_RADIUS_M = env.int("ROUTE_CHECKIN_RADIUS_M", default=100)
+
+# F.3 — test-run fast path. The default PBKDF2 hasher deliberately burns
+# ~100ms per hash, and nearly every test setUp calls create_user(); across the
+# suite that hashing dominated wall-clock time. MD5 is plenty for throwaway
+# test credentials. Applies only under `manage.py test` — every real run keeps
+# the production hasher.
+import sys  # noqa: E402
+
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
