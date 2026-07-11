@@ -604,11 +604,14 @@ def create_city_data(city_module, *, download_remote_media: bool = True):
             )
             version_counter += 1
 
-        # Create LOM Data
+        # Create LOM Data. Coverage (LOM 1.6) is the geographic region the
+        # learning object applies to — derive it from the city being seeded,
+        # not a hardcoded founding-city string.
+        lom_coverage = f"{city.name}, {city.country_name}"
         if item_data.get("lom"):
             lom_general = LOMGeneral.objects.create(
                 heritage_item=item, title=item.title, description=item.description, language='es',
-                coverage="Riobamba, Ecuador", structure="atomic", aggregation_level=1
+                coverage=lom_coverage, structure="atomic", aggregation_level=1
             )
             lifecycle = LOMLifeCycle.objects.create(lom_general=lom_general, version="1.0", status="final")
             LOMContributor.objects.create(lifecycle=lifecycle, role="author", entity=user.username, date=date.today())
@@ -647,7 +650,7 @@ def create_city_data(city_module, *, download_remote_media: bool = True):
         else:
              lom_general = LOMGeneral.objects.create(
                 heritage_item=item, title=item.title, description=item.description, language='es',
-                coverage="Riobamba, Ecuador", structure="atomic", aggregation_level=1
+                coverage=lom_coverage, structure="atomic", aggregation_level=1
             )
              ped = _pedagogical_profile(item, city_name=city.name, country_name=city.country_name)
              LOMEducational.objects.create(
