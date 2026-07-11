@@ -1809,3 +1809,75 @@ class LOMPackageCityScopeTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['title'], 'Far LOM')
+
+
+class SeedEducationCommandTest(TestCase):
+    """seed_education loads shared content idempotently, links heritage items and
+    curriculum standards, sanitizes rich text, and degrades gracefully."""
+
+    def _make_item(self, city, title):
+        from apps.heritage.models import HeritageType, HeritageCategory, HeritageItem
+        htype, _ = HeritageType.objects.get_or_create(slug='tangible', defaults={'name': 'Tangible'})
+        cat, _ = HeritageCategory.objects.get_or_create(slug='architecture', defaults={'name': 'Arquitectura'})
+        return HeritageItem.objects.create(
+            city=city, title=title, description='x', location=Point(-78.6, -1.6, srid=4326),
+            heritage_type=htype, heritage_category=cat, status='published',
+        )
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        # The seeder prefers author b@b.com, else a superuser.
+        User.objects.create_user(username='seed_curator', email='b@b.com', password='b', is_staff=True)
+        # A city whose slug matches data/education/riobamba.py, with the country
+        # the linked MinEduc standards live under.
+        self.city = make_city(slug='riobamba', name='Riobamba', country='EC')
+        # A subset of the heritage items the dataset references, so links resolve.
+        for t in ['Catedral de Riobamba', 'Parque Maldonado', 'Hornado de Riobamba',
+                  'Leyenda del Luterano']:
+            self._make_item(self.city, t)
+
+    def test_seed_is_idempotent_and_links_content(self):
+        from django.core.management import call_command
+        from apps.education.models import EducationalResource, LessonPlan, LessonActivity
+        from apps.education.models import CurriculumStandard
+
+        # Standards the plans align to must exist for the link to bind.
+        call_command('seed_curriculum')
+
+        call_command('seed_education', 'riobamba')
+        res = EducationalResource.objects.filter(city=self.city).count()
+        plans = LessonPlan.objects.filter(city=self.city).count()
+        acts = LessonActivity.objects.filter(lesson__city=self.city).count()
+        self.assertEqual(res, 4)
+        self.assertEqual(plans, 2)
+        self.assertEqual(acts, 10)
+
+        # Re-running does not duplicate (keyed by title+city; activities rebuilt).
+        call_command('seed_education', 'riobamba')
+        self.assertEqual(EducationalResource.objects.filter(city=self.city).count(), 4)
+        self.assertEqual(LessonPlan.objects.filter(city=self.city).count(), 2)
+        self.assertEqual(LessonActivity.objects.filter(lesson__city=self.city).count(), 10)
+
+        # A resource links the heritage items that exist.
+        art = EducationalResource.objects.get(
+            city=self.city, title__startswith='Riobamba colonial')
+        self.assertIn('Catedral de Riobamba',
+                      list(art.related_heritage_items.values_list('title', flat=True)))
+        # Rich HTML survives but is sanitized (allowlisted tags kept, no script).
+        self.assertIn('<h2>', art.content)
+        self.assertNotIn('<script', art.content)
+
+        # A plan binds real curriculum standards and its route (route absent here,
+        # so the link is simply skipped without error).
+        plan = LessonPlan.objects.get(
+            city=self.city, title__startswith='Nuestro centro histórico')
+        self.assertTrue(plan.standards.filter(code='CS.2.1.4').exists())
+        self.assertEqual(plan.status, 'published')
+        self.assertEqual(plan.visibility, 'public')
+
+    def test_missing_city_errors(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with self.assertRaises(CommandError):
+            call_command('seed_education', 'nonexistent-city-xyz')
