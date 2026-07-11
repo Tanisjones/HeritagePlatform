@@ -52,9 +52,9 @@ ITEMS = [
         # --- PUBLISHED ITEMS ---
         {
             "title": "Catedral de Riobamba",
-            "description": "Catedral histórica distinguida por su fachada barroca reconstruida de las ruinas de la antigua Riobamba destruida por el terremoto de 1797. Combina elementos arquitectónicos indígenas y españoles.",
-            "location": Point(-78.6575, -1.6732),
-            "address": "5 de Junio y Veloz",
+            "description": "Catedral histórica distinguida por su fachada barroca, rescatada piedra a piedra de las ruinas de la antigua Riobamba tras el terremoto de 1797 y reconstruida en su emplazamiento actual entre 1810 y 1835. Su portada combina elementos decorativos indígenas y españoles, y preside el Parque Maldonado.",
+            "location": Point(-78.6478, -1.6722),
+            "address": "5 de Junio, entre José Veloz y Espejo",
             "parish": "Veloz",
             "heritage_type": "tangible",
             "heritage_category": "architecture",
@@ -84,8 +84,8 @@ ITEMS = [
         },
         {
             "title": "Parque Maldonado",
-            "description": "La plaza principal de Riobamba, nombrada en honor al científico Pedro Vicente Maldonado. Sirve como punto de encuentro central y alberga diversas actividades cívicas.",
-            "location": Point(-78.6570, -1.6730),
+            "description": "La plaza principal de Riobamba y primera plaza planificada de la ciudad (antigua Plaza Mayor), nombrada en honor al sabio riobambeño Pedro Vicente Maldonado. Rodeada por la Catedral y edificios patrimoniales, sirve como punto de encuentro central y escenario de actividades cívicas.",
+            "location": Point(-78.6483, -1.6727),
             "address": "Primera Constituyente y Espejo",
             "parish": "Maldonado",
             "heritage_type": "tangible",
@@ -93,7 +93,7 @@ ITEMS = [
             "historical_period": "republican",
             "status": "published",
             "media": [
-                {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/01%20Catedral%20de%20San%20Pedro%20-%20Riobamba%20%28Chimborazo%29.jpg"}
+                {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ecuador%20Riobamba%20ParqueMaldonada.JPG"}
             ],
              "moderation": {
                 "score": {"completeness": 30, "accuracy": 25, "media": 20, "notes": "Buena contribución."},
@@ -113,9 +113,9 @@ ITEMS = [
         },
         {
             "title": "Hornado de Riobamba",
-            "description": "Plato tradicional de cerdo asado famoso en la región, servido típicamente con llapingachos, mote y agrio. Representa una parte clave de la identidad gastronómica local.",
-            "location": Point(-78.6480, -1.6650),
-            "address": "Mercado La Merced",
+            "description": "Plato tradicional de cerdo asado entero, emblema de la gastronomía riobambeña, servido con llapingachos, mote, tortillas de papa y ají de chiriucho. Su epicentro es el Mercado La Merced, donde las 'hornaderas' lo sirven en puestos con décadas de tradición.",
+            "location": Point(-78.6502, -1.6738),
+            "address": "Mercado La Merced, Guayaquil y Colón",
             "parish": "Lizarzaburu",
             "heritage_type": "intangible",
             "heritage_category": "gastronomy",
@@ -139,9 +139,9 @@ ITEMS = [
             }
         },
         {
-            "title": "Pase del Niño Viajero",
-            "description": "Una colorida festividad religiosa celebrada en diciembre y enero, caracterizada por procesiones, personajes tradicionales como el Diablo Huma y música.",
-            "location": Point(-78.6540, -1.6710),
+            "title": "Pase del Niño",
+            "description": "Colorida festividad religiosa celebrada entre diciembre y febrero, con procesiones que recorren el centro histórico acompañadas de personajes tradicionales como el Curiquingue, el Diablo Huma y bandas de pueblo. Declarada Patrimonio Cultural Inmaterial del cantón Riobamba; se celebra desde inicios del siglo XX.",
+            "location": Point(-78.6486, -1.6725),
             "address": "Calles céntricas de Riobamba",
             "parish": "Velasco",
             "heritage_type": "intangible",
@@ -167,8 +167,8 @@ ITEMS = [
         },
         {
             "title": "Teatro León",
-            "description": "Un teatro histórico en Riobamba, conocido por su arquitectura neoclásica y significado cultural como centro de las artes.",
-            "location": Point(-78.6560, -1.6720),
+            "description": "Teatro histórico de arquitectura neoclásica frente al Parque Sucre. Construido desde 1918 como residencia de la familia León Romero, abrió como teatro en 1929. Restaurado y reinaugurado en 2021, hoy es sede de la Orquesta Sinfónica Municipal de Riobamba.",
+            "location": Point(-78.6507, -1.6713),
             "address": "Primera Constituyente y España",
             "parish": "Maldonado",
             "heritage_type": "tangible",
@@ -193,15 +193,15 @@ ITEMS = [
         },
         {
             "title": "Iglesia de Balbanera",
-            "description": "La primera iglesia católica construida en Ecuador (1534), ubicada cerca de la laguna de Colta. Cuenta con una fachada colonial simple con detalles de talla en piedra indígena.",
-            "location": Point(-78.7450, -1.7050),
+            "description": "Reconocida como la primera iglesia católica de Ecuador, inaugurada el 15 de agosto de 1534 junto a la laguna de Colta. Tras el terremoto de 1977 el templo fue reconstruido en gran parte; solo la fachada de piedra, con detalles de talla indígena, conserva elementos originales del siglo XVI.",
+            "location": Point(-78.7626, -1.7235),
             "address": "Colta, Panamericana Sur",
             "parish": "Cacha", # Approximation
             "heritage_type": "tangible",
             "heritage_category": "architecture",
             "historical_period": "colonial",
             "status": "published",
-            "media": [{"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Iglesia%20de%20Balbanera%20Ecuador596.jpg"}],
+            "media": [{"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Iglesia%20de%20Balbanera%2001.jpg"}],
             "moderation": {
                 "score": {"completeness": 40, "accuracy": 30, "media": 30, "notes": "Sitio fundacional."},
                 "checklist": True,
@@ -219,15 +219,15 @@ ITEMS = [
         },
         {
             "title": "Estación del Ferrocarril",
-            "description": "La estación de tren de Riobamba, una parada clave en el ferrocarril transandino. Simboliza la modernización del país a principios del siglo XX.",
-            "location": Point(-78.6600, -1.6680),
-            "address": "Av. Daniel León Borja",
+            "description": "Estación de tren de Riobamba, inaugurada el 1 de enero de 1925 y parada clave del ferrocarril transandino que unió la costa con la sierra. Símbolo de la modernización del país a inicios del siglo XX, el complejo alberga hoy un museo del tren.",
+            "location": Point(-78.6538, -1.6698),
+            "address": "Av. Daniel León Borja y Carabobo",
             "parish": "Lizarzaburu",
             "heritage_type": "tangible",
             "heritage_category": "architecture",
             "historical_period": "republican",
             "status": "published",
-            "media": [{"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ecuador%20Riobamba%20trainstation.JPG"}],
+            "media": [{"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Estaci%C3%B3n%20de%20Tren%20de%20Riobamba%20Ecuador%201475.jpg"}],
              "moderation": {
                 "score": {"completeness": 33, "accuracy": 28, "media": 22, "notes": "Infraestructura clave."},
                 "checklist": True,
@@ -245,9 +245,9 @@ ITEMS = [
         },
         {
             "title": "Museo de las Conceptas",
-            "description": "Un museo de arte religioso ubicado en el Convento de la Inmaculada Concepción. Exhibe esculturas, pinturas y ornamentos de la época colonial.",
-            "location": Point(-78.6580, -1.6740),
-            "address": "Argentinos y Larrea",
+            "description": "Museo de Arte Religioso ubicado en el Convento de la Inmaculada Concepción (Madres Conceptas). Inaugurado en 1980, exhibe pintura y escultura de la Escuela Quiteña, ornamentos coloniales y su pieza más célebre: la Custodia de Riobamba, una joya de oro y piedras preciosas.",
+            "location": Point(-78.6490, -1.6710),
+            "address": "Argentinos y Juan Larrea",
             "parish": "Maldonado",
             "heritage_type": "tangible",
             "heritage_category": "architecture",
@@ -271,9 +271,9 @@ ITEMS = [
         },
         {
             "title": "Mercado San Francisco",
-            "description": "Un mercado bullicioso conocido por su puestos de comida tradicional, que ofrecen platos como hornado y yaguarlocro, y sirve como centro social.",
-            "location": Point(-78.6550, -1.6750),
-            "address": "10 de Agosto",
+            "description": "Mercado tradicional junto a la iglesia de San Francisco, conocido por sus puestos de comida típica —hornado, yaguarlocro, jugos— y por sus flores y artesanías. Es un bullicioso centro social y económico del casco histórico.",
+            "location": Point(-78.6471, -1.6748),
+            "address": "Primera Constituyente, junto a la iglesia de San Francisco",
             "parish": "Maldonado",
             "heritage_type": "tangible",
             "heritage_category": "gastronomy", 
@@ -297,8 +297,8 @@ ITEMS = [
         },
         {
             "title": "Danza de los Curiquingues",
-            "description": "Una danza tradicional realizada durante festivales donde los bailarines se visten como el ave curiquingue, imitando sus movimientos para honrar a la naturaleza.",
-            "location": Point(-78.6500, -1.6700),
+            "description": "Danza ancestral andina en honor al curiquingue, ave considerada sagrada por los incas y augurio de buenas cosechas. Los danzantes visten grandes alas de colores y un tocado con pico, imitando los movimientos del ave; suele formar parte de las procesiones del Pase del Niño.",
+            "location": Point(-78.6470, -1.6735),
             "address": "Riobamba",
             "parish": "San Luis",
             "heritage_type": "intangible",
@@ -323,9 +323,9 @@ ITEMS = [
         },
         {
             "title": "Coplas del Carnaval",
-            "description": "Versos ingeniosos y rimados cantados durante la temporada de Carnaval en Chimborazo, expresando alegría, sátira social y lazos comunitarios.",
-            "location": Point(-78.6500, -1.6700),
-            "address": "Provincial",
+            "description": "Versos ingeniosos y rimados que se cantan durante el Carnaval en Chimborazo y toda la sierra ecuatoriana, expresando alegría, coqueteo, sátira social y lazos comunitarios. Tradición oral viva que se transmite de generación en generación.",
+            "location": Point(-78.6500, -1.6712),
+            "address": "Provincia de Chimborazo",
             "parish": "Yaruquies",
             "heritage_type": "intangible",
             "heritage_category": "oral-traditions",
@@ -349,8 +349,8 @@ ITEMS = [
         },
         {
             "title": "Leyenda del Luterano",
-            "description": "Una leyenda colonial sobre un hombre misterioso que supuestamente fue llevado por el diablo en Riobamba, reflejando los valores morales de la época.",
-            "location": Point(-78.6570, -1.6732),
+            "description": "Leyenda colonial que explica la cabeza cortada del escudo de Riobamba. Hacia 1575, un médico extranjero apodado «el Luterano» habría agredido a un sacerdote durante la fiesta de San Pedro; su castigo quedó grabado en el imaginario y en la heráldica de la ciudad. Se asocia tradicionalmente al antiguo barrio artesanal de Santa Rosa.",
+            "location": Point(-78.6492, -1.6730),
             "address": "Barrio Santa Rosa",
             "parish": "Veloz",
             "heritage_type": "intangible",
@@ -375,9 +375,9 @@ ITEMS = [
         },
         {
             "title": "Chicha Huevona",
-            "description": "Una bebida alcohólica tradicional de Riobamba hecha con chicha de jora, huevos, cerveza y azúcar, servida caliente y conocida por sus propiedades energéticas.",
-            "location": Point(-78.6500, -1.6700),
-            "address": "Riobamba",
+            "description": "Bebida tradicional de la zona de Riobamba y Guano, elaborada con chicha de jora, panela, huevo crudo, cerveza y un chorro de licor. Se sirve batida y espumosa, es popular en Carnaval y se le atribuyen propiedades energéticas.",
+            "location": Point(-78.6455, -1.6740),
+            "address": "Riobamba y Guano (Chimborazo)",
             "parish": "Veloz",
             "heritage_type": "intangible",
             "heritage_category": "gastronomy",
@@ -401,8 +401,8 @@ ITEMS = [
         },
         {
             "title": "Fritada de Cajón",
-            "description": "Cerdo frito preparado al estilo tradicional de cajón de madera, típico de la región andina, servido con papas y maíz.",
-            "location": Point(-78.6550, -1.6650),
+            "description": "Fritada de cerdo cocida lentamente en su propia grasa, plato clásico de la sierra ecuatoriana. En los mercados de Riobamba se sirve con mote, papas, tostado y maíz, y forma parte del recorrido gastronómico de la ciudad.",
+            "location": Point(-78.6478, -1.6742),
             "address": "Mercados de Riobamba",
             "parish": "Lizarzaburu",
             "heritage_type": "intangible",
@@ -411,7 +411,7 @@ ITEMS = [
             "status": "published",
             "media": [],
              "moderation": {
-                "score": {"completeness": 37, "accuracy": 31, "media": 24, "notes": "Deliciosa."},
+                "score": {"completeness": 37, "accuracy": 30, "media": 24, "notes": "Deliciosa."},
                 "checklist": True,
                 "history": [{"action": "submit", "by": "contributor"}, {"action": "approve", "by": "curator"}]
             },
