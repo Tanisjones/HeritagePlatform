@@ -557,7 +557,7 @@ ITEMS = [
         "historical_period": "unknown",  # Roman
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tarragona%20-%20Pretori%20rom%C3%A0%20i%20Torre%20del%20Circ.jpg"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tarragona%20Pretori%20Roma.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 37, "accuracy": 30, "media": 27, "notes": "Pieza clave del foro provincial."},
@@ -630,7 +630,7 @@ ITEMS = [
         "historical_period": "unknown",  # Roman
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/F%C3%B2rum%20de%20la%20Col%C3%B2nia%2C%20Tarragona.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/F%C3%B2rum%20Rom%C3%A0%20de%20la%20Col%C3%B2nia%20de%20Tarragona-1.JPG"},
         ],
         "moderation": {
             "score": {"completeness": 33, "accuracy": 29, "media": 22, "notes": "Foro de la ciudad baja."},
@@ -703,7 +703,7 @@ ITEMS = [
         "historical_period": "contemporary",
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Museu%20Nacional%20Arqueol%C3%B2gic%20de%20Tarragona.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tarragona%20-%20Museu%20Nacional%20Arqueol%C3%B2gic%20de%20Tarragona%20%28MNAT%29%2001.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 34, "accuracy": 30, "media": 24, "notes": "Referencia museística de Tárraco."},
@@ -741,7 +741,7 @@ ITEMS = [
         "historical_period": "unknown",  # Late Roman / Early Christian
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Necr%C3%B2polis%20paleocristiana%20de%20Tarragona.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Necr%C3%B2polis%20paleocristiana%20de%20Tarragona.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 36, "accuracy": 30, "media": 25, "notes": "Necrópolis paleocristiana excepcional."},
@@ -779,7 +779,7 @@ ITEMS = [
         "historical_period": "unknown",  # Medieval
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Casa%20Castellarnau%2C%20Tarragona.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Casa%20Castellarnau%2C%20Tarragona-1.JPG"},
         ],
         "moderation": {
             "score": {"completeness": 32, "accuracy": 28, "media": 22, "notes": "Casa noble gótica bien conservada."},
@@ -852,7 +852,7 @@ ITEMS = [
         "historical_period": "unknown",  # Roman
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pedrera%20del%20M%C3%A8dol.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/El%20M%C3%A9dol%2C%20Tarragona..jpg"},
         ],
         "moderation": {
             "score": {"completeness": 31, "accuracy": 28, "media": 23, "notes": "Cantera que abasteció a Tárraco."},
@@ -890,7 +890,7 @@ ITEMS = [
         "historical_period": "unknown",  # Roman
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Torre%20dels%20Escipions.jpg"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/TarragonaTorreScipioni.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 33, "accuracy": 30, "media": 25, "notes": "Torre funeraria de la Vía Augusta."},
@@ -928,7 +928,7 @@ ITEMS = [
         "historical_period": "unknown",  # Roman
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Arc%20de%20Ber%C3%A0.jpg"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Arco%20de%20Bar%C3%A0.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 35, "accuracy": 30, "media": 27, "notes": "Arco triunfal de la Vía Augusta."},
@@ -966,7 +966,7 @@ ITEMS = [
         "historical_period": "unknown",  # Late Roman
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vil%C2%B7la%20romana%20de%20Centcelles%20-%20c%C3%BApula.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Exterior%20del%20Mausoleu%20de%20Centcelles%2C%20a%20Constant%C3%AD.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 37, "accuracy": 30, "media": 28, "notes": "Mosaico de cúpula paleocristiano único."},
@@ -1004,7 +1004,7 @@ ITEMS = [
         "historical_period": "unknown",  # Roman
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vil%C2%B7la%20dels%20Munts%2C%20Altafulla.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Roman%20villa%20of%20Els%20Munts%2C%20Altafulla%2C%20Spain%20-%2051628424379.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 34, "accuracy": 30, "media": 24, "notes": "Villa aristocrática con termas y mosaicos."},
@@ -1042,7 +1042,7 @@ ITEMS = [
         "historical_period": "contemporary",
         "status": "published",
         "media": [
-            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mercat%20Central%20de%20Tarragona.JPG"},
+            {"type": "image", "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tarragona-%20Mercat%20Central%20-%2051312447730.jpg"},
         ],
         "moderation": {
             "score": {"completeness": 31, "accuracy": 27, "media": 22, "notes": "Mercado modernista en uso."},
