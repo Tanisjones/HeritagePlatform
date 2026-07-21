@@ -35,6 +35,22 @@ CITY = {
     "center": (1.2445, 41.1189),  # lng, lat — Part Alta / Plaça de la Font
     "default_zoom": 14,
     "default_language": "es",
+    # Per-city branding: landing hero + accent color (the SPA derives its
+    # whole primary palette from this hex). Only filled in when blank, so
+    # admin edits survive a re-seed. `description` is the es (default
+    # language) column — modeltranslation maps it to description_es.
+    "description": (
+        "La Tarraco romana, Patrimonio Mundial de la UNESCO frente al "
+        "Mediterráneo: anfiteatro, murallas y una cultura catalana viva, "
+        "de los castells a Santa Tecla."
+    ),
+    "description_en": (
+        "Roman Tarraco, a UNESCO World Heritage city on the Mediterranean: "
+        "amphitheatre, walls and living Catalan culture, from castells to "
+        "Santa Tecla."
+    ),
+    "brand_color": "#1F6F8B",  # Mediterranean deep blue
+    "hero_image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tarragona_Amphitheatre.jpg",
 }
 
 # Tarragona's historic districts and nearby municipalities within the

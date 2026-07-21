@@ -2,12 +2,14 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoutesStore } from '@/stores/routes'
+import { useCityPath } from '@/composables/useCityPath'
 import RouteCard from '@/components/routes/RouteCard.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
 
 const { t } = useI18n()
 const routesStore = useRoutesStore()
+const { cityPath } = useCityPath()
 const loading = computed(() => routesStore.loading)
 const routes = computed(() => routesStore.myRoutes)
 
@@ -27,7 +29,7 @@ onMounted(load)
   <div class="max-w-6xl mx-auto p-5 space-y-5">
     <div class="flex items-center justify-between gap-4">
       <h1 class="text-3xl font-bold text-gray-900">{{ t('routesUi.pages.myRoutesTitle') }}</h1>
-      <router-link to="/routes/new">
+      <router-link :to="cityPath('/routes/new')">
         <AppButton size="sm">{{ t('routesUi.createRoute') }}</AppButton>
       </router-link>
     </div>

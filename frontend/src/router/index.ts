@@ -1,62 +1,151 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import GatewayView from '../views/GatewayView.vue'
+import CityShellView from '../views/CityShellView.vue'
 import { pinia } from '@/pinia'
 import { useAuthStore } from '@/stores/auth'
-import { useCityStore } from '@/stores/city'
+import {
+  ALL_SEGMENT,
+  legacyPathsFrom,
+  makeLegacyRedirects,
+  segmentForSlug,
+  swapCitySegment,
+} from './cityContext'
+import { scrollBehavior } from './scroll'
+
+/**
+ * Public city content: everything here is scoped to the `/:citySlug` shell
+ * ('all' = the cross-city mode). Kept as a named const because the legacy
+ * unprefixed redirects are derived from it — add a route once, and its
+ * old-bookmark redirect comes along automatically.
+ *
+ * meta.cityScope declares what a city switch should do here, so the header
+ * never has to guess from the shape of the params:
+ *   'generic' — the page exists in every city: keep the subpath.
+ *   'entity'  — the :id belongs to one city: go to the new city's home.
+ * meta.requiresConcreteCity marks the write routes: the 'all' mode sends no
+ * X-City, so the API would file the record under the platform default city.
+ */
+const cityChildren: RouteRecordRaw[] = [
+  {
+    path: '',
+    name: 'city-home',
+    component: () => import('../views/HomeView.vue'),
+    meta: { cityScope: 'generic' },
+    // The landing is city-specific (hero, map framing, {city} copy); the
+    // all-cities mode has no landing of its own.
+    beforeEnter: (to) =>
+      to.params.citySlug === ALL_SEGMENT
+        ? { path: `/${ALL_SEGMENT}/explore`, replace: true }
+        : true,
+  },
+  {
+    path: 'explore',
+    name: 'explore',
+    component: () => import('../views/ExploreView.vue'),
+    meta: { cityScope: 'generic' },
+  },
+  {
+    path: 'routes',
+    name: 'routes',
+    component: () => import('../views/routes/RouteListView.vue'),
+    meta: { cityScope: 'generic' },
+  },
+  {
+    path: 'routes/new',
+    name: 'route-create',
+    component: () => import('../views/routes/RouteCreateView.vue'),
+    meta: { requiresAuth: true, cityScope: 'generic', requiresConcreteCity: true },
+  },
+  {
+    path: 'routes/my',
+    name: 'my-routes',
+    component: () => import('../views/routes/MyRoutesView.vue'),
+    meta: { requiresAuth: true, cityScope: 'generic' },
+  },
+  {
+    path: 'routes/active',
+    name: 'active-routes',
+    component: () => import('../views/routes/ActiveRoutesView.vue'),
+    meta: { requiresAuth: true, cityScope: 'generic' },
+  },
+  {
+    path: 'routes/:id/edit',
+    name: 'route-edit',
+    component: () => import('../views/routes/RouteEditView.vue'),
+    meta: { requiresAuth: true, cityScope: 'entity', requiresConcreteCity: true },
+  },
+  {
+    path: 'routes/:id',
+    name: 'route-detail',
+    component: () => import('../views/routes/RouteDetailView.vue'),
+    meta: { cityScope: 'entity' },
+  },
+  {
+    path: 'contribute',
+    name: 'contribute',
+    component: () => import('../views/ContributeView.vue'),
+    meta: { requiresAuth: true, cityScope: 'generic', requiresConcreteCity: true },
+  },
+  {
+    path: 'heritage/:id',
+    name: 'heritage-detail',
+    component: () => import('../views/heritage/HeritageDetailView.vue'),
+    meta: { cityScope: 'entity' },
+  },
+  {
+    path: 'education',
+    name: 'education',
+    component: () => import('../views/education/EducationalResourcesView.vue'),
+    meta: { cityScope: 'generic' },
+  },
+  {
+    path: 'education/:id',
+    name: 'education-detail',
+    component: () => import('../views/education/EducationalResourceDetailView.vue'),
+    meta: { cityScope: 'entity' },
+  },
+  {
+    path: 'learn',
+    name: 'learn',
+    component: () => import('../views/education/LearnView.vue'),
+    meta: { cityScope: 'generic' },
+  },
+  {
+    // Public lesson sheet (published + public); no auth — visibility enforced server-side.
+    path: 'learn/plans/:id',
+    name: 'lesson-plan-detail',
+    component: () => import('../views/education/LessonPlanDetailView.vue'),
+    meta: { cityScope: 'entity' },
+  },
+  {
+    // A.4: projector/print-friendly classroom mode of the same lesson sheet.
+    path: 'learn/plans/:id/class',
+    name: 'lesson-plan-class',
+    component: () => import('../views/education/LessonPlanClassView.vue'),
+    meta: { cityScope: 'entity' },
+  },
+]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior,
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      name: 'gateway',
+      component: GatewayView,
     },
     {
-      path: '/explore',
-      name: 'explore',
-      component: () => import('../views/ExploreView.vue'),
+      // The city shell: validates the slug and syncs it into the store before
+      // children render. Its children (and the legacy redirects derived from
+      // them) live in `cityChildren` above.
+      path: '/:citySlug',
+      component: CityShellView,
+      children: cityChildren,
     },
-    {
-      path: '/routes',
-      name: 'routes',
-      component: () => import('../views/routes/RouteListView.vue'),
-    },
-    {
-      path: '/routes/new',
-      name: 'route-create',
-      component: () => import('../views/routes/RouteCreateView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/routes/my',
-      name: 'my-routes',
-      component: () => import('../views/routes/MyRoutesView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/routes/active',
-      name: 'active-routes',
-      component: () => import('../views/routes/ActiveRoutesView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/routes/:id/edit',
-      name: 'route-edit',
-      component: () => import('../views/routes/RouteEditView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/routes/:id',
-      name: 'route-detail',
-      component: () => import('../views/routes/RouteDetailView.vue'),
-    },
-    {
-      path: '/contribute',
-      name: 'contribute',
-      component: () => import('../views/ContributeView.vue'),
-      meta: { requiresAuth: true },
-    },
+    // Legacy unprefixed content URLs → the persisted city context (old
+    // bookmarks and any stray hardcoded pushes keep working).
+    ...makeLegacyRedirects(legacyPathsFrom(cityChildren)),
     {
       path: '/login',
       name: 'login',
@@ -154,26 +243,6 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresCurator: true },
     },
     {
-      path: '/heritage/:id',
-      name: 'heritage-detail',
-      component: () => import('../views/heritage/HeritageDetailView.vue'),
-    },
-    {
-      path: '/education',
-      name: 'education',
-      component: () => import('../views/education/EducationalResourcesView.vue'),
-    },
-    {
-      path: '/education/:id',
-      name: 'education-detail',
-      component: () => import('../views/education/EducationalResourceDetailView.vue'),
-    },
-    {
-      path: '/learn',
-      name: 'learn',
-      component: () => import('../views/education/LearnView.vue'),
-    },
-    {
       path: '/teach',
       name: 'teach',
       component: () => import('../views/education/TeacherResourcesView.vue'),
@@ -184,18 +253,6 @@ const router = createRouter({
       name: 'lesson-plans',
       component: () => import('../views/education/LessonPlanListView.vue'),
       meta: { requiresAuth: true, requiresTeacher: true },
-    },
-    {
-      // Public lesson sheet (published + public); no auth — visibility enforced server-side.
-      path: '/learn/plans/:id',
-      name: 'lesson-plan-detail',
-      component: () => import('../views/education/LessonPlanDetailView.vue'),
-    },
-    {
-      // A.4: projector/print-friendly classroom mode of the same lesson sheet.
-      path: '/learn/plans/:id/class',
-      name: 'lesson-plan-class',
-      component: () => import('../views/education/LessonPlanClassView.vue'),
     },
     {
       path: '/teach/plans/new',
@@ -209,20 +266,36 @@ const router = createRouter({
       component: () => import('../views/education/LessonPlanEditView.vue'),
       meta: { requiresAuth: true, requiresTeacher: true },
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/NotFoundView.vue'),
+    },
   ],
 })
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore(pinia)
 
-  // ?city=<slug> deep-link: adopt it as the active city and strip the param
-  // (URLs stay clean; the slug is validated when the city catalog loads).
+  // ?city=<slug> deep-link: re-target the URL under that city and strip the
+  // param. The slug is deliberately NOT persisted here — CityShellView
+  // validates it against the catalog first, so a typo'd or hand-edited
+  // ?city= can no longer poison the stored context (which would make every
+  // later request unscoped and every write land in the default city).
   if (typeof to.query.city === 'string' && to.query.city) {
-    const cityStore = useCityStore(pinia)
-    cityStore.adoptSlug(to.query.city)
     const query = { ...to.query }
     delete query.city
-    return { path: to.path, query, replace: true }
+    const segment = segmentForSlug(to.query.city)
+    const current = to.params.citySlug
+    if (typeof current === 'string' && current) {
+      if (current !== segment) {
+        return { path: swapCitySegment(to.path, segment), query, hash: to.hash, replace: true }
+      }
+    } else if (to.path === '/') {
+      // Old-style `/?city=x` deep links land on that city's home, not the gateway.
+      return { path: `/${segment}`, query, hash: to.hash, replace: true }
+    }
+    return { path: to.path, query, hash: to.hash, replace: true }
   }
 
   const hasToken = !!authStore.token
@@ -250,6 +323,16 @@ router.beforeEach(async (to) => {
   if (requiresTeacher) {
     const isAllowed = authStore.isTeacher || !!authStore.user?.is_staff
     if (!isAllowed) return { path: '/dashboard' }
+  }
+
+  // Writes need a concrete city. In all-cities mode no X-City is sent, so the
+  // API would silently file the record under City.get_default() — send the
+  // user to the gateway to pick a city instead of guessing one for them.
+  if (
+    to.params.citySlug === ALL_SEGMENT &&
+    to.matched.some((record) => record.meta.requiresConcreteCity)
+  ) {
+    return { path: '/', replace: true }
   }
 
   return true

@@ -13,6 +13,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import MapContainer from '../components/map/MapContainer.vue'
 import { useCityStore } from '@/stores/city'
+import { useCityPath } from '@/composables/useCityPath'
 import AppCard from '../components/common/AppCard.vue'
 import AppButton from '../components/common/AppButton.vue'
 import BaseSpinner from '../components/common/BaseSpinner.vue'
@@ -32,7 +33,13 @@ interface HeritageMarker {
 const { t } = useI18n()
 const router = useRouter()
 const cityStore = useCityStore()
-const cityName = computed(() => cityStore.activeCity?.name ?? 'Riobamba')
+const { citySegment, cityPath } = useCityPath()
+// Offline/older-backend fallback: derive a readable name from the URL slug.
+const cityName = computed(
+  () =>
+    cityStore.activeCity?.name ??
+    citySegment.value.charAt(0).toUpperCase() + citySegment.value.slice(1)
+)
 // Per-city hero when the city has one; the bundled asset is the fallback.
 const heroImage = computed(() => cityStore.heroImageUrl || '/img/main_hero.jpg')
 const markers = ref<HeritageMarker[]>([])
@@ -107,7 +114,7 @@ const loadHeritageItems = async () => {
 
 const goToHeritage = (marker: HeritageMarker) => {
   if (marker.id) {
-    router.push(`/heritage/${marker.id}`)
+    router.push(cityPath(`/heritage/${marker.id}`))
   }
 }
 
@@ -132,8 +139,9 @@ onMounted(() => {
           <h1 class="text-4xl md:text-5xl font-display font-bold mb-6 leading-tight">
             {{ t('home.hero.title', { city: cityName }) }}
           </h1>
+          <!-- Per-city voice: the city's own (translated) description when set. -->
           <p class="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed font-light">
-            {{ t('home.hero.subtitle') }}
+            {{ cityStore.activeCity?.description || t('home.hero.subtitle') }}
           </p>
           <div class="mt-8 flex rounded-md shadow-2xl">
             <div class="relative flex-1 min-w-0 focus-within:z-10">
@@ -149,10 +157,10 @@ onMounted(() => {
             </button>
           </div>
           <div class="flex flex-wrap gap-4 mt-8">
-            <AppButton size="lg" variant="primary" class="!px-8 !py-4 !text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all" @click="router.push('/explore')">
+            <AppButton size="lg" variant="primary" class="!px-8 !py-4 !text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all" @click="router.push(cityPath('/explore'))">
               {{ t('home.cta.explore') }}
             </AppButton>
-            <AppButton size="lg" variant="ghost" class="!bg-white/10 !text-white !border-white/20 hover:!bg-white/20 !px-8 !py-4 !text-lg backdrop-blur-sm" @click="router.push('/contribute')">
+            <AppButton size="lg" variant="ghost" class="!bg-white/10 !text-white !border-white/20 hover:!bg-white/20 !px-8 !py-4 !text-lg backdrop-blur-sm" @click="router.push(cityPath('/contribute'))">
               {{ t('home.cta.contribute') }}
             </AppButton>
           </div>
@@ -250,7 +258,7 @@ onMounted(() => {
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <AppCard hoverable class="cursor-pointer" @click="router.push('/learn')">
+        <AppCard hoverable class="cursor-pointer" @click="router.push(cityPath('/learn'))">
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
@@ -264,7 +272,7 @@ onMounted(() => {
           </div>
         </AppCard>
 
-        <AppCard hoverable class="cursor-pointer" @click="router.push('/explore')">
+        <AppCard hoverable class="cursor-pointer" @click="router.push(cityPath('/explore'))">
           <div class="text-center">
             <div class="w-16 h-16 bg-secondary-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-secondary-600" fill="currentColor" viewBox="0 0 20 20">
@@ -278,7 +286,7 @@ onMounted(() => {
           </div>
         </AppCard>
 
-        <AppCard hoverable class="cursor-pointer" @click="router.push('/contribute')">
+        <AppCard hoverable class="cursor-pointer" @click="router.push(cityPath('/contribute'))">
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-primary-600" fill="currentColor" viewBox="0 0 20 20">

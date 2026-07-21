@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCityStore } from '@/stores/city'
+import { useCityPath } from '@/composables/useCityPath'
+import { ALL_SEGMENT, segmentForSlug, swapCitySegment } from '@/router/cityContext'
 import { ALL_CITIES } from '@/services/api'
 import NotificationBell from '@/components/notifications/NotificationBell.vue'
 import { useI18n } from 'vue-i18n'
@@ -11,34 +13,81 @@ const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)
 const authStore = useAuthStore()
 const cityStore = useCityStore()
+const route = useRoute()
+const { cityPath } = useCityPath()
 const { t, locale } = useI18n()
+
+// The gateway (/) is the platform front page: no city context, so no city
+// nav or switcher — only brand, language and auth. The same applies when the
+// URL names a city that does not exist: the shell renders a 404 there, and
+// city links built from that slug would just be more 404s.
+const isGateway = computed(() => route.name === 'gateway')
+const isUnknownCity = computed(() => {
+  const segment = route.params.citySlug
+  if (typeof segment !== 'string' || !segment) return false
+  if (segment === ALL_SEGMENT) return false
+  if (!cityStore.loaded || cityStore.cities.length === 0) return false
+  return !cityStore.cities.some((c) => c.slug === segment)
+})
+/** No usable city context: suppress city nav, switcher and logo. */
+const noCityContext = computed(() => isGateway.value || isUnknownCity.value)
 
 const onCityChange = (event: Event) => {
   const slug = (event.target as HTMLSelectElement).value
-  cityStore.setCity(slug)
+  const segment = segmentForSlug(slug)
+  // Where the switch lands is declared by the route (meta.cityScope), not
+  // inferred from the shape of its params:
+  //   generic city page → keep the subpath, query and hash
+  //   entity page (:id belongs to one city) → the new city's home
+  //   unprefixed account/management page → stay put (target stays undefined,
+  //     and the store reloads the current location with the new scope)
+  const onCityRoute = typeof route.params.citySlug === 'string' && !!route.params.citySlug
+  let target: string | undefined
+  if (onCityRoute) {
+    const scope = route.matched.reduce<string | undefined>(
+      (acc, record) => (record.meta.cityScope as string | undefined) ?? acc,
+      undefined
+    )
+    // route.fullPath minus route.path is exactly '?query#hash'.
+    const suffix = route.fullPath.slice(route.path.length)
+    target =
+      scope === 'entity' ? `/${segment}` : swapCitySegment(route.path, segment) + suffix
+  }
+  cityStore.setCity(slug, target)
 }
 
 // Single source of truth for the primary nav, rendered in both the desktop bar
 // and the mobile menu — no more two hand-maintained copies that drift apart.
+// Content links carry the city prefix (current route's city, else the
+// persisted one); account/management links stay unprefixed.
 interface NavLink {
   to: string
   labelKey: string
   visible?: () => boolean
 }
-const primaryNav: NavLink[] = [
-  { to: '/', labelKey: 'nav.home' },
-  { to: '/explore', labelKey: 'nav.explore' },
-  { to: '/routes', labelKey: 'nav.routes' },
-  { to: '/learn', labelKey: 'nav.learn' },
-  { to: '/contribute', labelKey: 'nav.contribute' },
+// City-scoped content links: meaningless on the gateway, which has no city.
+const contentNav = computed<NavLink[]>(() => [
+  { to: cityPath(''), labelKey: 'nav.home' },
+  { to: cityPath('/explore'), labelKey: 'nav.explore' },
+  { to: cityPath('/routes'), labelKey: 'nav.routes' },
+  { to: cityPath('/learn'), labelKey: 'nav.learn' },
+  { to: cityPath('/contribute'), labelKey: 'nav.contribute' },
+])
+// Management links are unprefixed and need no city, so they stay reachable
+// everywhere — including the gateway, which is where the brand logo and the
+// 404 page send people.
+const manageNav = computed<NavLink[]>(() => [
   { to: '/moderation', labelKey: 'nav.moderation', visible: () => !!(authStore.isCurator || authStore.user?.is_staff) },
   { to: '/teach', labelKey: 'nav.teach', visible: () => !!(authStore.isTeacher || authStore.user?.is_staff) },
-]
+])
+const primaryNav = computed<NavLink[]>(() =>
+  noCityContext.value ? manageNav.value : [...contentNav.value, ...manageNav.value]
+)
 // Authenticated "My account" links (dropdown on desktop, section on mobile).
-const accountNav: NavLink[] = [
+const accountNav = computed<NavLink[]>(() => [
   { to: '/dashboard', labelKey: 'nav.dashboard' },
-  { to: '/routes/my', labelKey: 'nav.myRoutes' },
-  { to: '/routes/active', labelKey: 'nav.activeRoutes' },
+  { to: cityPath('/routes/my'), labelKey: 'nav.myRoutes' },
+  { to: cityPath('/routes/active'), labelKey: 'nav.activeRoutes' },
   { to: '/my-contributions', labelKey: 'nav.myContributions' },
   { to: '/notifications', labelKey: 'nav.notifications' },
   {
@@ -46,9 +95,9 @@ const accountNav: NavLink[] = [
     labelKey: 'nav.aiUsage',
     visible: () => !!(authStore.isCurator || authStore.user?.is_staff),
   },
-]
-const visiblePrimaryNav = computed(() => primaryNav.filter((l) => !l.visible || l.visible()))
-const visibleAccountNav = computed(() => accountNav.filter((l) => !l.visible || l.visible()))
+])
+const visiblePrimaryNav = computed(() => primaryNav.value.filter((l) => !l.visible || l.visible()))
+const visibleAccountNav = computed(() => accountNav.value.filter((l) => !l.visible || l.visible()))
 
 const LOCALE_STORAGE_KEY = 'hp_locale'
 
@@ -92,7 +141,7 @@ onUnmounted(() => {
         <RouterLink to="/" class="flex items-center space-x-2 md:justify-self-start">
           <!-- C3: the active city's logo, when it has one -->
           <img
-            v-if="cityStore.activeCity?.logo"
+            v-if="!noCityContext && cityStore.activeCity?.logo"
             :src="cityStore.activeCity.logo"
             :alt="cityStore.activeCity.name"
             class="h-8 w-8 rounded object-contain"
@@ -102,7 +151,7 @@ onUnmounted(() => {
           </span>
         </RouterLink>
 
-        <!-- Desktop Navigation -->
+        <!-- Desktop Navigation (content links drop out on the gateway: no city context there) -->
         <div class="hidden md:flex items-center space-x-6 md:justify-self-center">
           <RouterLink
             v-for="link in visiblePrimaryNav"
@@ -117,7 +166,7 @@ onUnmounted(() => {
         <!-- Auth Buttons / User Menu -->
         <div class="hidden md:flex items-center space-x-3 md:justify-self-end">
           <!-- City Switcher (only when the platform hosts more than one city) -->
-          <div v-if="cityStore.hasMultipleCities" class="flex items-center border-r border-gray-300 pr-3 mr-2">
+          <div v-if="!noCityContext && cityStore.hasMultipleCities" class="flex items-center border-r border-gray-300 pr-3 mr-2">
             <select
               :value="cityStore.switcherValue"
               @change="onCityChange"
@@ -193,14 +242,14 @@ onUnmounted(() => {
 
                 <!-- My Items -->
                 <RouterLink
-                  to="/routes/my"
+                  :to="cityPath('/routes/my')"
                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
                   @click="userDropdownOpen = false"
                 >
                   {{ t('nav.myRoutes') }}
                 </RouterLink>
                 <RouterLink
-                  to="/routes/active"
+                  :to="cityPath('/routes/active')"
                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
                   @click="userDropdownOpen = false"
                 >
@@ -286,7 +335,7 @@ onUnmounted(() => {
       <!-- Mobile Menu -->
       <div v-if="mobileMenuOpen" class="md:hidden mt-4 pb-4 space-y-3">
         <div
-          v-if="cityStore.hasMultipleCities"
+          v-if="!noCityContext && cityStore.hasMultipleCities"
           class="px-2 pb-2 mb-2 border-b border-gray-100 flex items-center space-x-3"
         >
           <span class="text-gray-500 font-medium text-sm">{{ t('common.citySwitcher') }}:</span>

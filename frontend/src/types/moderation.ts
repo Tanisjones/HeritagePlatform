@@ -1,3 +1,5 @@
+import type { CityRef } from './city';
+
 export interface PaginatedResponse<T> {
   count: number;
   next: string | null;
@@ -137,6 +139,9 @@ export interface CuratorHeritageItem {
   title?: string;
   description?: string;
   status?: string;
+  /** Owning city (HeritageItemDetailSerializer.city) — the item's own city,
+   *  which is not necessarily the curator's active one. */
+  city?: CityRef | null;
   address?: string;
   historical_period?: string | null;
   heritage_type?: { name?: string } | null;

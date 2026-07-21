@@ -5,9 +5,11 @@ import { useI18n } from 'vue-i18n';
 import AppCard from '@/components/common/AppCard.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import { useRouter } from 'vue-router'
+import { useCityPath } from '@/composables/useCityPath'
 
 const { t } = useI18n();
 const router = useRouter()
+const { cityPath } = useCityPath()
 const currentStep = ref(1);
 
 const handleStepChange = (step: number) => {
@@ -27,7 +29,7 @@ const handleStepChange = (step: number) => {
             {{ t('routesUi.createRouteDesc') }}
           </p>
         </div>
-        <AppButton @click="router.push('/routes/new')">{{ t('routesUi.createRoute') }}</AppButton>
+        <AppButton @click="router.push(cityPath('/routes/new'))">{{ t('routesUi.createRoute') }}</AppButton>
       </div>
     </AppCard>
 

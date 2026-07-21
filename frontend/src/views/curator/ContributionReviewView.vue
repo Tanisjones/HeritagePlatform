@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { aiService, curatorService } from '@/services/api'
 import { useAIAvailability } from '@/services/aiAvailability'
 import { useAiError } from '@/composables/useAiError'
+import { useCityPath } from '@/composables/useCityPath'
 import { parsePoint } from '@/utils/geo'
 import { extractApiError } from '@/utils/apiError'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -25,6 +26,7 @@ import FlagContributionModal from '@/components/moderation/FlagContributionModal
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const { cityPathFor } = useCityPath()
 const id = computed(() => route.params.id as string)
 
 const parsedLocation = computed<[number, number] | null>(() =>
@@ -260,7 +262,7 @@ onMounted(() => {
                      category: detail.heritage_item.heritage_category?.name,
                      image: detail.heritage_item.images?.[0]?.file
                    }]"
-                   @view-details="(m) => m.id && router.push(`/heritage/${m.id}`)"
+                   @view-details="(m) => m.id && router.push(cityPathFor(detail?.heritage_item?.city?.slug, `/heritage/${m.id}`))"
                  />
                  <div v-else class="flex items-center justify-center h-full bg-gray-50 text-gray-500">
                    {{ t('curatorReview.metadataLocation.invalidCoordinates') }}

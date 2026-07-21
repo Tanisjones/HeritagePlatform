@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { lessonPlanService, curriculumService } from '@/services/api'
 import { useCityStore } from '@/stores/city'
+import { useCityPath } from '@/composables/useCityPath'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { unwrapResults } from '@/utils/pagination'
 import { useConfirm, useToast } from '@/composables/useDialogs'
@@ -20,6 +21,7 @@ const { t } = useI18n()
 const { confirm } = useConfirm()
 const toast = useToast()
 const cityStore = useCityStore()
+const { citySegment } = useCityPath()
 const { loading, error, run } = useAsyncAction()
 
 const plans = ref<LessonPlan[]>([])
@@ -223,7 +225,7 @@ onMounted(() => {
             v-if="plan.status === 'published'"
             size="sm"
             variant="ghost"
-            @click="router.push({ name: 'lesson-plan-detail', params: { id: plan.id } })"
+            @click="router.push({ name: 'lesson-plan-detail', params: { id: plan.id, citySlug: plan.city?.slug || citySegment } })"
           >
             {{ t('lessonPlans.viewPublic') }}
           </AppButton>

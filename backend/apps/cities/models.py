@@ -17,12 +17,37 @@ from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
 
+# First URL segments the SPA claims for itself (/<slug> is a city landing;
+# static routes and the 'all' pseudo-city always win, so a city with one of
+# these slugs would be unreachable).
+RESERVED_CITY_SLUGS = frozenset({
+    # SPA top-level routes
+    'all', 'login', 'register', 'dashboard', 'profile', 'progress',
+    'my-contributions', 'notifications', 'moderation', 'admin', 'teach',
+    'explore', 'routes', 'heritage', 'education', 'learn', 'contribute',
+    # Backend-owned prefixes (nginx proxies these to Django)
+    'api', 'static', 'media',
+    # Directories in the built frontend: nginx's `try_files $uri $uri/`
+    # resolves a real directory before the SPA fallback, so a city named
+    # after one of these 403s instead of rendering its landing page.
+    'assets', 'icons', 'img',
+})
+
+
+def validate_city_slug(value):
+    if value in RESERVED_CITY_SLUGS:
+        raise ValidationError(
+            _('"%(value)s" is reserved by the platform and cannot be a city slug.'),
+            params={'value': value},
+        )
+
+
 class City(models.Model):
     """
     A city/municipality hosting its own heritage content on the shared platform.
     """
     name = models.CharField(_('name'), max_length=200)
-    slug = models.SlugField(_('slug'), max_length=100, unique=True)
+    slug = models.SlugField(_('slug'), max_length=100, unique=True, validators=[validate_city_slug])
     description = models.TextField(_('description'), blank=True)
     country = models.CharField(
         _('country code'),
@@ -93,6 +118,15 @@ class City(models.Model):
             raise ValidationError({
                 'timezone': _('Unknown IANA timezone: %(tz)s') % {'tz': self.timezone},
             })
+
+    def save(self, *args, **kwargs):
+        # Field validators only run through full_clean(), i.e. admin forms and
+        # DRF serializers — and CityViewSet is read-only. Every city the
+        # platform actually creates comes from seed_city, bootstrap_city, a
+        # data migration or loaddata, all of which call save() directly, so
+        # enforce the reserved-slug rule here or it never runs.
+        validate_city_slug(self.slug)
+        super().save(*args, **kwargs)
 
     @classmethod
     def get_default(cls):

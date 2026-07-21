@@ -1514,10 +1514,18 @@
     "emptyUnread": "You have no unread notifications",
     "emptyAll": "You have no notifications yet"
   },
-  "cityPicker": {
-    "title": "Which city do you want to explore?",
-    "subtitle": "This platform gathers the heritage of several cities. Pick one to start — you can switch anytime from the header.",
+  "gateway": {
+    "tagline": "A participatory platform that gathers, preserves and teaches the cultural heritage of our cities. Pick a city to start exploring.",
     "exploreAll": "Explore all cities",
-    "keepCurrent": "Continue with {city}"
+    "loading": "Loading cities…",
+    "loadError": "The city list could not be loaded. Check your connection and try again."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "message": "The page you are looking for does not exist, or that city is not on the platform.",
+    "backHome": "Back to the front page"
+  },
+  "cityShell": {
+    "catalogError": "The city list could not be loaded, so we cannot confirm which city you are viewing. Please try again."
   }
 }

@@ -13,6 +13,7 @@
  */
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useCityStore } from '@/stores/city';
+import { useCityPath } from '@/composables/useCityPath';
 import type { HeritageItem, HeritageItemContribution, Parish, HeritageType, HeritageCategory } from '@/types/heritage';
 import api, { aiService } from '@/services/api';
 import { useAIAvailability } from '@/services/aiAvailability'
@@ -34,6 +35,7 @@ import { useRouter } from 'vue-router';
 // --- State ---
 const { t, locale } = useI18n();
 const router = useRouter();
+const { cityPath } = useCityPath();
 const toast = useToast();
 const emit = defineEmits(['step-change']);
 
@@ -841,7 +843,7 @@ const compactValid = computed(() =>
           {{ t('contribution.successPage.submitAnother') }}
         </button>
         <button
-          @click="router.push('/')"
+          @click="router.push(cityPath(''))"
           class="px-6 py-3 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 font-bold transition"
         >
           {{ t('contribution.successPage.goHome') }}

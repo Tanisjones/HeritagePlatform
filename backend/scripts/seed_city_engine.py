@@ -274,16 +274,67 @@ def create_city_data(city_module, *, download_remote_media: bool = True):
     # Maintain backward compatibility for script usage
     test_user = test_contributor_user
 
+    def download_image(url, timeout=15):
+        if not download_remote_media:
+            return None
+        if requests is None:
+            print("`requests` is not installed; skipping remote media downloads.")
+            return None
+        try:
+            print(f"Downloading image from {url}...")
+            # Wikimedia (where the city datasets point) rejects the default
+            # python-requests User-Agent with 403 — send a descriptive one.
+            response = requests.get(
+                url,
+                timeout=timeout,
+                headers={
+                    'User-Agent': (
+                        'HeritagePlatformSeeder/1.0 '
+                        '(participatory heritage platform; demo-data seeding)'
+                    )
+                },
+            )
+            if response.status_code == 200:
+                # Be polite to Wikimedia between sequential downloads — burst
+                # requests from one IP get 429-throttled quickly.
+                time.sleep(2)
+                return ContentFile(response.content)
+            print(f"Download failed ({response.status_code}) for {url}")
+        except Exception as e:
+            print(f"Failed to download image: {e}")
+        return None
+
     # --- City (from the data module) -----------------------------------------
     from apps.cities.models import City, CityRole
 
     city_def = dict(city_module.CITY)
     city_slug = city_def.pop("slug")
     lng, lat = city_def.pop("center")
+    hero_image_url = city_def.pop("hero_image_url", None)  # not a model field
     city, _ = City.objects.get_or_create(
         slug=city_slug,
         defaults={**city_def, "center": Point(lng, lat, srid=4326)},
     )
+    # Branding fill-in for pre-existing rows (get_or_create only applies
+    # defaults on creation): set only fields that are still blank, so a
+    # re-seed populates branding without clobbering admin edits.
+    branding_dirty = False
+    for field in ("brand_color", "description", "description_en"):
+        value = city_def.get(field)
+        if value and not getattr(city, field, ""):
+            setattr(city, field, value)
+            branding_dirty = True
+    # Branding is best-effort, and the backend entrypoint re-runs this seeder
+    # on every container start — a failed download leaves hero_image blank, so
+    # the attempt repeats on every boot ahead of gunicorn binding. Keep that
+    # worst case short rather than paying the full media timeout each time.
+    if hero_image_url and not city.hero_image:
+        hero_content = download_image(hero_image_url, timeout=5)
+        if hero_content:
+            city.hero_image.save(f"{city_slug}_hero.jpg", hero_content, save=False)
+            branding_dirty = True
+    if branding_dirty:
+        city.save()
     # Demo per-city governance: the seeded test curator moderates this city.
     CityRole.objects.get_or_create(
         user=test_curator_user, city=city, role=CityRole.ROLE_CURATOR
@@ -351,36 +402,6 @@ def create_city_data(city_module, *, download_remote_media: bool = True):
 
     dummy_png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
     
-    def download_image(url):
-        if not download_remote_media:
-            return None
-        if requests is None:
-            print("`requests` is not installed; skipping remote media downloads.")
-            return None
-        try:
-            print(f"Downloading image from {url}...")
-            # Wikimedia (where the city datasets point) rejects the default
-            # python-requests User-Agent with 403 — send a descriptive one.
-            response = requests.get(
-                url,
-                timeout=15,
-                headers={
-                    'User-Agent': (
-                        'HeritagePlatformSeeder/1.0 '
-                        '(participatory heritage platform; demo-data seeding)'
-                    )
-                },
-            )
-            if response.status_code == 200:
-                # Be polite to Wikimedia between sequential downloads — burst
-                # requests from one IP get 429-throttled quickly.
-                time.sleep(2)
-                return ContentFile(response.content)
-            print(f"Download failed ({response.status_code}) for {url}")
-        except Exception as e:
-            print(f"Failed to download image: {e}")
-        return None
-
     def get_sample_content(file_type_key):
         """Reads content from local sample files if they exist."""
         path = SAMPLE_FILES_PATHS.get(file_type_key)

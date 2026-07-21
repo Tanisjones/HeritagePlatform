@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { useCityPath } from '@/composables/useCityPath';
 import api from '@/services/api';
 import { apiBaseUrl, resolveMediaUrl } from '@/utils/apiUrl';
 import type { HeritageItem } from '@/types/heritage';
@@ -18,6 +19,7 @@ const { t, te, locale } = useI18n();
 const { lom: translateLom } = useLomLabels();
 const route = useRoute();
 const authStore = useAuthStore();
+const { cityPath } = useCityPath();
 
 // Curators, teachers and staff can author the educational (LOM) layer inline.
 const canEditLom = computed(() =>
@@ -305,7 +307,7 @@ onMounted(fetchHeritageItem);
                 <router-link
                   v-for="tag in item.tags || []"
                   :key="tag"
-                  :to="{ path: '/explore', query: { tag } }"
+                  :to="{ path: cityPath('/explore'), query: { tag } }"
                   class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold tracking-wide hover:bg-gray-200"
                 >
                   #{{ tag }}
@@ -595,7 +597,7 @@ onMounted(fetchHeritageItem);
                 <span class="text-gray-500">→</span>
                 <router-link
                   v-if="rel.target_heritage_item"
-                  :to="`/heritage/${rel.target_heritage_item}`"
+                  :to="cityPath(`/heritage/${rel.target_heritage_item}`)"
                   class="text-primary-600 hover:text-primary-800 font-medium"
                 >
                   {{ rel.target_heritage_item }}
@@ -688,7 +690,7 @@ onMounted(fetchHeritageItem);
     <div v-else class="text-center py-20">
       <h2 class="text-2xl font-display font-bold text-gray-900">{{ t('heritage.detail.notFound') }}</h2>
       <p class="text-gray-500 mt-2">{{ t('heritage.detail.notFoundDesc') }}</p>
-       <router-link to="/explore" class="inline-block mt-6 text-primary-600 hover:text-primary-800 font-medium">
+       <router-link :to="cityPath('/explore')" class="inline-block mt-6 text-primary-600 hover:text-primary-800 font-medium">
         &larr; {{ t('heritage.detail.backToExplore') }}
       </router-link>
     </div>

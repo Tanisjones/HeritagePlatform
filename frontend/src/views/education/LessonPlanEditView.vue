@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useCityStore } from '@/stores/city'
+import { useCityPath } from '@/composables/useCityPath'
 import { lessonPlanService, aiService, educationService, curriculumService, routeService } from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useToast, useConfirm } from '@/composables/useDialogs'
@@ -24,6 +25,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const cityStore = useCityStore()
+const { citySegment } = useCityPath()
 const toast = useToast()
 const { confirm } = useConfirm()
 const { applyAIError } = useAiError()
@@ -33,6 +35,7 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 
 const planId = computed(() => (route.params.id ? String(route.params.id) : null))
+const planCitySlug = ref<string | null>(null)
 const isNew = computed(() => !planId.value)
 
 const ACTIVITY_TYPES: LessonActivityType[] = ['hook', 'explore', 'explain', 'practice', 'assess', 'reflect']
@@ -120,6 +123,10 @@ function unlinkRoute() {
 }
 
 function hydrate(plan: LessonPlan) {
+  // The plan's own city, not the editor's browsing context: a teacher editing
+  // a Tarragona plan while their persisted city is Riobamba must still get
+  // Tarragona links out of this page.
+  planCitySlug.value = plan.city?.slug ?? null
   form.title = plan.title
   form.summary = plan.summary || ''
   form.subject = plan.subject || ''
@@ -575,7 +582,7 @@ onMounted(load)
             size="sm"
             variant="ghost"
             class="ml-auto"
-            @click="router.push({ name: 'lesson-plan-class', params: { id: planId as string } })"
+            @click="router.push({ name: 'lesson-plan-class', params: { id: planId as string, citySlug: planCitySlug || citySegment } })"
           >
             {{ t('lessonPlans.classMode.open') }}
           </AppButton>

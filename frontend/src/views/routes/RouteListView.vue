@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoutesStore } from '@/stores/routes'
 import { useAuthStore } from '@/stores/auth'
+import { useCityPath } from '@/composables/useCityPath'
 import { useGeolocation } from '@/composables/useGeolocation'
 import RouteFilters from '@/components/routes/RouteFilters.vue'
 import RouteCard from '@/components/routes/RouteCard.vue'
@@ -14,6 +15,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 const { t } = useI18n()
 const routesStore = useRoutesStore()
 const authStore = useAuthStore()
+const { cityPath } = useCityPath()
 const { lngLat, isSupported, error: geoError, start, stop } = useGeolocation()
 
 const filters = ref<Record<string, any>>({})
@@ -85,7 +87,7 @@ onMounted(load)
         <AppButton size="sm" variant="secondary" :loading="locating" @click="findNearby">
           {{ t('routesUi.nearby.button') }}
         </AppButton>
-        <router-link v-if="authStore.isAuthenticated" to="/routes/new">
+        <router-link v-if="authStore.isAuthenticated" :to="cityPath('/routes/new')">
           <AppButton size="sm">{{ t('routesUi.createRoute') }}</AppButton>
         </router-link>
       </div>

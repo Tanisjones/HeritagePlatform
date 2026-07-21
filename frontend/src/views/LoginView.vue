@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { authService } from '../services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useCityPath } from '@/composables/useCityPath'
+import { CITY_STORAGE_KEY } from '@/services/api'
 import { extractApiError } from '@/utils/apiError'
 import AppButton from '../components/common/AppButton.vue'
 import AppCard from '../components/common/AppCard.vue'
@@ -12,6 +14,7 @@ const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const { cityPath } = useCityPath()
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -41,7 +44,10 @@ const handleLogin = async () => {
     const user = response.data.user
     authStore.setAuth(token, user)
     
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    // No explicit redirect: land on the persisted city's home, or the
+    // platform gateway when nothing was ever picked.
+    const fallback = localStorage.getItem(CITY_STORAGE_KEY) ? cityPath('') : '/'
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : fallback
     router.push(redirect)
   } catch (err) {
     console.error('Login error:', err)

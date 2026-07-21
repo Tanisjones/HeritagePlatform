@@ -12,8 +12,10 @@ vi.stubGlobal('localStorage', {
 })
 
 const listMock = vi.fn()
+const setRequestCityMock = vi.fn()
 vi.mock('@/services/api', () => ({
   cityService: { list: (...args: unknown[]) => listMock(...args) },
+  setRequestCity: (...args: unknown[]) => setRequestCityMock(...args),
   CITY_STORAGE_KEY: 'hp_city',
   ALL_CITIES: '__all__',
 }))
@@ -49,6 +51,30 @@ describe('city store', () => {
     expect(localStorage.getItem('hp_city')).toBe('riobamba')
   })
 
+  it('shares one request between concurrent callers', async () => {
+    // App.vue, CityShellView and GatewayView all call load() on first paint,
+    // and `loaded` only flips after the await — without a shared in-flight
+    // promise that is three identical GET /cities/ on every cold load.
+    listMock.mockResolvedValue({ data: CITIES })
+    const store = useCityStore()
+    await Promise.all([store.load(), store.load(), store.load()])
+    expect(listMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('records a catalog failure so callers can offer a retry', async () => {
+    listMock.mockRejectedValue(new Error('offline'))
+    const store = useCityStore()
+    await store.load()
+    expect(store.loaded).toBe(false)
+    expect(store.loadError).toBe(true)
+    // A failed load must stay retryable — the gateway is the app's front door.
+    listMock.mockResolvedValue({ data: CITIES })
+    await store.load()
+    expect(store.loaded).toBe(true)
+    expect(store.loadError).toBe(false)
+    expect(listMock).toHaveBeenCalledTimes(2)
+  })
+
   it('self-heals a stale persisted slug', async () => {
     localStorage.setItem('hp_city', 'ghost-town')
     listMock.mockResolvedValue({ data: CITIES })
@@ -77,11 +103,42 @@ describe('city store', () => {
     expect(localStorage.getItem('hp_city')).toBe('cuenca')
   })
 
-  it('adoptSlug persists a deep-linked city without reloading', async () => {
+  it('adoptSlug scopes this tab to the URL city WITHOUT persisting it', async () => {
+    // Browsing a city is not choosing one. hp_city is shared by every tab, so
+    // writing it here would let two tabs on two cities overwrite each other's
+    // scope, and would silently re-point the account pages of anyone who
+    // follows a cross-city link.
+    localStorage.setItem('hp_city', 'riobamba')
+    setActivePinia(createPinia())
     const store = useCityStore()
-    store.adoptSlug('cuenca')
-    expect(localStorage.getItem('hp_city')).toBe('cuenca')
+    await store.adoptSlug('cuenca')
     expect(store.activeCitySlug).toBe('cuenca')
+    expect(localStorage.getItem('hp_city')).toBe('riobamba')
+    expect(setRequestCityMock).toHaveBeenLastCalledWith('cuenca')
+  })
+
+  it('releases the URL city on leaving the shell, falling back to the chosen one', async () => {
+    localStorage.setItem('hp_city', 'riobamba')
+    setActivePinia(createPinia())
+    const store = useCityStore()
+    await store.adoptSlug('cuenca')
+    store.releaseUrlCity()
+    expect(store.activeCitySlug).toBe('riobamba')
+    expect(setRequestCityMock).toHaveBeenLastCalledWith(null)
+  })
+
+  it('setCity persists the explicit choice', async () => {
+    const store = useCityStore()
+    const assign = vi.fn()
+    vi.spyOn(window, 'location', 'get').mockReturnValue({
+      pathname: '/moderation', search: '', hash: '', assign,
+    } as unknown as Location)
+    await store.setCity('cuenca')
+    expect(localStorage.getItem('hp_city')).toBe('cuenca')
+    // No targetPath → stay exactly where the user is (the old reload()
+    // behaviour), so switching city on /moderation does not eject them.
+    expect(assign).toHaveBeenCalledWith('/moderation')
+    vi.restoreAllMocks()
   })
 
   it('treats the all-cities sentinel as known and unsets the active city (C1)', async () => {
@@ -97,20 +154,4 @@ describe('city store', () => {
     expect(store.switcherValue).toBe('__all__')
   })
 
-  it('captures first-visit state before load persists a default (C2)', async () => {
-    listMock.mockResolvedValue({ data: CITIES })
-    const store = useCityStore()
-    expect(store.firstVisit).toBe(true)
-    await store.load()
-    // load() persisted a default, but the first-visit capture predates it.
-    expect(localStorage.getItem('hp_city')).toBe('riobamba')
-    expect(store.firstVisit).toBe(true)
-  })
-
-  it('is not a first visit when a slug was already persisted (C2)', async () => {
-    localStorage.setItem('hp_city', 'cuenca')
-    setActivePinia(createPinia())
-    const store = useCityStore()
-    expect(store.firstVisit).toBe(false)
-  })
 })

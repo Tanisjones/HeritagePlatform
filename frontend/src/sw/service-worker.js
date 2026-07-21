@@ -22,11 +22,17 @@ cleanupOutdatedCaches()
 // SPA navigation fallback to index.html — but NEVER for backend-owned paths
 // (Django admin, API, static/media), which nginx proxies to the backend.
 // Without the denylist the fallback serves the SPA shell for /admin/.
-const BACKEND_PATH_PREFIXES = ['/admin', '/api', '/static', '/media']
+//
+// Match whole path segments, not raw prefixes: city slugs are top-level URL
+// segments now, so a bare startsWith('/media') would also swallow a perfectly
+// valid city like /mediana-de-aragon and break it offline.
+const BACKEND_PATH_SEGMENTS = ['admin', 'api', 'static', 'media']
+const isBackendPath = (pathname) =>
+  BACKEND_PATH_SEGMENTS.some(
+    (segment) => pathname === `/${segment}` || pathname.startsWith(`/${segment}/`),
+  )
 registerRoute(
-  ({ request, url }) =>
-    request.mode === 'navigate' &&
-    !BACKEND_PATH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix)),
+  ({ request, url }) => request.mode === 'navigate' && !isBackendPath(url.pathname),
   createHandlerBoundToURL('/index.html'),
 )
 

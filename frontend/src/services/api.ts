@@ -18,6 +18,21 @@ export const CITY_STORAGE_KEY = 'hp_city';
  * documented no-city-context behavior) and cards show city badges. */
 export const ALL_CITIES = '__all__';
 
+/**
+ * Per-tab city scope, set by CityShellView from the URL.
+ *
+ * `hp_city` is shared by every tab, so browsing a city URL must not write it:
+ * two tabs on two cities would otherwise fight over one key and each would
+ * send the other's X-City. This module-level override is per-document, so the
+ * scope always follows the URL in the tab making the request, while the
+ * persisted key keeps holding the city the user explicitly *chose* (used by
+ * the unprefixed account pages).
+ */
+let requestCitySlug: string | null = null;
+export function setRequestCity(slug: string | null) {
+  requestCitySlug = slug;
+}
+
 /** Login/register request bodies (the API returns `{ tokens, user }`). */
 export interface LoginCredentials {
   email: string;
@@ -51,8 +66,9 @@ api.interceptors.request.use(config => {
   headers.set('Accept-Language', locale);
 
   // Active-city scope: list endpoints filter by it, writes are assigned to it.
-  // The all-cities sentinel sends NO header → deliberately unscoped requests.
-  const citySlug = localStorage.getItem(CITY_STORAGE_KEY);
+  // The URL's city (per-tab) wins over the persisted choice; the all-cities
+  // sentinel sends NO header → deliberately unscoped requests.
+  const citySlug = requestCitySlug ?? localStorage.getItem(CITY_STORAGE_KEY);
   if (citySlug && citySlug !== ALL_CITIES) {
     headers.set('X-City', citySlug);
   }

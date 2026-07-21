@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
+import { useCityPath } from '@/composables/useCityPath';
 import api from '@/services/api';
 import BaseSpinner from '@/components/common/BaseSpinner.vue';
 import ErrorBanner from '@/components/common/ErrorBanner.vue';
@@ -39,6 +40,7 @@ interface DashboardData {
 
 const authStore = useAuthStore();
 const router = useRouter();
+const { cityPath } = useCityPath();
 const { t, locale } = useI18n();
 const dashboardData = ref<DashboardData | null>(null);
 const loading = ref(true);
@@ -231,7 +233,7 @@ onMounted(() => {
         <h3 class="text-xl font-bold text-gray-900 mb-4">{{ t('dashboard.quickActions') }}</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <router-link
-            to="/contribute"
+            :to="cityPath('/contribute')"
             class="flex flex-col items-center p-4 border-2 border-primary-200 rounded-lg hover:bg-primary-50 transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-primary-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -240,7 +242,7 @@ onMounted(() => {
             <span class="font-medium text-gray-900">{{ t('dashboard.actions.addContribution') }}</span>
           </router-link>
           <router-link
-            to="/explore"
+            :to="cityPath('/explore')"
             class="flex flex-col items-center p-4 border-2 border-green-200 rounded-lg hover:bg-green-50 transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -249,7 +251,7 @@ onMounted(() => {
             <span class="font-medium text-gray-900">{{ t('dashboard.actions.exploreMap') }}</span>
           </router-link>
           <router-link
-            to="/learn"
+            :to="cityPath('/learn')"
             class="flex flex-col items-center p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -258,7 +260,7 @@ onMounted(() => {
             <span class="font-medium text-gray-900">{{ t('dashboard.actions.educationalResources') }}</span>
           </router-link>
           <router-link
-            to="/routes"
+            :to="cityPath('/routes')"
             class="flex flex-col items-center p-4 border-2 border-orange-200 rounded-lg hover:bg-orange-50 transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-orange-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

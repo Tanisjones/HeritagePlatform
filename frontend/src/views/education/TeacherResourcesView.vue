@@ -11,6 +11,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { routeService, teacherService, lessonPlanService, educationService } from '@/services/api';
 import { useCityStore } from '@/stores/city';
+import { useCityPath } from '@/composables/useCityPath';
 import { useAsyncAction } from '@/composables/useAsyncAction';
 import { unwrapResults } from '@/utils/pagination';
 import type { HeritageRoute, LessonPlan, LOMResource } from '@/types/heritage';
@@ -23,6 +24,7 @@ import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 const router = useRouter();
+const { cityPath } = useCityPath();
 const cityStore = useCityStore();
 const { lom: lomLabel } = useLomLabels();
 
@@ -125,7 +127,7 @@ onMounted(() => {
         <RouterLink to="/teach/plans" class="text-primary-700 font-medium hover:underline">
           {{ t('lessonPlans.title') }} →
         </RouterLink>
-        <RouterLink to="/learn" class="text-primary-700 font-medium hover:underline">
+        <RouterLink :to="cityPath('/learn')" class="text-primary-700 font-medium hover:underline">
           {{ t('teach.browseCatalogue') }} →
         </RouterLink>
       </div>
@@ -180,7 +182,7 @@ onMounted(() => {
         <RouterLink
           v-for="res in suggested"
           :key="res.id"
-          to="/learn"
+          :to="cityPath('/learn')"
           class="block bg-white border border-gray-200 rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"
         >
           <h3 class="font-medium text-gray-900 line-clamp-2">{{ res.title }}</h3>

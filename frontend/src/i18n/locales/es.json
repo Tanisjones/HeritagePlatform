@@ -1514,10 +1514,18 @@
     "emptyUnread": "No tienes notificaciones sin leer",
     "emptyAll": "Aún no tienes notificaciones"
   },
-  "cityPicker": {
-    "title": "¿Qué ciudad quieres explorar?",
-    "subtitle": "Esta plataforma reúne el patrimonio de varias ciudades. Elige una para empezar — podrás cambiarla cuando quieras desde la cabecera.",
+  "gateway": {
+    "tagline": "Una plataforma participativa que reúne, preserva y enseña el patrimonio cultural de nuestras ciudades. Elige una ciudad para empezar a explorar.",
     "exploreAll": "Explorar todas las ciudades",
-    "keepCurrent": "Seguir con {city}"
+    "loading": "Cargando ciudades…",
+    "loadError": "No se ha podido cargar el listado de ciudades. Comprueba tu conexión e inténtalo de nuevo."
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "message": "La página que buscas no existe o la ciudad indicada no está en la plataforma.",
+    "backHome": "Volver a la portada"
+  },
+  "cityShell": {
+    "catalogError": "No se ha podido cargar el listado de ciudades, así que no podemos confirmar qué ciudad estás viendo. Inténtalo de nuevo."
   }
 }

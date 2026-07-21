@@ -13,6 +13,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { lessonPlanService } from '@/services/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useCityPath } from '@/composables/useCityPath'
 import type { LessonPlan, LessonActivity } from '@/types/heritage'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -21,6 +22,7 @@ import BaseSpinner from '@/components/common/BaseSpinner.vue'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { cityPathFor } = useCityPath()
 const { loading, error, run } = useAsyncAction()
 
 const plan = ref<LessonPlan | null>(null)
@@ -43,13 +45,18 @@ async function load() {
   })
 }
 
-/** Resolve a link target for an activity's bound content, if any. */
+/**
+ * Resolve a link target for an activity's bound content, if any. The content
+ * belongs to the plan's city, so link into that city rather than whichever
+ * one the reader happens to be browsing.
+ */
 function activityLink(a: LessonActivity): { label: string; to: string } | null {
+  const city = plan.value?.city?.slug
   if (a.heritage_item)
-    return { label: a.heritage_item_title || t('lessonPlans.content.linkedHeritage'), to: `/heritage/${a.heritage_item}` }
-  if (a.route) return { label: a.route_title || t('lessonPlans.content.linkedRoute'), to: `/routes/${a.route}` }
+    return { label: a.heritage_item_title || t('lessonPlans.content.linkedHeritage'), to: cityPathFor(city, `/heritage/${a.heritage_item}`) }
+  if (a.route) return { label: a.route_title || t('lessonPlans.content.linkedRoute'), to: cityPathFor(city, `/routes/${a.route}`) }
   if (a.educational_resource != null)
-    return { label: a.educational_resource_title || t('lessonPlans.content.linkedResource'), to: `/education/${a.educational_resource}` }
+    return { label: a.educational_resource_title || t('lessonPlans.content.linkedResource'), to: cityPathFor(city, `/education/${a.educational_resource}`) }
   return null
 }
 

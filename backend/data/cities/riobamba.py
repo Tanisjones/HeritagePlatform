@@ -27,6 +27,21 @@ CITY = {
     "center": (-78.6479, -1.6735),  # lng, lat
     "default_zoom": 13,
     "default_language": "es",
+    # Per-city branding: landing hero + accent color (the SPA derives its
+    # whole primary palette from this hex). Only filled in when blank, so
+    # admin edits survive a re-seed. `description` is the es (default
+    # language) column — modeltranslation maps it to description_es.
+    "description": (
+        "La Sultana de los Andes: ciudad de las primicias del Ecuador, "
+        "a los pies del Chimborazo, donde la historia colonial y las "
+        "tradiciones andinas siguen vivas."
+    ),
+    "description_en": (
+        "The Sultan of the Andes: Ecuador's city of firsts, at the foot of "
+        "Chimborazo, where colonial history and living Andean traditions meet."
+    ),
+    "brand_color": "#9B2C2C",  # deep Andean brick red
+    "hero_image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ecuador%20Riobamba%20ParqueMaldonada.JPG",
 }
 
 PARISHES = [

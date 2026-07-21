@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useRoutesStore } from '@/stores/routes'
 import { useRouteNavigation } from '@/composables/useRouteNavigation'
+import { useCityPath } from '@/composables/useCityPath'
 import { useConfirm } from '@/composables/useDialogs'
 import { routeService } from '@/services/api'
 import { saveBlob, readBlobError, slugifyFilename } from '@/utils/download'
@@ -26,6 +27,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const routesStore = useRoutesStore()
 const { t } = useI18n()
+const { cityPath } = useCityPath()
 const { confirm } = useConfirm()
 
 const loading = computed(() => routesStore.loading)
@@ -123,7 +125,7 @@ async function onDelete() {
   actionError.value = null
   try {
     await routesStore.deleteRoute(routeId.value)
-    router.push('/routes/my')
+    router.push(cityPath('/routes/my'))
   } catch {
     actionError.value = t('routesUi.builder.deleteError')
   }
@@ -162,9 +164,9 @@ onMounted(load)
     <div class="flex items-center justify-between gap-4">
       <button class="text-sm text-gray-600 hover:text-primary-700" @click="router.back()">← {{ t('routesUi.nav.back') }}</button>
       <div v-if="authStore.isAuthenticated" class="flex items-center gap-2">
-        <router-link to="/routes/my" class="text-sm text-gray-600 hover:text-primary-700">{{ t('routesUi.nav.myRoutes') }}</router-link>
+        <router-link :to="cityPath('/routes/my')" class="text-sm text-gray-600 hover:text-primary-700">{{ t('routesUi.nav.myRoutes') }}</router-link>
         <span class="text-gray-300">•</span>
-        <router-link to="/routes/active" class="text-sm text-gray-600 hover:text-primary-700">{{ t('routesUi.nav.active') }}</router-link>
+        <router-link :to="cityPath('/routes/active')" class="text-sm text-gray-600 hover:text-primary-700">{{ t('routesUi.nav.active') }}</router-link>
       </div>
     </div>
 
